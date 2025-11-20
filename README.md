@@ -1,4 +1,4 @@
-# DailyShopee - Hệ thống Đăng ký & Đăng nhập
+# Đại Lý Shopee - Hệ thống Đăng ký & Đăng nhập
 
 Ứng dụng web đăng ký và đăng nhập được xây dựng với Next.js 14, TypeScript, Tailwind CSS và Neon PostgreSQL.
 

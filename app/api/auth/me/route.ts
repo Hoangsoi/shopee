@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     const users = await sql`
-      SELECT id, email, name, created_at FROM users WHERE id = ${decoded.userId}
+      SELECT id, email, name, role, created_at FROM users WHERE id = ${decoded.userId}
     `;
 
     if (users.length === 0) {
@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
         id: users[0].id,
         email: users[0].email,
         name: users[0].name,
+        role: users[0].role || 'user',
         created_at: users[0].created_at,
       },
     });

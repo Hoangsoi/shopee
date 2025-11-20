@@ -5,8 +5,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin', 'vietnamese'] })
 
 export const metadata: Metadata = {
-  title: 'DailyShopee - Đăng ký & Đăng nhập',
-  description: 'Hệ thống đăng ký và đăng nhập',
+  title: 'Đại Lý Shopee - Đăng ký & Đăng nhập',
+  description: 'Hệ thống đăng ký và đăng nhập cho đại lý Shopee',
 }
 
 export default function RootLayout({

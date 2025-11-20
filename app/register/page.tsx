@@ -9,6 +9,8 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
+    agent_code: '',
     password: '',
     confirmPassword: '',
   })
@@ -20,6 +22,16 @@ export default function RegisterPage() {
     setError('')
 
     // Validation
+    if (!formData.phone || !/^[0-9]{10,11}$/.test(formData.phone)) {
+      setError('Số điện thoại phải có 10-11 chữ số')
+      return
+    }
+
+    if (!formData.agent_code || formData.agent_code.trim() === '') {
+      setError('Mã đại lý không được để trống')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Mật khẩu xác nhận không khớp')
       return
@@ -41,6 +53,8 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          phone: formData.phone,
+          agent_code: formData.agent_code || undefined,
           password: formData.password,
         }),
       })
@@ -48,7 +62,6 @@ export default function RegisterPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Đăng ký thành công, chuyển đến trang đăng nhập
         router.push('/login?registered=true')
       } else {
         setError(data.error || 'Đăng ký thất bại')
@@ -61,115 +74,123 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-4xl font-extrabold text-gray-900">
-            Đăng ký
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Hoặc{' '}
-            <Link
-              href="/login"
-              className="font-medium text-primary-600 hover:text-primary-500"
-            >
-              đăng nhập nếu đã có tài khoản
-            </Link>
-          </p>
+    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center py-8 px-4">
+      <div className="w-full max-w-[400px]">
+        {/* Logo/Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-[#ee4d2d] mb-2">Đại Lý Shopee</h1>
+          <p className="text-sm text-gray-600">Đăng ký</p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
+
+        {/* Form Container */}
+        <div className="bg-white rounded-sm shadow-sm p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Tên */}
             <div>
-              <label htmlFor="name" className="sr-only">
-                Tên
-              </label>
               <input
-                id="name"
-                name="name"
                 type="text"
+                placeholder="Họ và tên"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                placeholder="Tên của bạn"
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
+
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="sr-only">
-                Email
-              </label>
               <input
-                id="email"
-                name="email"
                 type="email"
-                autoComplete="email"
-                required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                 placeholder="Email"
+                required
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
+
+            {/* Số điện thoại */}
             <div>
-              <label htmlFor="password" className="sr-only">
-                Mật khẩu
-              </label>
               <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
+                type="tel"
+                placeholder="Số điện thoại"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                placeholder="Mật khẩu (tối thiểu 6 ký tự)"
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
+                maxLength={11}
+              />
+            </div>
+
+            {/* Mã đại lý */}
+            <div>
+              <input
+                type="text"
+                placeholder="Mã đại lý"
+                required
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+                value={formData.agent_code}
+                onChange={(e) => setFormData({ ...formData, agent_code: e.target.value })}
+              />
+            </div>
+
+            {/* Mật khẩu */}
+            <div>
+              <input
+                type="password"
+                placeholder="Mật khẩu"
+                required
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
             </div>
+
+            {/* Xác nhận mật khẩu */}
             <div>
-              <label htmlFor="confirmPassword" className="sr-only">
-                Xác nhận mật khẩu
-              </label>
               <input
-                id="confirmPassword"
-                name="confirmPassword"
                 type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                 placeholder="Xác nhận mật khẩu"
+                required
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
                 value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               />
             </div>
-          </div>
 
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-800">{error}</div>
-            </div>
-          )}
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm py-2 px-3 rounded-sm">
+                {error}
+              </div>
+            )}
 
-          <div>
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-11 bg-[#ee4d2d] text-white rounded-sm font-medium hover:bg-[#f05d40] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+              {loading ? 'Đang đăng ký...' : 'ĐĂNG KÝ'}
             </button>
+          </form>
+
+          {/* Footer Links */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="text-center text-sm text-gray-600">
+              Bạn đã có tài khoản?{' '}
+              <Link href="/login" className="text-[#ee4d2d] hover:underline">
+                Đăng nhập
+              </Link>
+            </div>
           </div>
-        </form>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 text-center text-xs text-gray-500">
+          <p>Bằng việc đăng ký, bạn đã đồng ý với Điều khoản sử dụng của chúng tôi</p>
+        </div>
       </div>
     </div>
   )
 }
-

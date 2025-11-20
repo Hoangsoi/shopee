@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate": "tsx scripts/migrate-to-neon.ts"
   },
   "dependencies": {
     "next": "^14.0.4",
@@ -28,7 +29,8 @@
     "postcss": "^8.4.32",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.56.0",
-    "eslint-config-next": "^14.0.4"
+    "eslint-config-next": "^14.0.4",
+    "tsx": "^4.7.0"
   }
 }
 

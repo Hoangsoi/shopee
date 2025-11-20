@@ -6,7 +6,7 @@
 2. Click vào dấu **+** ở góc trên bên phải, chọn **New repository**
 3. Điền thông tin:
    - **Repository name**: `dailyshopee` (hoặc tên bạn muốn)
-   - **Description**: "DailyShopee - Authentication system with Next.js and Neon PostgreSQL"
+   - **Description**: "Đại Lý Shopee - Authentication system with Next.js and Neon PostgreSQL"
    - Chọn **Public** hoặc **Private**
    - **KHÔNG** tích vào "Initialize this repository with a README" (vì đã có code)
 4. Click **Create repository**

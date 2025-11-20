@@ -8,6 +8,7 @@ interface User {
   id: number
   email: string
   name: string
+  role: string
   created_at: string
 }
 
@@ -25,7 +26,15 @@ export default function Home() {
       const response = await fetch('/api/auth/me')
       if (response.ok) {
         const data = await response.json()
-        setUser(data.user)
+        const userData = data.user
+        
+        // Nếu là admin, redirect đến trang admin
+        if (userData.role === 'admin') {
+          router.push('/admin')
+          return
+        }
+        
+        setUser(userData)
       } else {
         router.push('/login')
       }

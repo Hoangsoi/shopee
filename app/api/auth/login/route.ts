@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     // Tìm user theo email
     const users = await sql`
-      SELECT id, email, password, name FROM users WHERE email = ${validatedData.email}
+      SELECT id, email, password, name, role FROM users WHERE email = ${validatedData.email}
     `;
 
     if (users.length === 0) {
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
           id: user.id,
           email: user.email,
           name: user.name,
+          role: user.role || 'user',
         },
         token,
       },

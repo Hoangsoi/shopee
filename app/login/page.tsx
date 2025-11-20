@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-function LoginForm() {
+export default function LoginPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -16,10 +15,16 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (searchParams.get('registered') === 'true') {
-      setSuccess('Đăng ký thành công! Vui lòng đăng nhập.')
+    // Check URL params on client side only
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('registered') === 'true') {
+        setSuccess('Đăng ký thành công! Vui lòng đăng nhập.')
+        // Clean URL
+        window.history.replaceState({}, '', '/login')
+      }
     }
-  }, [searchParams])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -133,16 +138,3 @@ function LoginForm() {
     </div>
   )
 }
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Đang tải...</div>
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
-  )
-}
-

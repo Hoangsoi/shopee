@@ -205,7 +205,47 @@ export async function POST() {
     console.log('✓ Bảng users đã được tạo/cập nhật');
 
     // 2. Kiểm tra và thêm các cột cần thiết nếu bảng users đã tồn tại
-    // Đặc biệt xử lý cột role trước
+    const addedColumns: string[] = [];
+
+    // Thêm cột phone
+    try {
+      const checkPhone = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'phone'
+      `;
+      if (checkPhone.length === 0) {
+        await sql`ALTER TABLE users ADD COLUMN phone VARCHAR(20)`;
+        addedColumns.push('phone');
+        console.log('✓ Đã thêm cột phone vào bảng users');
+      }
+    } catch (error: any) {
+      const errorMsg = error?.message || '';
+      if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
+        console.error('Lỗi khi thêm cột phone:', error);
+      }
+    }
+
+    // Thêm cột agent_code
+    try {
+      const checkAgentCode = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'agent_code'
+      `;
+      if (checkAgentCode.length === 0) {
+        await sql`ALTER TABLE users ADD COLUMN agent_code VARCHAR(50)`;
+        addedColumns.push('agent_code');
+        console.log('✓ Đã thêm cột agent_code vào bảng users');
+      }
+    } catch (error: any) {
+      const errorMsg = error?.message || '';
+      if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
+        console.error('Lỗi khi thêm cột agent_code:', error);
+      }
+    }
+
+    // Thêm cột role
     try {
       const checkRole = await sql`
         SELECT column_name 
@@ -213,11 +253,9 @@ export async function POST() {
         WHERE table_name = 'users' AND column_name = 'role'
       `;
       if (checkRole.length === 0) {
-        await sql.unsafe(`ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'`);
+        await sql`ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'`;
         addedColumns.push('role');
         console.log('✓ Đã thêm cột role vào bảng users');
-      } else {
-        console.log('ℹ Cột role đã tồn tại');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
@@ -226,50 +264,11 @@ export async function POST() {
       }
     }
 
-    const columnsToAdd = [
-      { name: 'email', def: 'VARCHAR(255)' },
-      { name: 'password', def: 'VARCHAR(255)' },
-      { name: 'name', def: 'VARCHAR(255)' },
-      { name: 'phone', def: 'VARCHAR(20)' },
-      { name: 'agent_code', def: 'VARCHAR(50)' },
-      { name: 'created_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
-      { name: 'updated_at', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
-    ];
-
-    const addedColumns: string[] = [];
-
-    for (const col of columnsToAdd) {
-      try {
-        const checkColumn = await sql`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = 'users' AND column_name = ${col.name}
-        `;
-        
-        if (checkColumn.length === 0) {
-          // Xử lý đặc biệt cho cột role với DEFAULT
-          if (col.name === 'role') {
-            await sql.unsafe(`ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'`);
-          } else {
-            // Sử dụng template literal an toàn cho các cột khác
-            const alterQuery = `ALTER TABLE users ADD COLUMN ${col.name} ${col.def}`;
-            await sql.unsafe(alterQuery);
-          }
-          addedColumns.push(col.name);
-          console.log(`✓ Đã thêm cột ${col.name} vào bảng users`);
-        } else {
-          console.log(`ℹ Cột ${col.name} đã tồn tại`);
-        }
-      } catch (error: any) {
-        // Nếu lỗi là do cột đã tồn tại, bỏ qua
-        const errorMsg = error?.message || '';
-        if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-          console.error(`Lỗi khi thêm cột ${col.name}:`, error);
-          console.error(`Error details:`, errorMsg);
-        } else {
-          console.log(`ℹ Cột ${col.name} có thể đã tồn tại (${errorMsg})`);
-        }
-      }
+    // Cập nhật role cho các user hiện có nếu NULL
+    try {
+      await sql`UPDATE users SET role = 'user' WHERE role IS NULL`;
+    } catch (error) {
+      // Ignore if column doesn't exist yet
     }
 
     // 3. Tạo index cho users

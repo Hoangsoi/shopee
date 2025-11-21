@@ -113,11 +113,11 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(validatedData.password);
 
-    // Tạo user mới
+    // Tạo user mới với wallet_balance và commission = 0
     const result = await sql`
-      INSERT INTO users (email, password, name, phone, agent_code)
-      VALUES (${validatedData.email}, ${hashedPassword}, ${validatedData.name}, ${validatedData.phone}, ${validatedData.agent_code || null})
-      RETURNING id, email, name, phone, agent_code, created_at
+      INSERT INTO users (email, password, name, phone, agent_code, wallet_balance, commission)
+      VALUES (${validatedData.email}, ${hashedPassword}, ${validatedData.name}, ${validatedData.phone}, ${validatedData.agent_code || null}, 0, 0)
+      RETURNING id, email, name, phone, agent_code, wallet_balance, commission, created_at
     `;
 
     return NextResponse.json(

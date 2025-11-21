@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import BannerCarousel from '@/components/BannerCarousel'
+import NotificationBar from '@/components/NotificationBar'
+import CategoryGrid from '@/components/CategoryGrid'
+import FeaturedProducts from '@/components/FeaturedProducts'
+import BottomNavigation from '@/components/BottomNavigation'
+import CartIcon from '@/components/CartIcon'
 
 interface User {
   id: number
@@ -10,15 +15,26 @@ interface User {
   name: string
   role: string
   created_at: string
+  is_frozen?: boolean
+}
+
+interface Category {
+  id: number
+  name: string
+  slug: string
+  discount_percent: number
+  icon?: string
 }
 
 export default function Home() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     checkAuth()
+    fetchCategories()
   }, [])
 
   const checkAuth = async () => {
@@ -28,13 +44,18 @@ export default function Home() {
         const data = await response.json()
         const userData = data.user
         
-        // Nếu là admin, redirect đến trang admin
-        if (userData.role === 'admin') {
-          router.push('/admin')
-          return
-        }
+                // Nếu là admin, redirect đến trang admin dashboard
+                if (userData.role === 'admin') {
+                  router.push('/admin/dashboard')
+                  return
+                }
         
         setUser(userData)
+        
+        // Hiển thị thông báo nếu tài khoản bị đóng băng
+        if (userData.is_frozen) {
+          // Thông báo sẽ được hiển thị trong UI
+        }
       } else {
         router.push('/login')
       }
@@ -43,6 +64,18 @@ export default function Home() {
       router.push('/login')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.categories || [])
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error)
     }
   }
 
@@ -68,39 +101,85 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg shadow-xl p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-3xl font-bold text-gray-800">
-                Chào mừng, {user.name}!
-              </h1>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              >
-                Đăng xuất
-              </button>
-            </div>
+    <div className="min-h-screen bg-[#f5f5f5] pb-20">
+      {/* Header */}
+      <div className="bg-white shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <h1 className="text-xl font-bold text-[#ee4d2d]">Đại Lý Shopee</h1>
+          <div className="flex items-center gap-4">
+            <CartIcon />
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-600 hover:text-[#ee4d2d]"
+            >
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+      </div>
 
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h2 className="text-lg font-semibold text-gray-700 mb-2">
-                  Thông tin tài khoản
-                </h2>
-                <div className="space-y-2 text-gray-600">
-                  <p><strong>ID:</strong> {user.id}</p>
-                  <p><strong>Email:</strong> {user.email}</p>
-                  <p><strong>Tên:</strong> {user.name}</p>
-                  <p><strong>Ngày tạo:</strong> {new Date(user.created_at).toLocaleString('vi-VN')}</p>
+      {/* Notification Bar */}
+      <NotificationBar />
+
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-4">
+        {/* Thông báo tài khoản bị đóng băng */}
+        {user && user.is_frozen && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <span className="text-2xl">🔒</span>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Tài khoản của bạn đã bị đóng băng
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>
+                    Tài khoản của bạn hiện đang bị đóng băng. Bạn vẫn có thể đăng nhập và xem thông tin, 
+                    nhưng không thể mua hàng hoặc rút tiền. Vui lòng liên hệ admin để được hỗ trợ.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
+        )}
+        {/* Banner Carousel */}
+        <div className="mb-4">
+          <BannerCarousel />
         </div>
+
+        {/* Categories */}
+        {categories.length > 0 ? (
+          <div className="mb-6">
+            <CategoryGrid categories={categories} />
+          </div>
+        ) : (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+            ⚠️ Chưa có danh mục. Vui lòng chạy migration: <code className="bg-yellow-100 px-2 py-1 rounded">npm run setup-db</code>
+          </div>
+        )}
+
+        {/* Featured Products by Category */}
+        {categories.length > 0 ? (
+          <div className="space-y-6">
+            {categories.map((category) => (
+              <FeaturedProducts
+                key={category.id}
+                categoryId={category.id}
+                categoryName={`Sản phẩm nổi bật - ${category.name}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
+            💡 Sau khi có danh mục, sản phẩm sẽ hiển thị ở đây. Chạy <code className="bg-blue-100 px-2 py-1 rounded">npm run add-products</code> để thêm sản phẩm mẫu.
+          </div>
+        )}
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </div>
   )
 }
-

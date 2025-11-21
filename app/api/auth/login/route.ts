@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate token
-    const token = generateToken(user.id, user.email);
+    // Generate token với role
+    const token = generateToken(user.id, user.email, user.role || 'user');
 
     // Set cookie
     const response = NextResponse.json(

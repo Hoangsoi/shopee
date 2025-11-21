@@ -11,17 +11,17 @@ export async function verifyPassword(password: string, hashedPassword: string): 
   return bcrypt.compare(password, hashedPassword);
 }
 
-export function generateToken(userId: number, email: string): string {
+export function generateToken(userId: number, email: string, role?: string): string {
   return jwt.sign(
-    { userId, email },
+    { userId, email, role: role || 'user' },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
 }
 
-export function verifyToken(token: string): { userId: number; email: string } | null {
+export function verifyToken(token: string): { userId: number; email: string; role?: string } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number; email: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number; email: string; role?: string };
     return decoded;
   } catch (error) {
     return null;

@@ -1,0 +1,253 @@
+import { NextRequest, NextResponse } from 'next/server';
+import sql from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+import { z } from 'zod';
+
+const bannerSchema = z.object({
+  image_url: z.string().url('URL ảnh không hợp lệ').min(1, 'URL ảnh không được để trống'),
+  title: z.string().optional(),
+  link_url: z.string().url('URL liên kết không hợp lệ').optional().or(z.literal('')),
+  is_active: z.boolean().optional(),
+  sort_order: z.number().int().optional(),
+});
+
+const updateBannerSchema = z.object({
+  banner_id: z.number().int().positive('ID banner không hợp lệ'),
+  image_url: z.string().url('URL ảnh không hợp lệ').optional(),
+  title: z.string().optional(),
+  link_url: z.string().url('URL liên kết không hợp lệ').optional().or(z.literal('')),
+  is_active: z.boolean().optional(),
+  sort_order: z.number().int().optional(),
+});
+
+// Helper to check admin role
+async function isAdmin(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value;
+  if (!token) {
+    console.log('No token found');
+    return false;
+  }
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    console.log('Token verification failed');
+    return false;
+  }
+  if (!decoded.role) {
+    try {
+      const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
+      if (users.length === 0 || users[0].role !== 'admin') {
+        console.log('User is not admin');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking role from database:', error);
+      return false;
+    }
+  } else if (decoded.role !== 'admin') {
+    console.log('User role is not admin:', decoded.role);
+    return false;
+  }
+  return true;
+}
+
+// GET: Lấy danh sách banners (chỉ admin)
+export async function GET(request: NextRequest) {
+  try {
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
+    try {
+      const banners = await sql`
+        SELECT id, image_url, title, link_url, is_active, sort_order, created_at, updated_at
+        FROM banners
+        ORDER BY sort_order ASC, created_at ASC
+      `;
+
+      return NextResponse.json({
+        banners: banners.map((banner: any) => ({
+          id: banner.id,
+          image_url: banner.image_url,
+          title: banner.title || '',
+          link_url: banner.link_url || null,
+          is_active: banner.is_active,
+          sort_order: banner.sort_order,
+          created_at: banner.created_at,
+          updated_at: banner.updated_at,
+        })),
+      });
+    } catch (dbError: any) {
+      if (dbError.message?.includes('does not exist') || dbError.message?.includes('relation')) {
+        return NextResponse.json({
+          banners: [],
+        });
+      }
+      throw dbError;
+    }
+  } catch (error) {
+    console.error('Get banners error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi khi lấy danh sách banner' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST: Tạo banner mới (chỉ admin)
+export async function POST(request: NextRequest) {
+  try {
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validatedData = bannerSchema.parse(body);
+
+    const result = await sql`
+      INSERT INTO banners (image_url, title, link_url, is_active, sort_order)
+      VALUES (${validatedData.image_url}, ${validatedData.title || null}, ${validatedData.link_url || null}, ${validatedData.is_active ?? true}, ${validatedData.sort_order ?? 0})
+      RETURNING id, image_url, title, link_url, is_active, sort_order, created_at, updated_at
+    `;
+
+    return NextResponse.json({
+      message: 'Thêm banner thành công',
+      banner: {
+        id: result[0].id,
+        image_url: result[0].image_url,
+        title: result[0].title || '',
+        link_url: result[0].link_url || null,
+        is_active: result[0].is_active,
+        sort_order: result[0].sort_order,
+        created_at: result[0].created_at,
+        updated_at: result[0].updated_at,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    console.error('Create banner error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi khi tạo banner' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT: Cập nhật banner (chỉ admin)
+export async function PUT(request: NextRequest) {
+  try {
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validatedData = updateBannerSchema.parse(body);
+
+    const { banner_id, ...updateData } = validatedData;
+
+    // Cập nhật từng trường
+    if (updateData.image_url !== undefined) {
+      await sql`UPDATE banners SET image_url = ${updateData.image_url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
+    }
+    if (updateData.title !== undefined) {
+      await sql`UPDATE banners SET title = ${updateData.title || null}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
+    }
+    if (updateData.link_url !== undefined) {
+      await sql`UPDATE banners SET link_url = ${updateData.link_url || null}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
+    }
+    if (updateData.is_active !== undefined) {
+      await sql`UPDATE banners SET is_active = ${updateData.is_active}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
+    }
+    if (updateData.sort_order !== undefined) {
+      await sql`UPDATE banners SET sort_order = ${updateData.sort_order}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
+    }
+
+    const result = await sql`
+      SELECT id, image_url, title, link_url, is_active, sort_order, created_at, updated_at
+      FROM banners
+      WHERE id = ${banner_id}
+    `;
+
+    if (result.length === 0) {
+      return NextResponse.json(
+        { error: 'Banner không tồn tại' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Cập nhật banner thành công',
+      banner: {
+        id: result[0].id,
+        image_url: result[0].image_url,
+        title: result[0].title || '',
+        link_url: result[0].link_url || null,
+        is_active: result[0].is_active,
+        sort_order: result[0].sort_order,
+        created_at: result[0].created_at,
+        updated_at: result[0].updated_at,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    console.error('Update banner error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi khi cập nhật banner' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE: Xóa banner (chỉ admin)
+export async function DELETE(request: NextRequest) {
+  try {
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const bannerId = searchParams.get('id');
+
+    if (!bannerId) {
+      return NextResponse.json(
+        { error: 'Thiếu ID banner' },
+        { status: 400 }
+      );
+    }
+
+    const bannerIdNum = parseInt(bannerId);
+
+    const result = await sql`
+      DELETE FROM banners WHERE id = ${bannerIdNum} RETURNING id
+    `;
+
+    if (result.length === 0) {
+      return NextResponse.json(
+        { error: 'Banner không tồn tại' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Xóa banner thành công',
+    });
+  } catch (error) {
+    console.error('Delete banner error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi khi xóa banner' },
+      { status: 500 }
+    );
+  }
+}
+

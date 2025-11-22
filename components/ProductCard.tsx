@@ -14,9 +14,10 @@ interface Product {
 
 interface ProductCardProps {
   product: Product
+  hasPermission?: boolean
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, hasPermission = true }: ProductCardProps) {
   const [adding, setAdding] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -28,6 +29,12 @@ export default function ProductCard({ product }: ProductCardProps) {
     : 0
 
   const handleAddToCart = async () => {
+    if (!hasPermission) {
+      setMessage({ type: 'error', text: 'Bạn chưa có quyền mua hàng ở khu vực này. Vui lòng liên hệ admin.' })
+      setTimeout(() => setMessage(null), 3000)
+      return
+    }
+
     setAdding(true)
     setMessage(null)
 
@@ -102,10 +109,14 @@ export default function ProductCard({ product }: ProductCardProps) {
         
         <button
           onClick={handleAddToCart}
-          disabled={adding}
-          className="w-full py-2 px-3 bg-[#ee4d2d] text-white text-xs font-medium rounded hover:bg-[#f05d40] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={adding || !hasPermission}
+          className={`w-full py-2 px-3 text-white text-xs font-medium rounded transition-colors ${
+            hasPermission
+              ? 'bg-[#ee4d2d] hover:bg-[#f05d40] disabled:opacity-50 disabled:cursor-not-allowed'
+              : 'bg-gray-400 cursor-not-allowed'
+          }`}
         >
-          {adding ? 'Đang thêm...' : 'Thêm vào giỏ'}
+          {adding ? 'Đang thêm...' : !hasPermission ? '🔒 Chưa có quyền' : 'Thêm vào giỏ'}
         </button>
       </div>
     </div>

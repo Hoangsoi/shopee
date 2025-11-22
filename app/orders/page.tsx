@@ -12,6 +12,7 @@ interface Order {
   status: string
   payment_method?: string
   item_count: number
+  commission?: number
   created_at: string
 }
 
@@ -79,52 +80,70 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Đơn hàng</h1>
-          <Link href="/" className="text-sm text-[#ee4d2d] hover:underline">
+      <div className="container mx-auto px-3 py-2">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-lg font-bold text-gray-800">Đơn hàng</h1>
+          <Link href="/" className="text-xs text-[#ee4d2d] hover:underline">
             Mua sắm
           </Link>
         </div>
 
         {orders.length === 0 ? (
-          <div className="bg-white rounded-lg p-8 text-center">
-            <div className="text-6xl mb-4">📦</div>
-            <p className="text-gray-600 mb-4">Bạn chưa có đơn hàng nào</p>
+          <div className="bg-white rounded-lg p-6 text-center">
+            <div className="text-4xl mb-2">📦</div>
+            <p className="text-sm text-gray-600 mb-3">Bạn chưa có đơn hàng nào</p>
             <Link
               href="/"
-              className="inline-block px-6 py-3 bg-[#ee4d2d] text-white rounded-lg font-medium hover:bg-[#f05d40] transition-colors"
+              className="inline-block px-4 py-2 bg-[#ee4d2d] text-white rounded text-sm font-medium hover:bg-[#f05d40] transition-colors"
             >
               Mua sắm ngay
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {orders.map((order) => (
               <Link
                 key={order.id}
                 href={`/orders/${order.id}`}
-                className="block bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow"
+                className="block bg-white rounded shadow-sm p-2 hover:shadow transition-shadow"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">
-                      Đơn hàng: {order.order_number}
+                <div className="flex justify-between items-start mb-1">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-800 text-sm truncate">
+                      {order.order_number}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      {new Date(order.created_at).toLocaleString('vi-VN')}
+                    <p className="text-xs text-gray-500">
+                      {new Date(order.created_at).toLocaleString('vi-VN', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(order.status)}`}>
                     {getStatusLabel(order.status)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <div className="text-sm text-gray-600">
-                    {order.item_count} sản phẩm
+                  <div className="text-xs text-gray-600">
+                    {order.item_count} sp
+                    {order.status === 'confirmed' && order.commission && order.commission > 0 && (
+                      <div className="text-xs text-green-600 font-medium">
+                        HH: {new Intl.NumberFormat('vi-VN').format(order.commission)}đ
+                      </div>
+                    )}
                   </div>
-                  <div className="text-lg font-bold text-[#ee4d2d]">
-                    {formatCurrency(order.total_amount)}
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-sm font-bold text-[#ee4d2d]">
+                      {new Intl.NumberFormat('vi-VN').format(order.total_amount)}đ
+                    </div>
+                    {order.status === 'confirmed' && order.commission && order.commission > 0 && (
+                      <div className="text-xs text-green-600 font-medium">
+                        +{new Intl.NumberFormat('vi-VN').format(order.commission)}đ
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>

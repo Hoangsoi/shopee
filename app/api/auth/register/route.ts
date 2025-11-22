@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
           email VARCHAR(255) UNIQUE NOT NULL,
           password VARCHAR(255) NOT NULL,
           name VARCHAR(255),
-          phone VARCHAR(20),
+          phone VARCHAR(20) UNIQUE,
           agent_code VARCHAR(50),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -105,20 +105,103 @@ export async function POST(request: NextRequest) {
 
     if (validAgentCode.length === 0 || validAgentCode[0].value !== validatedData.agent_code) {
       return NextResponse.json(
-        { error: 'Mã đã được sử dụng vui lòng nhập mã khác' },
+        { error: 'Mã đã đăng ký' },
         { status: 400 }
       );
+    }
+
+    // Đảm bảo các cột wallet_balance, commission, role, is_frozen tồn tại
+    try {
+      const columns = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        AND column_name IN ('wallet_balance', 'commission', 'role', 'is_frozen')
+      `;
+      
+      const existingColumns = columns.map((col: any) => col.column_name);
+      
+      if (!existingColumns.includes('wallet_balance')) {
+        await sql`ALTER TABLE users ADD COLUMN wallet_balance DECIMAL(15, 2) DEFAULT 0`;
+      }
+      if (!existingColumns.includes('commission')) {
+        await sql`ALTER TABLE users ADD COLUMN commission DECIMAL(15, 2) DEFAULT 0`;
+      }
+      if (!existingColumns.includes('role')) {
+        await sql`ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'`;
+      }
+      if (!existingColumns.includes('is_frozen')) {
+        await sql`ALTER TABLE users ADD COLUMN is_frozen BOOLEAN DEFAULT false`;
+      }
+    } catch (error: any) {
+      const errorMsg = error?.message || '';
+      if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
+        console.error('Error adding columns:', error);
+      }
     }
 
     // Hash password
     const hashedPassword = await hashPassword(validatedData.password);
 
     // Tạo user mới với wallet_balance và commission = 0
-    const result = await sql`
-      INSERT INTO users (email, password, name, phone, agent_code, wallet_balance, commission)
-      VALUES (${validatedData.email}, ${hashedPassword}, ${validatedData.name}, ${validatedData.phone}, ${validatedData.agent_code || null}, 0, 0)
-      RETURNING id, email, name, phone, agent_code, wallet_balance, commission, created_at
-    `;
+    // Sử dụng query động để tránh lỗi nếu cột chưa tồn tại
+    let result;
+    try {
+      result = await sql`
+        INSERT INTO users (email, password, name, phone, agent_code, wallet_balance, commission, role, is_frozen)
+        VALUES (${validatedData.email}, ${hashedPassword}, ${validatedData.name}, ${validatedData.phone}, ${validatedData.agent_code || null}, 0, 0, 'user', false)
+        RETURNING id, email, name, phone, agent_code, wallet_balance, commission, created_at
+      `;
+    } catch (insertError: any) {
+      // Nếu lỗi do thiếu cột, thử INSERT không có các cột đó
+      if (insertError.message?.includes('column') || insertError.message?.includes('does not exist')) {
+        console.log('Retrying insert without optional columns...');
+        result = await sql`
+          INSERT INTO users (email, password, name, phone, agent_code)
+          VALUES (${validatedData.email}, ${hashedPassword}, ${validatedData.name}, ${validatedData.phone}, ${validatedData.agent_code || null})
+          RETURNING id, email, name, phone, agent_code, created_at
+        `;
+      } else {
+        throw insertError;
+      }
+    }
+
+    // Tự động cấp quyền cho category "Mỹ phẩm" (slug: 'my-pham')
+    try {
+      // Tạo bảng user_category_permissions nếu chưa có
+      await sql`
+        CREATE TABLE IF NOT EXISTS user_category_permissions (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+          granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          granted_by INTEGER REFERENCES users(id),
+          UNIQUE(user_id, category_id)
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS idx_user_category_permissions_user_id ON user_category_permissions(user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_user_category_permissions_category_id ON user_category_permissions(category_id)`;
+      
+      // Tìm category "Mỹ phẩm" (slug: 'my-pham')
+      const myPhamCategory = await sql`
+        SELECT id FROM categories WHERE slug = 'my-pham' LIMIT 1
+      `;
+      
+      if (myPhamCategory.length > 0) {
+        // Cấp quyền cho user mới
+        await sql`
+          INSERT INTO user_category_permissions (user_id, category_id)
+          VALUES (${result[0].id}, ${myPhamCategory[0].id})
+          ON CONFLICT (user_id, category_id) DO NOTHING
+        `;
+        console.log(`✓ Đã cấp quyền "Mỹ phẩm" cho user ${result[0].id}`);
+      } else {
+        console.log('⚠ Category "Mỹ phẩm" chưa tồn tại, bỏ qua cấp quyền mặc định');
+      }
+    } catch (permissionError) {
+      // Log lỗi nhưng không làm gián đoạn quá trình đăng ký
+      console.error('Error granting default category permission:', permissionError);
+    }
 
     return NextResponse.json(
       {

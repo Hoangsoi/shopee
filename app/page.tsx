@@ -26,6 +26,66 @@ interface Category {
   icon?: string
 }
 
+// Component để hiển thị sản phẩm - hiển thị TẤT CẢ nhưng đánh dấu category có quyền
+function FeaturedProductsByPermission({ categories }: { categories: Category[] }) {
+  const [permissions, setPermissions] = useState<number[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchPermissions()
+  }, [])
+
+  const fetchPermissions = async () => {
+    try {
+      const response = await fetch('/api/user/category-permissions')
+      if (response.ok) {
+        const data = await response.json()
+        const categoryIds = data.permissions.map((p: any) => p.category_id)
+        setPermissions(categoryIds)
+      }
+    } catch (error) {
+      console.error('Error fetching permissions:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Hiển thị TẤT CẢ categories, nhưng truyền thông tin quyền vào component
+  if (loading) {
+    return <div className="text-center py-8">Đang tải...</div>
+  }
+
+  if (categories.length === 0) {
+    return (
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+        ⚠️ Chưa có danh mục nào
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {categories.map((category) => {
+        const hasPermission = permissions.includes(category.id)
+        return (
+          <div key={category.id}>
+            <FeaturedProducts
+              categoryId={category.id}
+              categoryName={`Sản phẩm nổi bật - ${category.name}`}
+              hasPermission={hasPermission}
+            />
+            {!hasPermission && (
+              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm text-center">
+                🔒 Bạn chưa có quyền mua hàng ở khu vực này. Vui lòng liên hệ admin để được cấp quyền.
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Home() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
@@ -160,17 +220,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* Featured Products by Category */}
+        {/* Featured Products by Category - Chỉ hiển thị các category có quyền */}
         {categories.length > 0 ? (
-          <div className="space-y-6">
-            {categories.map((category) => (
-              <FeaturedProducts
-                key={category.id}
-                categoryId={category.id}
-                categoryName={`Sản phẩm nổi bật - ${category.name}`}
-              />
-            ))}
-          </div>
+          <FeaturedProductsByPermission categories={categories} />
         ) : (
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
             💡 Sau khi có danh mục, sản phẩm sẽ hiển thị ở đây. Chạy <code className="bg-blue-100 px-2 py-1 rounded">npm run add-products</code> để thêm sản phẩm mẫu.

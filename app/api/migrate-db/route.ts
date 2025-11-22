@@ -321,6 +321,26 @@ export async function POST() {
       }
     }
 
+    // Thêm cột username
+    try {
+      const checkUsername = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'username'
+      `;
+      if (checkUsername.length === 0) {
+        await sql`ALTER TABLE users ADD COLUMN username VARCHAR(50) UNIQUE`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`;
+        addedColumns.push('username');
+        console.log('✓ Đã thêm cột username vào bảng users');
+      }
+    } catch (error: any) {
+      const errorMsg = error?.message || '';
+      if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
+        console.error('Lỗi khi thêm cột username:', error);
+      }
+    }
+
     // Cập nhật giá trị mặc định cho các user hiện có
     try {
       await sql`UPDATE users SET wallet_balance = 0 WHERE wallet_balance IS NULL`;

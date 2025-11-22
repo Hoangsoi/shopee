@@ -126,8 +126,10 @@ export async function POST(request: NextRequest) {
 
     // Kiểm tra sản phẩm có tồn tại và còn hàng không
     const products = await sql`
-      SELECT id, name, price, stock, is_active FROM products 
-      WHERE id = ${validatedData.product_id}
+      SELECT p.id, p.name, p.price, p.stock, p.is_active, p.category_id, c.name as category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.id = ${validatedData.product_id}
     `;
 
     if (products.length === 0) {
@@ -151,6 +153,21 @@ export async function POST(request: NextRequest) {
         { error: 'Số lượng sản phẩm không đủ' },
         { status: 400 }
       );
+    }
+
+    // Kiểm tra quyền truy cập category
+    if (product.category_id) {
+      const permission = await sql`
+        SELECT id FROM user_category_permissions
+        WHERE user_id = ${decoded.userId} AND category_id = ${product.category_id}
+      `;
+
+      if (permission.length === 0) {
+        return NextResponse.json(
+          { error: `Bạn chưa có quyền mua hàng ở khu vực "${product.category_name || 'này'}". Vui lòng liên hệ admin để được cấp quyền.` },
+          { status: 403 }
+        );
+      }
     }
 
     // Kiểm tra xem bảng cart_items có tồn tại không, nếu chưa thì tạo

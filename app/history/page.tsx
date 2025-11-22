@@ -78,76 +78,81 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Lịch sử nạp/rút</h1>
-          <Link href="/profile" className="text-sm text-[#ee4d2d] hover:underline">
+      <div className="container mx-auto px-3 py-2">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-lg font-bold text-gray-800">Lịch sử nạp/rút</h1>
+          <Link href="/profile" className="text-xs text-[#ee4d2d] hover:underline">
             Quản lý tài chính
           </Link>
         </div>
 
         {transactions.length === 0 ? (
-          <div className="bg-white rounded-lg p-8 text-center">
-            <div className="text-6xl mb-4">💰</div>
-            <p className="text-gray-600 mb-4">Chưa có giao dịch nào</p>
+          <div className="bg-white rounded-lg p-6 text-center">
+            <div className="text-4xl mb-2">💰</div>
+            <p className="text-sm text-gray-600 mb-3">Chưa có giao dịch nào</p>
             <Link
               href="/profile"
-              className="inline-block px-6 py-3 bg-[#ee4d2d] text-white rounded-lg font-medium hover:bg-[#f05d40] transition-colors"
+              className="inline-block px-4 py-2 bg-[#ee4d2d] text-white rounded text-sm font-medium hover:bg-[#f05d40] transition-colors"
             >
               Nạp/Rút tiền
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {transactions.map((transaction) => (
               <div
                 key={transaction.id}
-                className="bg-white rounded-lg shadow-sm p-4"
+                className="bg-white rounded shadow-sm p-2"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                <div className="flex justify-between items-start mb-1">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm ${
                       transaction.type === 'deposit' 
                         ? 'bg-green-100 text-green-600' 
                         : 'bg-blue-100 text-blue-600'
                     }`}>
                       {transaction.type === 'deposit' ? '➕' : '➖'}
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-800">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-800 text-sm">
                         {transaction.type === 'deposit' ? 'Nạp tiền' : 'Rút tiền'}
                       </h3>
                       <p className="text-xs text-gray-500">
-                        {new Date(transaction.created_at).toLocaleString('vi-VN')}
+                        {new Date(transaction.created_at).toLocaleString('vi-VN', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(transaction.status)}`}>
                     {getStatusLabel(transaction.status)}
                   </span>
                 </div>
                 
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Số tiền:</span>
-                  <span className={`text-lg font-bold ${
-                    transaction.type === 'deposit' ? 'text-green-600' : 'text-blue-600'
-                  }`}>
-                    {transaction.type === 'deposit' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                  </span>
-                </div>
-
-                {transaction.description && (
-                  <p className="text-sm text-gray-600 mb-2">{transaction.description}</p>
-                )}
-
-                {transaction.bank_name && (
-                  <div className="text-xs text-gray-500">
-                    <span className="font-medium">Ngân hàng:</span> {transaction.bank_name}
-                    {transaction.account_number && (
-                      <> - {transaction.account_number}</>
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-gray-600 min-w-0 flex-1">
+                    {transaction.description && (
+                      <div className="truncate">{transaction.description}</div>
+                    )}
+                    {transaction.bank_name && (
+                      <div className="text-xs text-gray-500 truncate">
+                        {transaction.bank_name}
+                        {transaction.account_number && (
+                          <> - {transaction.account_number.slice(-2)}</>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                  <span className={`text-sm font-bold flex-shrink-0 ml-2 ${
+                    transaction.type === 'deposit' ? 'text-green-600' : 'text-blue-600'
+                  }`}>
+                    {transaction.type === 'deposit' ? '+' : '-'}{new Intl.NumberFormat('vi-VN').format(transaction.amount)}đ
+                  </span>
+                </div>
               </div>
             ))}
           </div>

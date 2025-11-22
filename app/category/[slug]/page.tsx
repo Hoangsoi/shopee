@@ -135,11 +135,6 @@ export default function CategoryPage() {
               ←
             </button>
             <h1 className="text-xl font-bold text-[#ee4d2d]">{category.name}</h1>
-            {category.discount_percent > 0 && (
-              <span className="text-xs bg-[#ee4d2d] text-white px-2 py-1 rounded">
-                Giảm {category.discount_percent}%
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-4">
             <CartIcon />
@@ -167,11 +162,6 @@ export default function CategoryPage() {
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">
             Tất cả sản phẩm {category.name}
-            {products.length > 0 && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
-                ({products.length} sản phẩm)
-              </span>
-            )}
           </h2>
 
           {products.length === 0 ? (

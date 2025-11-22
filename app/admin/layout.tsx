@@ -14,6 +14,7 @@ interface User {
 const menuItems = [
   { path: '/admin/dashboard', label: 'Tổng quan', icon: '📊', countKey: null },
   { path: '/admin/users', label: 'Người dùng', icon: '👥', countKey: 'newUsers' },
+  { path: '/admin/category-permissions', label: 'Phân quyền', icon: '🔐', countKey: null },
   { path: '/admin/categories', label: 'Danh mục', icon: '📁', countKey: null },
   { path: '/admin/products', label: 'Sản phẩm', icon: '🛍️', countKey: null },
   { path: '/admin/orders', label: 'Đơn hàng', icon: '📦', countKey: 'pendingOrders' },

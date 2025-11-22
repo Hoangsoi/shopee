@@ -55,19 +55,50 @@ export async function GET(request: NextRequest) {
         ORDER BY o.created_at DESC
       `;
 
+      // Tính commission cho từng đơn hàng đã xác nhận
+      const ordersWithCommission = await Promise.all(
+        orders.map(async (order: any) => {
+          let commission = 0;
+          
+          // Chỉ tính commission cho đơn hàng đã xác nhận
+          if (order.status === 'confirmed') {
+            const orderItems = await sql`
+              SELECT 
+                oi.subtotal,
+                p.category_id,
+                c.discount_percent
+              FROM order_items oi
+              JOIN products p ON oi.product_id = p.id
+              LEFT JOIN categories c ON p.category_id = c.id
+              WHERE oi.order_id = ${order.id}
+            `;
+            
+            // Tính tổng commission
+            for (const item of orderItems) {
+              const discountPercent = item.discount_percent || 0;
+              const subtotal = parseFloat(item.subtotal.toString());
+              commission += subtotal * (discountPercent / 100);
+            }
+          }
+          
+          return {
+            id: order.id,
+            order_number: order.order_number,
+            total_amount: parseFloat(order.total_amount.toString()),
+            status: order.status,
+            payment_method: order.payment_method,
+            shipping_address: order.shipping_address,
+            notes: order.notes,
+            item_count: parseInt(order.item_count.toString()),
+            commission: commission,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+          };
+        })
+      );
+
       return NextResponse.json({
-        orders: orders.map((order: any) => ({
-          id: order.id,
-          order_number: order.order_number,
-          total_amount: parseFloat(order.total_amount.toString()),
-          status: order.status,
-          payment_method: order.payment_method,
-          shipping_address: order.shipping_address,
-          notes: order.notes,
-          item_count: parseInt(order.item_count.toString()),
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-        })),
+        orders: ordersWithCommission,
       });
     } catch (error: any) {
       // Nếu bảng chưa tồn tại, trả về mảng rỗng

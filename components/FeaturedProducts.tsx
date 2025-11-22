@@ -16,9 +16,10 @@ interface Product {
 interface FeaturedProductsProps {
   categoryId?: number
   categoryName?: string
+  hasPermission?: boolean
 }
 
-export default function FeaturedProducts({ categoryId, categoryName }: FeaturedProductsProps) {
+export default function FeaturedProducts({ categoryId, categoryName, hasPermission = true }: FeaturedProductsProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -63,14 +64,11 @@ export default function FeaturedProducts({ categoryId, categoryName }: FeaturedP
       {categoryName && (
         <h2 className="text-xl font-bold text-gray-800 mb-4">
           {categoryName}
-          <span className="text-sm font-normal text-gray-500 ml-2">
-            ({products.length} sản phẩm)
-          </span>
         </h2>
       )}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} hasPermission={hasPermission} />
         ))}
       </div>
     </div>

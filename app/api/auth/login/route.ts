@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     if (users.length === 0) {
       return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không đúng' },
+        { error: 'Tài khoản hoặc mật khẩu không đúng' },
         { status: 401 }
       );
     }
@@ -32,12 +32,12 @@ export async function POST(request: NextRequest) {
 
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không đúng' },
+        { error: 'Tài khoản hoặc mật khẩu không đúng' },
         { status: 401 }
       );
     }
 
-    // Generate token với role
+    // Generate token với role (sử dụng email)
     const token = generateToken(user.id, user.email, user.role || 'user');
 
     // Set cookie

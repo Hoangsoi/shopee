@@ -17,6 +17,14 @@ interface User {
   is_frozen?: boolean
 }
 
+interface BankAccount {
+  id: number
+  bank_name: string
+  account_number: string
+  account_holder_name: string
+  branch?: string | null
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
@@ -24,6 +32,7 @@ export default function ProfilePage() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showWithdrawAmountModal, setShowWithdrawAmountModal] = useState(false)
   const [hasBankAccount, setHasBankAccount] = useState(false)
+  const [bankAccount, setBankAccount] = useState<BankAccount | null>(null)
 
   useEffect(() => {
     fetchUser()
@@ -36,6 +45,7 @@ export default function ProfilePage() {
       if (response.ok) {
         const data = await response.json()
         setHasBankAccount(data.bank_account !== null)
+        setBankAccount(data.bank_account)
       }
     } catch (error) {
       console.error('Error checking bank account:', error)
@@ -166,7 +176,7 @@ export default function ProfilePage() {
         
         {/* Thông tin tài khoản và tài chính trong cùng 1 khung */}
         <div className="bg-white rounded-lg p-4 md:p-6 mb-4 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             {/* Cột trái - Thông tin tài khoản */}
             <div className="border-b md:border-b-0 md:border-r border-gray-200 pb-4 md:pb-0 md:pr-6">
               <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 pb-2 md:pb-3 border-b border-gray-200">
@@ -186,6 +196,40 @@ export default function ProfilePage() {
                   <p className="text-gray-800 font-medium text-base md:text-lg">{maskPhone(user.phone)}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Cột giữa - Thông tin ngân hàng */}
+            <div className="border-b md:border-b-0 md:border-r border-gray-200 pb-4 md:pb-0 md:pr-6 md:pl-6">
+              <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 pb-2 md:pb-3 border-b border-gray-200">
+                Thông tin ngân hàng
+              </h2>
+              {bankAccount ? (
+                <div className="space-y-3 md:space-y-4">
+                  <div>
+                    <label className="text-xs md:text-sm text-gray-500 block mb-1">Ngân hàng</label>
+                    <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.bank_name}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs md:text-sm text-gray-500 block mb-1">Số tài khoản</label>
+                    <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.account_number}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs md:text-sm text-gray-500 block mb-1">Chủ tài khoản</label>
+                    <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.account_holder_name}</p>
+                  </div>
+                  {bankAccount.branch && (
+                    <div>
+                      <label className="text-xs md:text-sm text-gray-500 block mb-1">Chi nhánh</label>
+                      <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.branch}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500">Chưa có thông tin ngân hàng</p>
+                  <p className="text-xs text-gray-400 mt-2">Thông tin sẽ được lưu khi bạn rút tiền lần đầu</p>
+                </div>
+              )}
             </div>
 
             {/* Cột phải - Thông tin tài chính */}

@@ -8,12 +8,14 @@ export default function RegisterPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
-    agent_code: '',
+    email: '',
     password: '',
     confirmPassword: '',
+    agent_code: '',
   })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -27,8 +29,8 @@ export default function RegisterPage() {
       return
     }
 
-    if (!formData.agent_code || formData.agent_code.trim() === '') {
-      setError('Mã đại lý không được để trống')
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Email không hợp lệ')
       return
     }
 
@@ -42,6 +44,11 @@ export default function RegisterPage() {
       return
     }
 
+    if (!formData.agent_code || formData.agent_code.trim() === '') {
+      setError('Mã đại lý không được để trống')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -52,10 +59,10 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email,
           phone: formData.phone,
-          agent_code: formData.agent_code || undefined,
+          email: formData.email,
           password: formData.password,
+          agent_code: formData.agent_code || undefined,
         }),
       })
 
@@ -85,27 +92,17 @@ export default function RegisterPage() {
         {/* Form Container */}
         <div className="bg-white rounded-sm shadow-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Tên */}
+            {/* Họ tên */}
             <div>
               <input
                 type="text"
                 placeholder="Họ và tên"
                 required
-                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+                autoComplete="name"
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                style={{ fontSize: '16px' }}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <input
-                type="email"
-                placeholder="Email"
-                required
-                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
 
@@ -115,11 +112,71 @@ export default function RegisterPage() {
                 type="tel"
                 placeholder="Số điện thoại"
                 required
-                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+                autoComplete="tel"
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                style={{ fontSize: '16px' }}
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
                 maxLength={11}
               />
+            </div>
+
+            {/* Email */}
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                required
+                autoComplete="email"
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                style={{ fontSize: '16px' }}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+
+            {/* Mật khẩu */}
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Mật khẩu"
+                required
+                autoComplete="new-password"
+                className="w-full h-11 px-3 pr-10 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                style={{ fontSize: '16px' }}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                tabIndex={-1}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+
+            {/* Nhập lại mật khẩu */}
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Nhập lại mật khẩu"
+                required
+                autoComplete="new-password"
+                className="w-full h-11 px-3 pr-10 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                style={{ fontSize: '16px' }}
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
             </div>
 
             {/* Mã đại lý */}
@@ -128,33 +185,11 @@ export default function RegisterPage() {
                 type="text"
                 placeholder="Mã đại lý"
                 required
-                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+                autoComplete="off"
+                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                style={{ fontSize: '16px' }}
                 value={formData.agent_code}
                 onChange={(e) => setFormData({ ...formData, agent_code: e.target.value })}
-              />
-            </div>
-
-            {/* Mật khẩu */}
-            <div>
-              <input
-                type="password"
-                placeholder="Mật khẩu"
-                required
-                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
-            </div>
-
-            {/* Xác nhận mật khẩu */}
-            <div>
-              <input
-                type="password"
-                placeholder="Xác nhận mật khẩu"
-                required
-                className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               />
             </div>
 

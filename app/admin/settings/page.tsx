@@ -60,6 +60,8 @@ export default function AdminSettingsPage() {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Cập nhật mã đại lý thành công!' })
+        // Refresh lại giá trị từ database sau khi cập nhật thành công
+        await fetchAgentCode()
       } else {
         setMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
       }

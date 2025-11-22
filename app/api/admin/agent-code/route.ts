@@ -4,10 +4,28 @@ import sql from '@/lib/db';
 // Lấy mã đại lý hiện tại
 export async function GET() {
   try {
+    // Đảm bảo bảng settings tồn tại
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS settings (
+          id SERIAL PRIMARY KEY,
+          key VARCHAR(100) UNIQUE NOT NULL,
+          value TEXT NOT NULL,
+          description TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+    } catch (error) {
+      // Bảng đã tồn tại, tiếp tục
+    }
+
+    // Lấy giá trị mới nhất từ database (không cache)
     const result = await sql`
       SELECT value, description, updated_at 
       FROM settings 
       WHERE key = 'valid_agent_code'
+      ORDER BY updated_at DESC
+      LIMIT 1
     `;
 
     if (result.length === 0) {
@@ -18,9 +36,17 @@ export async function GET() {
         ON CONFLICT (key) DO NOTHING
       `;
       
+      // Lấy lại giá trị vừa tạo
+      const newResult = await sql`
+        SELECT value, description, updated_at 
+        FROM settings 
+        WHERE key = 'valid_agent_code'
+      `;
+      
       return NextResponse.json({
-        value: 'SH6688',
-        description: 'Mã đại lý hợp lệ để đăng ký',
+        value: newResult[0]?.value || 'SH6688',
+        description: newResult[0]?.description || 'Mã đại lý hợp lệ để đăng ký',
+        updated_at: newResult[0]?.updated_at,
       });
     }
 

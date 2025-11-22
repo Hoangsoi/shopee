@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import Link from 'next/link'
@@ -25,11 +25,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<number | null>(null)
 
-  useEffect(() => {
-    fetchCart()
-  }, [])
-
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       const response = await fetch('/api/cart')
       if (response.ok) {
@@ -45,7 +41,11 @@ export default function CartPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    fetchCart()
+  }, [fetchCart])
 
   const handleUpdateQuantity = async (cartItemId: number, newQuantity: number) => {
     if (newQuantity < 1) {

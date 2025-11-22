@@ -178,7 +178,7 @@ export default function AdminSettingsPage() {
                   placeholder="Nhập link chat Zalo (ví dụ: https://zalo.me/098876543)"
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Link này sẽ được sử dụng khi khách hàng click nút "Chat ngay" ở mục Zalo trên trang CSKH.
+                  Link này sẽ được sử dụng khi khách hàng click nút &quot;Chat ngay&quot; ở mục Zalo trên trang CSKH.
                 </p>
               </div>
 

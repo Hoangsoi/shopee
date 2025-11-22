@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Transaction {
   id: number
@@ -24,11 +24,7 @@ export default function AdminTransactionsPage() {
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchTransactions()
-  }, [filterStatus, filterType])
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     setLoading(true)
     try {
       let url = '/api/admin/transactions'
@@ -50,7 +46,11 @@ export default function AdminTransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterStatus, filterType])
+
+  useEffect(() => {
+    fetchTransactions()
+  }, [fetchTransactions])
 
   const handleApprove = async (transactionId: number) => {
     if (!confirm('Xác nhận duyệt giao dịch này?')) {

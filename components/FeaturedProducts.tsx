@@ -25,6 +25,7 @@ export default function FeaturedProducts({ categoryId, categoryName, hasPermissi
 
   useEffect(() => {
     fetchProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId])
 
   const fetchProducts = async () => {

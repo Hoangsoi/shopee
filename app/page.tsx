@@ -95,6 +95,7 @@ export default function Home() {
   useEffect(() => {
     checkAuth()
     fetchCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const checkAuth = async () => {

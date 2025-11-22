@@ -37,6 +37,7 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchUser()
     checkBankAccount()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const checkBankAccount = async () => {

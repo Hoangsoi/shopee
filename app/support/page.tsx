@@ -23,11 +23,8 @@ export default function SupportPage() {
   useEffect(() => {
     // Initialize Crisp after script loads
     if (typeof window !== 'undefined' && window.$crisp && !crispLoaded) {
-      // Hide chat widget completely and disable it
+      // Hide chat widget completely
       window.$crisp.push(['do', 'chat:hide'])
-      window.$crisp.push(['config', 'position:reverse'])
-      // Disable the default chat bubble
-      window.$crisp.push(['config', 'hideOnMobile', true])
       setCrispLoaded(true)
     }
   }, [crispLoaded])
@@ -108,8 +105,6 @@ export default function SupportPage() {
           if (typeof window !== 'undefined' && window.$crisp) {
             // Hide chat widget completely
             window.$crisp.push(['do', 'chat:hide'])
-            // Disable default chat bubble
-            window.$crisp.push(['config', 'position:reverse'])
             // Listen for chat close to hide it again
             window.$crisp.push(['on', 'chat:closed', () => {
               if (window.$crisp) {

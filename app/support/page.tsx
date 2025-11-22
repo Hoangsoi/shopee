@@ -72,15 +72,17 @@ export default function SupportPage() {
 
   const fetchZaloSettings = async () => {
     try {
-      const response = await fetch('/api/settings/zalo')
+      // Thêm timestamp để tránh cache
+      const response = await fetch(`/api/settings/zalo?t=${Date.now()}`)
       if (response.ok) {
         const data = await response.json()
         console.log('Zalo settings:', data) // Debug log
-        setZaloLink(data.link || '')
-        // Đảm bảo enabled là boolean và chỉ true mới hiển thị
-        const isEnabled = data.enabled === true || data.enabled === 'true'
+        const linkValue = data.link || ''
+        // Xử lý enabled: có thể là boolean hoặc string
+        const isEnabled = data.enabled === true || data.enabled === 'true' || String(data.enabled).toLowerCase() === 'true'
+        setZaloLink(linkValue)
         setZaloEnabled(isEnabled)
-        console.log('Zalo enabled state:', isEnabled) // Debug log
+        console.log('Zalo enabled state:', isEnabled, 'link:', linkValue) // Debug log
       } else {
         console.error('Failed to fetch Zalo settings:', response.status)
       }

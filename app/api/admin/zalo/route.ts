@@ -68,15 +68,19 @@ export async function GET(request: NextRequest) {
     }
 
     const finalLink = await sql`
-      SELECT value FROM settings WHERE key = 'zalo_link'
+      SELECT value FROM settings WHERE key = 'zalo_link' ORDER BY updated_at DESC LIMIT 1
     `;
     const finalEnabled = await sql`
-      SELECT value FROM settings WHERE key = 'zalo_enabled'
+      SELECT value FROM settings WHERE key = 'zalo_enabled' ORDER BY updated_at DESC LIMIT 1
     `;
 
+    const linkValue = finalLink[0]?.value || ''
+    const enabledValue = finalEnabled[0]?.value || 'false'
+    const isEnabled = enabledValue === 'true' || String(enabledValue).toLowerCase() === 'true'
+
     return NextResponse.json({
-      link: finalLink[0]?.value || '',
-      enabled: finalEnabled[0]?.value === 'true',
+      link: linkValue,
+      enabled: isEnabled,
     });
   } catch (error) {
     console.error('Get Zalo settings error:', error);
@@ -128,9 +132,10 @@ export async function PUT(request: NextRequest) {
 
     // Cập nhật link Zalo
     if (link !== undefined) {
+      const linkValue = link || ''
       await sql`
         INSERT INTO settings (key, value, description, updated_at)
-        VALUES ('zalo_link', ${link || ''}, 'Link chat Zalo hiển thị trên trang CSKH', CURRENT_TIMESTAMP)
+        VALUES ('zalo_link', ${linkValue}, 'Link chat Zalo hiển thị trên trang CSKH', CURRENT_TIMESTAMP)
         ON CONFLICT (key) 
         DO UPDATE SET 
           value = EXCLUDED.value,
@@ -138,11 +143,12 @@ export async function PUT(request: NextRequest) {
       `;
     }
 
-    // Cập nhật trạng thái enabled
+    // Cập nhật trạng thái enabled - đảm bảo luôn là string 'true' hoặc 'false'
     if (enabled !== undefined) {
+      const enabledValue = enabled === true || enabled === 'true' || String(enabled).toLowerCase() === 'true' ? 'true' : 'false'
       await sql`
         INSERT INTO settings (key, value, description, updated_at)
-        VALUES ('zalo_enabled', ${enabled ? 'true' : 'false'}, 'Hiển thị mục Zalo trên trang CSKH', CURRENT_TIMESTAMP)
+        VALUES ('zalo_enabled', ${enabledValue}, 'Hiển thị mục Zalo trên trang CSKH', CURRENT_TIMESTAMP)
         ON CONFLICT (key) 
         DO UPDATE SET 
           value = EXCLUDED.value,

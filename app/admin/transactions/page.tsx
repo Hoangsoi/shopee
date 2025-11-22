@@ -273,10 +273,10 @@ export default function AdminTransactionsPage() {
                       <td className="py-2 px-4 border-b text-sm text-gray-600">
                         {transaction.bank_name ? (
                           <div>
-                            <p className="text-xs">{transaction.bank_name}</p>
+                            <p className="text-xs font-medium">{transaction.bank_name}</p>
                             {transaction.account_number && (
-                              <p className="text-xs text-gray-500">
-                                {transaction.account_number.slice(-2).padStart(transaction.account_number.length, '*')}
+                              <p className="text-xs text-gray-700 font-mono">
+                                {transaction.account_number}
                               </p>
                             )}
                           </div>

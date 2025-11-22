@@ -44,15 +44,21 @@ export async function GET() {
 
     // Lấy giá trị mới nhất sau khi đảm bảo đã có
     const finalLink = await sql`
-      SELECT value FROM settings WHERE key = 'zalo_link' LIMIT 1
+      SELECT value FROM settings WHERE key = 'zalo_link' ORDER BY updated_at DESC LIMIT 1
     `;
     const finalEnabled = await sql`
-      SELECT value FROM settings WHERE key = 'zalo_enabled' LIMIT 1
+      SELECT value FROM settings WHERE key = 'zalo_enabled' ORDER BY updated_at DESC LIMIT 1
     `;
 
+    const linkValue = finalLink[0]?.value || ''
+    const enabledValue = finalEnabled[0]?.value || 'false'
+    
+    // Xử lý cả string và boolean
+    const isEnabled = enabledValue === 'true' || enabledValue === true
+
     return NextResponse.json({
-      link: finalLink[0]?.value || '',
-      enabled: finalEnabled[0]?.value === 'true',
+      link: linkValue,
+      enabled: isEnabled,
     });
   } catch (error) {
     console.error('Get Zalo settings error:', error);

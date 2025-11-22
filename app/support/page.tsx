@@ -12,12 +12,13 @@ declare global {
 }
 
 export default function SupportPage() {
-  const [zaloNumber, setZaloNumber] = useState<string>('')
+  const [zaloLink, setZaloLink] = useState<string>('')
+  const [zaloEnabled, setZaloEnabled] = useState<boolean>(false)
   const [loading, setLoading] = useState(true)
   const [crispLoaded, setCrispLoaded] = useState(false)
 
   useEffect(() => {
-    fetchZaloNumber()
+    fetchZaloSettings()
   }, [])
 
   useEffect(() => {
@@ -69,17 +70,30 @@ export default function SupportPage() {
     }
   }
 
-  const fetchZaloNumber = async () => {
+  const fetchZaloSettings = async () => {
     try {
       const response = await fetch('/api/settings/zalo')
       if (response.ok) {
         const data = await response.json()
-        setZaloNumber(data.value || '')
+        console.log('Zalo settings:', data) // Debug log
+        setZaloLink(data.link || '')
+        // Đảm bảo enabled là boolean và chỉ true mới hiển thị
+        const isEnabled = data.enabled === true || data.enabled === 'true'
+        setZaloEnabled(isEnabled)
+        console.log('Zalo enabled state:', isEnabled) // Debug log
+      } else {
+        console.error('Failed to fetch Zalo settings:', response.status)
       }
     } catch (error) {
-      console.error('Error fetching Zalo number:', error)
+      console.error('Error fetching Zalo settings:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleZaloChat = () => {
+    if (zaloLink) {
+      window.open(zaloLink, '_blank')
     }
   }
 
@@ -140,19 +154,22 @@ export default function SupportPage() {
                 </button>
               </div>
 
-              {zaloNumber && (
+              {zaloEnabled === true && zaloLink && zaloLink.trim() !== '' ? (
                 <div className="mt-6 max-w-md mx-auto">
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <button
+                    onClick={handleZaloChat}
+                    className="w-full bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-[#ee4d2d] hover:bg-gray-50 transition-colors shadow-sm"
+                  >
                     <div className="flex items-center justify-center gap-3">
                       <span className="text-2xl">💬</span>
                       <div className="text-center">
                         <p className="text-sm text-gray-600">Zalo</p>
-                        <p className="font-semibold text-gray-800 text-lg">{zaloNumber}</p>
+                        <p className="font-semibold text-gray-800 text-lg">Chat ngay</p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 </div>
-              )}
+              ) : null}
 
               <div className="mt-6 text-sm text-gray-500">
                 <p>Thời gian làm việc: 8:00 - 22:00 (Tất cả các ngày trong tuần)</p>

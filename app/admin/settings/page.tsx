@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 
 export default function AdminSettingsPage() {
   const [agentCode, setAgentCode] = useState('')
-  const [zaloNumber, setZaloNumber] = useState('')
+  const [zaloLink, setZaloLink] = useState('')
+  const [zaloEnabled, setZaloEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
   const [loadingZalo, setLoadingZalo] = useState(false)
   const [fetching, setFetching] = useState(true)
@@ -13,7 +14,7 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     fetchAgentCode()
-    fetchZaloNumber()
+    fetchZaloSettings()
   }, [])
 
   const fetchAgentCode = async () => {
@@ -30,15 +31,16 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const fetchZaloNumber = async () => {
+  const fetchZaloSettings = async () => {
     try {
       const response = await fetch('/api/admin/zalo')
       if (response.ok) {
         const data = await response.json()
-        setZaloNumber(data.value || '')
+        setZaloLink(data.link || '')
+        setZaloEnabled(data.enabled !== false)
       }
     } catch (error) {
-      console.error('Error fetching Zalo number:', error)
+      console.error('Error fetching Zalo settings:', error)
     }
   }
 
@@ -83,13 +85,14 @@ export default function AdminSettingsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ value: zaloNumber }),
+        body: JSON.stringify({ link: zaloLink, enabled: zaloEnabled }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        setZaloMessage({ type: 'success', text: 'Cập nhật số Zalo thành công!' })
+        setZaloMessage({ type: 'success', text: 'Cập nhật cài đặt Zalo thành công!' })
+        await fetchZaloSettings()
       } else {
         setZaloMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
       }
@@ -158,26 +161,42 @@ export default function AdminSettingsPage() {
             </form>
           </div>
 
-          {/* Zalo Number Management */}
+          {/* Zalo Management */}
           <div className="mb-8 pb-8 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Quản lý số Zalo</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Quản lý Zalo</h2>
             <form onSubmit={handleUpdateZalo} className="space-y-4">
               <div>
-                <label htmlFor="zalo-number" className="block text-sm font-medium text-gray-700 mb-2">
-                  Số Zalo hiển thị trên trang CSKH
+                <label htmlFor="zalo-link" className="block text-sm font-medium text-gray-700 mb-2">
+                  Link chat Zalo
                 </label>
                 <input
-                  id="zalo-number"
-                  type="text"
-                  value={zaloNumber}
-                  onChange={(e) => setZaloNumber(e.target.value)}
+                  id="zalo-link"
+                  type="url"
+                  value={zaloLink}
+                  onChange={(e) => setZaloLink(e.target.value)}
                   className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
-                  placeholder="Nhập số Zalo (ví dụ: 0123-456-789)"
+                  placeholder="Nhập link chat Zalo (ví dụ: https://zalo.me/098876543)"
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Số Zalo này sẽ được hiển thị trên trang Chăm sóc khách hàng để khách hàng liên hệ.
+                  Link này sẽ được sử dụng khi khách hàng click nút "Chat ngay" ở mục Zalo trên trang CSKH.
                 </p>
               </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  id="zalo-enabled"
+                  type="checkbox"
+                  checked={zaloEnabled}
+                  onChange={(e) => setZaloEnabled(e.target.checked)}
+                  className="w-4 h-4 text-[#ee4d2d] border-gray-300 rounded focus:ring-[#ee4d2d]"
+                />
+                <label htmlFor="zalo-enabled" className="text-sm font-medium text-gray-700">
+                  Hiển thị mục Zalo trên trang CSKH
+                </label>
+              </div>
+              <p className="text-sm text-gray-500 -mt-2">
+                Bật/tắt để ẩn hoặc hiện mục Zalo trên trang Chăm sóc khách hàng.
+              </p>
 
               {zaloMessage && (
                 <div
@@ -196,7 +215,7 @@ export default function AdminSettingsPage() {
                 disabled={loadingZalo}
                 className="px-6 py-2 bg-[#ee4d2d] text-white rounded-sm font-medium hover:bg-[#f05d40] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
-                {loadingZalo ? 'Đang cập nhật...' : 'CẬP NHẬT SỐ ZALO'}
+                {loadingZalo ? 'Đang cập nhật...' : 'CẬP NHẬT CÀI ĐẶT ZALO'}
               </button>
             </form>
           </div>

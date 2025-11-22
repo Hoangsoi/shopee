@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import BannerCarousel from '@/components/BannerCarousel'
 import NotificationBar from '@/components/NotificationBar'
@@ -34,12 +34,7 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
 
-  useEffect(() => {
-    checkAuth()
-    fetchCategoryAndProducts()
-  }, [slug])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/me')
       if (response.ok) {
@@ -59,9 +54,9 @@ export default function CategoryPage() {
       console.error('Error checking auth:', error)
       router.push('/login')
     }
-  }
+  }, [router])
 
-  const fetchCategoryAndProducts = async () => {
+  const fetchCategoryAndProducts = useCallback(async () => {
     setLoading(true)
     try {
       // Lấy thông tin category
@@ -85,7 +80,13 @@ export default function CategoryPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [slug])
+
+  useEffect(() => {
+    checkAuth()
+    fetchCategoryAndProducts()
+  }, [checkAuth, fetchCategoryAndProducts])
+
 
   const handleLogout = async () => {
     try {

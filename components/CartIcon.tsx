@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -8,15 +8,7 @@ export default function CartIcon() {
   const router = useRouter()
   const [cartCount, setCartCount] = useState(0)
 
-  useEffect(() => {
-    fetchCartCount()
-    
-    // Refresh cart count mỗi 5 giây
-    const interval = setInterval(fetchCartCount, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const fetchCartCount = async () => {
+  const fetchCartCount = useCallback(async () => {
     try {
       const response = await fetch('/api/cart')
       if (response.ok) {
@@ -27,7 +19,15 @@ export default function CartIcon() {
     } catch (error) {
       // Ignore errors (user might not be logged in)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchCartCount()
+    
+    // Refresh cart count mỗi 5 giây
+    const interval = setInterval(fetchCartCount, 5000)
+    return () => clearInterval(interval)
+  }, [fetchCartCount])
 
   return (
     <Link href="/cart" className="relative">

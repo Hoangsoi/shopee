@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import Link from 'next/link'
@@ -21,11 +21,7 @@ export default function HistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchTransactions()
-  }, [])
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const response = await fetch('/api/transactions')
       if (response.ok) {
@@ -39,7 +35,11 @@ export default function HistoryPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    fetchTransactions()
+  }, [fetchTransactions])
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('vi-VN', {

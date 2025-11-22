@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import Link from 'next/link'
@@ -33,13 +33,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (params.orderId) {
-      fetchOrderDetail()
-    }
-  }, [params.orderId])
-
-  const fetchOrderDetail = async () => {
+  const fetchOrderDetail = useCallback(async () => {
     try {
       const response = await fetch(`/api/orders/${params.orderId}`)
       if (response.ok) {
@@ -55,7 +49,13 @@ export default function OrderDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.orderId, router])
+
+  useEffect(() => {
+    if (params.orderId) {
+      fetchOrderDetail()
+    }
+  }, [params.orderId, fetchOrderDetail])
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('vi-VN', {

@@ -90,6 +90,15 @@ export default function CategoryPage() {
 
   const handleLogout = async () => {
     try {
+      // Reset Crisp session before logout to clear chat history
+      if (typeof window !== 'undefined' && window.$crisp) {
+        window.$crisp.push(['do', 'session:reset'])
+        window.$crisp.push(['set', 'user:email', ''])
+        window.$crisp.push(['set', 'user:nickname', ''])
+        window.$crisp.push(['set', 'session:data', []])
+        window.$crisp.push(['do', 'chat:hide'])
+      }
+      
       await fetch('/api/auth/logout', { method: 'POST' })
       router.push('/login')
     } catch (error) {

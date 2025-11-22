@@ -11,27 +11,83 @@ declare global {
   }
 }
 
+interface User {
+  id: number
+  email: string
+  name: string
+  role: string
+}
+
 export default function SupportPage() {
   const [zaloLink, setZaloLink] = useState<string>('')
   const [zaloEnabled, setZaloEnabled] = useState<boolean>(false)
   const [loading, setLoading] = useState(true)
   const [crispLoaded, setCrispLoaded] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
     fetchZaloSettings()
+    fetchUser()
   }, [])
 
+  const fetchUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error)
+    }
+  }
+
   useEffect(() => {
-    // Initialize Crisp after script loads
-    if (typeof window !== 'undefined' && window.$crisp && !crispLoaded) {
+    // Initialize Crisp after script loads and user is loaded
+    // This ensures each user gets their own separate chat session
+    if (typeof window !== 'undefined' && window.$crisp && user) {
+      // Reset session trước để đảm bảo session mới và xóa lịch sử chat của user trước
+      window.$crisp.push(['do', 'session:reset'])
+      
+      // Set user data cho Crisp để tách biệt session theo user
+      // Crisp sẽ tự động tạo session mới dựa trên user email
+      if (user.email) {
+        window.$crisp.push(['set', 'user:email', user.email])
+      }
+      if (user.name) {
+        window.$crisp.push(['set', 'user:nickname', user.name])
+      }
+      // Set session data với user ID để đảm bảo tách biệt hoàn toàn
+      window.$crisp.push(['set', 'session:data', [
+        ['user_id', user.id.toString()],
+        ['user_email', user.email],
+        ['user_name', user.name || ''],
+        ['user_role', user.role || 'user']
+      ]])
+      
       // Hide chat widget completely
       window.$crisp.push(['do', 'chat:hide'])
-      setCrispLoaded(true)
+      
+      if (!crispLoaded) {
+        setCrispLoaded(true)
+      }
     }
-  }, [crispLoaded])
+  }, [user, crispLoaded])
 
   const openCrispChat = () => {
-    if (typeof window !== 'undefined' && window.$crisp) {
+    if (typeof window !== 'undefined' && window.$crisp && user) {
+      // Đảm bảo user data được set trước khi mở chat
+      window.$crisp.push(['set', 'user:email', user.email])
+      if (user.name) {
+        window.$crisp.push(['set', 'user:nickname', user.name])
+      }
+      window.$crisp.push(['set', 'session:data', [
+        ['user_id', user.id.toString()],
+        ['user_email', user.email],
+        ['user_name', user.name || ''],
+        ['user_role', user.role || 'user']
+      ]])
+      
       // Show and open chat
       window.$crisp.push(['do', 'chat:show'])
       window.$crisp.push(['do', 'chat:open'])
@@ -42,9 +98,12 @@ export default function SupportPage() {
           window.$crisp.push(['do', 'chat:hide'])
         }
       }])
+    } else if (typeof window !== 'undefined' && !user) {
+      // Nếu chưa đăng nhập, yêu cầu đăng nhập
+      alert('Vui lòng đăng nhập để sử dụng tính năng chat')
     } else {
       // If Crisp not loaded yet, try to initialize
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && user) {
         window.$crisp = []
         window.CRISP_WEBSITE_ID = '28304a63-17fd-46d3-a249-4090ab8d41f2'
         const d = document
@@ -53,9 +112,23 @@ export default function SupportPage() {
         s.async = true
         d.getElementsByTagName('head')[0].appendChild(s)
         
-        // Wait a bit then open
+        // Wait a bit then set user data and open
         setTimeout(() => {
-          if (window.$crisp) {
+          if (window.$crisp && user) {
+            // Reset session trước
+            window.$crisp.push(['do', 'session:reset'])
+            // Set user data
+            window.$crisp.push(['set', 'user:email', user.email])
+            if (user.name) {
+              window.$crisp.push(['set', 'user:nickname', user.name])
+            }
+            window.$crisp.push(['set', 'session:data', [
+              ['user_id', user.id.toString()],
+              ['user_email', user.email],
+              ['user_name', user.name || ''],
+              ['user_role', user.role || 'user']
+            ]])
+            
             window.$crisp.push(['do', 'chat:show'])
             window.$crisp.push(['do', 'chat:open'])
             // Listen for chat close

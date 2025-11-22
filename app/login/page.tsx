@@ -44,6 +44,26 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (response.ok) {
+        // Reset Crisp session when new user logs in to ensure clean session
+        if (typeof window !== 'undefined' && window.$crisp) {
+          window.$crisp.push(['do', 'session:reset'])
+          // Set new user data
+          if (data.user?.email) {
+            window.$crisp.push(['set', 'user:email', data.user.email])
+          }
+          if (data.user?.name) {
+            window.$crisp.push(['set', 'user:nickname', data.user.name])
+          }
+          if (data.user?.id) {
+            window.$crisp.push(['set', 'session:data', [
+              ['user_id', data.user.id.toString()],
+              ['user_email', data.user.email || ''],
+              ['user_name', data.user.name || ''],
+              ['user_role', data.user.role || 'user']
+            ]])
+          }
+        }
+        
         // Redirect theo role
         if (data.user?.role === 'admin') {
           router.push('/admin')

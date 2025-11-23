@@ -8,6 +8,9 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is required. Please set it in your .env.local file.');
 }
 
+// Type assertion: After the check above, JWT_SECRET is guaranteed to be a string
+const JWT_SECRET_STRING: string = JWT_SECRET;
+
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
@@ -19,14 +22,14 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 export function generateToken(userId: number, identifier: string, role?: string): string {
   return jwt.sign(
     { userId, identifier, role: role || 'user' },
-    JWT_SECRET,
+    JWT_SECRET_STRING,
     { expiresIn: '7d' }
   );
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, JWT_SECRET_STRING) as JWTPayload;
     // Backward compatibility: nếu có email cũ thì giữ lại
     if (decoded.email && !decoded.identifier) {
       decoded.identifier = decoded.email;

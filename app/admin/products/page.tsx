@@ -196,7 +196,7 @@ export default function AdminProductsPage() {
           ...editFormData,
           category_id: editFormData.category_id || null,
           original_price: editFormData.original_price || null,
-          image_url: editFormData.image_url || null,
+          image_url: editFormData.image_url && editFormData.image_url.trim() !== '' ? editFormData.image_url : null,
         }),
       })
 
@@ -208,7 +208,11 @@ export default function AdminProductsPage() {
         setEditFormData({})
         fetchProducts(searchTerm, selectedCategory)
       } else {
-        setMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
+        // Hiển thị lỗi chi tiết nếu có
+        const errorMessage = data.details && Array.isArray(data.details) 
+          ? data.details.map((d: any) => `${d.field}: ${d.message}`).join(', ')
+          : data.error || 'Cập nhật thất bại'
+        setMessage({ type: 'error', text: errorMessage })
       }
     } catch (error) {
       console.error('Error saving product:', error)

@@ -9,7 +9,11 @@ const createProductSchema = z.object({
   description: z.string().optional(),
   price: z.number().positive('Giá phải lớn hơn 0'),
   original_price: z.number().positive().optional(),
-  image_url: z.string().url().optional().or(z.literal('')),
+  image_url: z.union([
+    z.string().url('URL hình ảnh không hợp lệ'),
+    z.literal(''),
+    z.null(),
+  ]).optional(),
   category_id: z.number().int().positive().optional(),
   is_featured: z.boolean().optional(),
   is_active: z.boolean().optional(),
@@ -23,7 +27,11 @@ const updateProductSchema = z.object({
   description: z.string().optional(),
   price: z.number().positive().optional(),
   original_price: z.number().positive().optional(),
-  image_url: z.string().url().optional().or(z.literal('')),
+  image_url: z.union([
+    z.string().url('URL hình ảnh không hợp lệ'),
+    z.literal(''),
+    z.null(),
+  ]).optional(),
   category_id: z.number().int().positive().optional().nullable(),
   is_featured: z.boolean().optional(),
   is_active: z.boolean().optional(),
@@ -261,12 +269,20 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { 
+          error: 'Invalid input',
+          details: error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        },
         { status: 400 }
       );
     }
 
-    console.error('Create product error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Create product error:', error);
+    }
     return NextResponse.json(
       { error: 'Lỗi khi tạo sản phẩm' },
       { status: 500 }
@@ -327,7 +343,9 @@ export async function PUT(request: NextRequest) {
       await sql`UPDATE products SET original_price = ${updateData.original_price || null}, updated_at = CURRENT_TIMESTAMP WHERE id = ${product_id}`;
     }
     if (updateData.image_url !== undefined) {
-      await sql`UPDATE products SET image_url = ${updateData.image_url || null}, updated_at = CURRENT_TIMESTAMP WHERE id = ${product_id}`;
+      // Chuyển chuỗi rỗng thành null
+      const imageUrl = updateData.image_url === '' || updateData.image_url === null ? null : updateData.image_url;
+      await sql`UPDATE products SET image_url = ${imageUrl}, updated_at = CURRENT_TIMESTAMP WHERE id = ${product_id}`;
     }
     if (updateData.category_id !== undefined) {
       await sql`UPDATE products SET category_id = ${updateData.category_id}, updated_at = CURRENT_TIMESTAMP WHERE id = ${product_id}`;
@@ -364,12 +382,20 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { 
+          error: 'Invalid input',
+          details: error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        },
         { status: 400 }
       );
     }
 
-    console.error('Update product error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Update product error:', error);
+    }
     return NextResponse.json(
       { error: 'Lỗi khi cập nhật sản phẩm' },
       { status: 500 }

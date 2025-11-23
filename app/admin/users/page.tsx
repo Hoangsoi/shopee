@@ -52,6 +52,10 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers()
+    // Đánh dấu admin đã xem trang này để reset bộ đếm
+    fetch('/api/admin/users/mark-viewed', { method: 'POST' }).catch(() => {
+      // Ignore errors (silent fail)
+    })
   }, [fetchUsers])
 
   useEffect(() => {
@@ -289,32 +293,49 @@ export default function AdminUsersPage() {
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="py-1 px-2 border-b text-xs text-gray-800 font-medium">{user.id}</td>
-                      <td className="py-1 px-2 border-b text-xs text-gray-800 max-w-[120px] truncate" title={user.name}>{user.name}</td>
-                      <td className="py-1 px-2 border-b text-xs text-gray-800 max-w-[150px] truncate" title={user.email}>{user.email}</td>
-                      <td className="py-1 px-2 border-b text-xs text-gray-600">{user.phone || '-'}</td>
-                      <td className="py-1 px-2 border-b text-xs">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      <td className="py-2 px-3 border-b text-xs text-gray-800 font-medium">{user.id}</td>
+                      <td className="py-2 px-3 border-b text-xs text-gray-800 max-w-[120px] truncate" title={user.name}>{user.name}</td>
+                      <td className="py-2 px-3 border-b text-xs text-gray-800 max-w-[150px] truncate" title={user.email}>{user.email}</td>
+                      <td className="py-2 px-3 border-b text-xs text-gray-600 whitespace-nowrap">{user.phone || '-'}</td>
+                      <td className="py-2 px-3 border-b text-xs">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${
                           user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {user.role === 'admin' ? 'A' : 'U'}
                         </span>
                       </td>
-                      <td className="py-1 px-2 border-b text-xs">
-                        {user.is_frozen ? (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-800" title="Đóng băng">
-                            🔒
+                      <td className="py-2 px-3 border-b text-xs text-center">
+                        {user.vip_level && user.vip_level > 0 ? (
+                          <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-800" title={`VIP ${user.vip_level}`}>
+                            ⭐ {user.vip_level}
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800" title="Hoạt động">
-                            ✓
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 border-b text-xs">
+                        {user.is_frozen ? (
+                          <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-red-100 text-red-800" title="Đóng băng">
+                            🔒 Đóng băng
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-green-100 text-green-800" title="Hoạt động">
+                            ✓ Hoạt động
                           </span>
                         )}
                       </td>
-                      <td className="py-1 px-2 border-b text-xs text-gray-800 font-medium">{formatCurrency(user.wallet_balance)}</td>
-                      <td className="py-1 px-2 border-b text-xs text-gray-800 font-medium">{formatCurrency(user.commission)}</td>
-                      <td className="py-1 px-2 border-b text-xs text-gray-600">
-                        {user.created_at ? new Date(user.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '-'}
+                      <td className="py-2 px-3 border-b text-xs text-gray-800 font-medium whitespace-nowrap">
+                        {formatCurrency(user.wallet_balance || 0)}
+                      </td>
+                      <td className="py-2 px-3 border-b text-xs text-gray-800 font-medium whitespace-nowrap">
+                        {formatCurrency(user.commission || 0)}
+                      </td>
+                      <td className="py-2 px-3 border-b text-xs text-gray-600 whitespace-nowrap">
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString('vi-VN', { 
+                          day: '2-digit', 
+                          month: '2-digit',
+                          year: 'numeric'
+                        }) : '-'}
                       </td>
                       <td className="py-1 px-2 border-b text-xs">
                         <div className="flex gap-1 flex-wrap">

@@ -43,15 +43,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Đếm khách đăng ký mới (trong 24 giờ qua)
+    // Đếm khách đăng ký mới (sau thời điểm admin xem lần cuối)
     let newUsers = 0;
     try {
-      const newUsersCount = await sql`
-        SELECT COUNT(*)::int as count 
-        FROM users 
-        WHERE created_at >= NOW() - INTERVAL '24 hours' AND role = 'user'
-      `;
-      newUsers = newUsersCount[0]?.count || 0;
+      // Lấy thời điểm admin xem lần cuối
+      let lastViewedAt: Date | null = null;
+      try {
+        const lastViewed = await sql`
+          SELECT value 
+          FROM settings 
+          WHERE key = 'last_viewed_users_at'
+          ORDER BY updated_at DESC
+          LIMIT 1
+        `;
+        if (lastViewed.length > 0 && lastViewed[0].value) {
+          lastViewedAt = new Date(lastViewed[0].value);
+        }
+      } catch (error) {
+        // Chưa có thời điểm xem, bỏ qua
+      }
+
+      // Nếu có thời điểm xem, chỉ đếm user sau thời điểm đó
+      // Nếu chưa có, đếm user trong 24h qua (fallback)
+      if (lastViewedAt) {
+        const lastViewedAtISO = lastViewedAt.toISOString();
+        const newUsersCount = await sql`
+          SELECT COUNT(*)::int as count 
+          FROM users 
+          WHERE created_at > ${lastViewedAtISO}::timestamp AND role = 'user'
+        `;
+        newUsers = newUsersCount[0]?.count || 0;
+      } else {
+        // Fallback: đếm user trong 24h qua nếu chưa có thời điểm xem
+        const newUsersCount = await sql`
+          SELECT COUNT(*)::int as count 
+          FROM users 
+          WHERE created_at >= NOW() - INTERVAL '24 hours' AND role = 'user'
+        `;
+        newUsers = newUsersCount[0]?.count || 0;
+      }
     } catch (error: any) {
       // Bảng chưa tồn tại
       if (!error.message?.includes('does not exist') && !error.message?.includes('relation')) {

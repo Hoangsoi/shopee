@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { isAdmin } from '@/lib/auth';
+import { isAdmin, verifyToken } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateUserSchema = z.object({
@@ -60,9 +60,6 @@ export async function GET(request: NextRequest) {
         }
       }
     }
-
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search'); // Tìm kiếm theo tên, email, phone
 
     let users;
     // Get total count for pagination

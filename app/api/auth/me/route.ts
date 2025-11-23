@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import type { User, DatabaseColumn } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,14 +34,16 @@ export async function GET(request: NextRequest) {
         FROM information_schema.columns 
         WHERE table_name = 'users' 
         AND column_name IN ('wallet_balance', 'commission', 'is_frozen', 'vip_level', 'is_vip')
-      `;
+      ` as Array<{ column_name: string }>;
       
-      hasWalletBalance = columns.some((col: DatabaseColumn) => col.column_name === 'wallet_balance');
-      hasCommission = columns.some((col: DatabaseColumn) => col.column_name === 'commission');
-      hasIsFrozen = columns.some((col: DatabaseColumn) => col.column_name === 'is_frozen');
-      hasVipLevel = columns.some((col: DatabaseColumn) => col.column_name === 'vip_level');
+      hasWalletBalance = columns.some((col) => col.column_name === 'wallet_balance');
+      hasCommission = columns.some((col) => col.column_name === 'commission');
+      hasIsFrozen = columns.some((col) => col.column_name === 'is_frozen');
+      hasVipLevel = columns.some((col) => col.column_name === 'vip_level');
     } catch (error) {
-      console.log('Error checking columns:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Error checking columns:', error);
+      }
     }
 
     // Xây dựng query động dựa trên các cột có sẵn

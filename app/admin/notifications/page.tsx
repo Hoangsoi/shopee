@@ -201,7 +201,8 @@ export default function AdminNotificationsPage() {
                     value={addFormData.content}
                     onChange={handleAddChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                     placeholder="Nhập nội dung thông báo"
                   />
                 </div>
@@ -213,7 +214,8 @@ export default function AdminNotificationsPage() {
                       name="sort_order"
                       value={addFormData.sort_order}
                       onChange={handleAddChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                      style={{ fontSize: '16px' }}
                     />
                   </div>
                   <div className="flex items-end">
@@ -281,7 +283,8 @@ export default function AdminNotificationsPage() {
                             value={editFormData.content || ''}
                             onChange={handleChange}
                             rows={2}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           <div className="max-w-md">{notification.content}</div>
@@ -294,7 +297,8 @@ export default function AdminNotificationsPage() {
                             name="sort_order"
                             value={editFormData.sort_order || 0}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           notification.sort_order

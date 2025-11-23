@@ -211,7 +211,8 @@ export default function AdminBannersPage() {
                     required
                     value={addFormData.image_url}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                     placeholder="https://example.com/image.jpg"
                   />
                 </div>
@@ -222,7 +223,8 @@ export default function AdminBannersPage() {
                     name="title"
                     value={addFormData.title}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                     placeholder="Tiêu đề banner"
                   />
                 </div>
@@ -233,7 +235,8 @@ export default function AdminBannersPage() {
                     name="link_url"
                     value={addFormData.link_url}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                     placeholder="https://example.com"
                   />
                 </div>
@@ -245,7 +248,8 @@ export default function AdminBannersPage() {
                       name="sort_order"
                       value={addFormData.sort_order}
                       onChange={handleAddChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                      style={{ fontSize: '16px' }}
                     />
                   </div>
                   <div className="flex items-end">
@@ -329,7 +333,8 @@ export default function AdminBannersPage() {
                               name="image_url"
                               value={editFormData.image_url || ''}
                               onChange={handleChange}
-                              className="w-full px-2 py-1 border rounded-sm text-sm"
+                              className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                              style={{ fontSize: '16px' }}
                               placeholder="URL ảnh"
                             />
                             {editFormData.image_url && (
@@ -361,7 +366,8 @@ export default function AdminBannersPage() {
                             name="title"
                             value={editFormData.title || ''}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           banner.title || 'N/A'
@@ -374,7 +380,8 @@ export default function AdminBannersPage() {
                             name="link_url"
                             value={editFormData.link_url || ''}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                             placeholder="URL liên kết"
                           />
                         ) : (
@@ -392,7 +399,8 @@ export default function AdminBannersPage() {
                             name="sort_order"
                             value={editFormData.sort_order || 0}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           banner.sort_order

@@ -153,7 +153,9 @@ export default function WithdrawModal({ isOpen, onClose, onSuccess }: WithdrawMo
             <input
               type="text"
               required
-              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+              autoComplete="organization"
+              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+              style={{ fontSize: '16px' }}
               value={formData.bank_name}
               onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
               placeholder="VD: Vietcombank, Techcombank..."
@@ -164,8 +166,11 @@ export default function WithdrawModal({ isOpen, onClose, onSuccess }: WithdrawMo
             <label className="text-sm text-gray-700 block mb-1">Số tài khoản *</label>
             <input
               type="text"
+              inputMode="numeric"
               required
-              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+              autoComplete="off"
+              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+              style={{ fontSize: '16px' }}
               value={formData.account_number}
               onChange={(e) => setFormData({ ...formData, account_number: e.target.value.replace(/\D/g, '') })}
               placeholder="Nhập số tài khoản"
@@ -177,7 +182,9 @@ export default function WithdrawModal({ isOpen, onClose, onSuccess }: WithdrawMo
             <input
               type="text"
               required
-              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+              autoComplete="name"
+              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+              style={{ fontSize: '16px' }}
               value={formData.account_holder_name}
               onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
               placeholder="Nhập tên chủ tài khoản"
@@ -188,7 +195,9 @@ export default function WithdrawModal({ isOpen, onClose, onSuccess }: WithdrawMo
             <label className="text-sm text-gray-700 block mb-1">Chi nhánh (tùy chọn)</label>
             <input
               type="text"
-              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+              autoComplete="off"
+              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+              style={{ fontSize: '16px' }}
               value={formData.branch}
               onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
               placeholder="Nhập chi nhánh"

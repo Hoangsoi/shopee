@@ -124,8 +124,14 @@ export async function POST(request: NextRequest) {
       WHERE id = ${user_id}
     `;
 
+    // Nếu là cộng tiền, cập nhật VIP status
+    if (type === 'add') {
+      const { updateVipStatus } = await import('@/lib/vip-utils');
+      await updateVipStatus(user_id);
+    }
+
     return NextResponse.json({
-      message: type === 'add' 
+      message: type === 'add'
         ? `Đã nạp ${new Intl.NumberFormat('vi-VN').format(amount)}đ cho người dùng`
         : `Đã trừ ${new Intl.NumberFormat('vi-VN').format(amount)}đ từ tài khoản người dùng`,
       user: {

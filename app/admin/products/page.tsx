@@ -281,7 +281,8 @@ export default function AdminProductsPage() {
               placeholder="Tìm kiếm theo tên sản phẩm..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+              className="px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+              style={{ fontSize: '16px' }}
             />
             <select
               value={selectedCategory}
@@ -309,7 +310,8 @@ export default function AdminProductsPage() {
                     required
                     value={addFormData.name}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div>
@@ -320,7 +322,8 @@ export default function AdminProductsPage() {
                     required
                     value={addFormData.slug}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -330,7 +333,8 @@ export default function AdminProductsPage() {
                     value={addFormData.description}
                     onChange={handleAddChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div>
@@ -343,7 +347,8 @@ export default function AdminProductsPage() {
                     step="1000"
                     value={addFormData.price}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div>
@@ -355,7 +360,8 @@ export default function AdminProductsPage() {
                     step="1000"
                     value={addFormData.original_price}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div>
@@ -365,7 +371,8 @@ export default function AdminProductsPage() {
                     name="image_url"
                     value={addFormData.image_url}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div>
@@ -392,7 +399,8 @@ export default function AdminProductsPage() {
                     min="0"
                     value={addFormData.stock}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div className="md:col-span-2 flex gap-4">
@@ -470,7 +478,8 @@ export default function AdminProductsPage() {
                             name="image_url"
                             value={editFormData.image_url || ''}
                             onChange={handleChange}
-                            className="w-32 px-2 py-1 border rounded-sm text-xs"
+                            className="w-32 px-2 py-1 border rounded-sm text-xs text-gray-900"
+                            style={{ fontSize: '16px' }}
                             placeholder="URL hình ảnh"
                           />
                         ) : (
@@ -488,7 +497,8 @@ export default function AdminProductsPage() {
                             name="name"
                             value={editFormData.name || ''}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           <div>
@@ -526,7 +536,8 @@ export default function AdminProductsPage() {
                               step="1000"
                               value={editFormData.price || 0}
                               onChange={handleChange}
-                              className="w-full px-2 py-1 border rounded-sm text-xs"
+                              className="w-full px-2 py-1 border rounded-sm text-xs text-gray-900"
+                              style={{ fontSize: '16px' }}
                               placeholder="Giá"
                             />
                             <input
@@ -536,7 +547,8 @@ export default function AdminProductsPage() {
                               step="1000"
                               value={editFormData.original_price || 0}
                               onChange={handleChange}
-                              className="w-full px-2 py-1 border rounded-sm text-xs"
+                              className="w-full px-2 py-1 border rounded-sm text-xs text-gray-900"
+                              style={{ fontSize: '16px' }}
                               placeholder="Giá gốc"
                             />
                           </div>
@@ -559,7 +571,8 @@ export default function AdminProductsPage() {
                             min="0"
                             value={editFormData.stock || 0}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           product.stock

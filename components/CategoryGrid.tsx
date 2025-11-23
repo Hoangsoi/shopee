@@ -57,6 +57,38 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
       {categories.map((category) => {
         const hasPermission = permissions.includes(category.id)
         const isLocked = !hasPermission && !loading
+        
+        // Đảm bảo discount_percent là số hợp lệ - parse nhiều cách để chắc chắn
+        let discountPercent = 0
+        if (category.discount_percent !== null && category.discount_percent !== undefined) {
+          // Thử parse theo nhiều cách
+          const value = category.discount_percent
+          if (typeof value === 'number') {
+            discountPercent = value
+          } else if (typeof value === 'string') {
+            const parsed = parseInt(value, 10)
+            discountPercent = isNaN(parsed) ? 0 : parsed
+          } else {
+            const parsed = Number(value)
+            discountPercent = isNaN(parsed) ? 0 : Math.floor(parsed)
+          }
+        }
+
+        // Debug log để kiểm tra giá trị
+        if (category.name === 'VIP') {
+          console.log('VIP Category Debug:', {
+            name: category.name,
+            id: category.id,
+            raw_discount_percent: category.discount_percent,
+            parsed_discountPercent: discountPercent,
+            type: typeof category.discount_percent,
+            isLocked,
+            hasPermission,
+            willShow: discountPercent > 0,
+            condition: discountPercent > 0,
+            fullCategory: category
+          })
+        }
 
         return (
           <div
@@ -85,11 +117,11 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
                   <div className="font-semibold text-sm text-gray-800 mb-1">
                     {category.name}
                   </div>
-                  {category.discount_percent > 0 && (
+                  {discountPercent > 0 ? (
                     <div className="text-xs text-[#ee4d2d] font-bold">
-                      Giảm {category.discount_percent}%
+                      Giảm {discountPercent}%
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </Link>
             ) : (
@@ -101,11 +133,11 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
                   <div className="font-semibold text-sm text-gray-800 mb-1">
                     {category.name}
                   </div>
-                  {category.discount_percent > 0 && (
+                  {discountPercent > 0 ? (
                     <div className="text-xs text-[#ee4d2d] font-bold">
-                      Giảm {category.discount_percent}%
+                      Giảm {discountPercent}%
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}

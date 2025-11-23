@@ -103,7 +103,11 @@ export default function AdminCategoriesPage() {
     const { name, value, type, checked } = e.target
     setEditFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) || 0 : value,
+      [name]: type === 'checkbox' 
+        ? checked 
+        : type === 'number' 
+          ? (value === '' ? 0 : parseFloat(value) || 0)
+          : value,
     }))
   }
 
@@ -111,7 +115,11 @@ export default function AdminCategoriesPage() {
     const { name, value, type, checked } = e.target
     setAddFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) || 0 : value,
+      [name]: type === 'checkbox' 
+        ? checked 
+        : type === 'number' 
+          ? (value === '' ? 0 : parseFloat(value) || 0)
+          : value,
     }))
   }
 
@@ -210,7 +218,8 @@ export default function AdminCategoriesPage() {
                     required
                     value={addFormData.name}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div>
@@ -221,7 +230,8 @@ export default function AdminCategoriesPage() {
                     required
                     value={addFormData.slug}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                     placeholder="vd: my-pham"
                   />
                 </div>
@@ -234,7 +244,8 @@ export default function AdminCategoriesPage() {
                     max="100"
                     value={addFormData.discount_percent}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div>
@@ -244,7 +255,8 @@ export default function AdminCategoriesPage() {
                     name="sort_order"
                     value={addFormData.sort_order}
                     onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -313,7 +325,8 @@ export default function AdminCategoriesPage() {
                             name="name"
                             value={editFormData.name || ''}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           category.name
@@ -326,7 +339,8 @@ export default function AdminCategoriesPage() {
                             name="slug"
                             value={editFormData.slug || ''}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           category.slug
@@ -341,7 +355,8 @@ export default function AdminCategoriesPage() {
                             max="100"
                             value={editFormData.discount_percent || 0}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           `${category.discount_percent}%`
@@ -354,7 +369,8 @@ export default function AdminCategoriesPage() {
                             name="sort_order"
                             value={editFormData.sort_order || 0}
                             onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
+                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
                           />
                         ) : (
                           category.sort_order

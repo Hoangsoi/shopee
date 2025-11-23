@@ -22,29 +22,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Kiểm tra xem các cột wallet_balance, commission và is_frozen có tồn tại không
+    // Kiểm tra xem các cột wallet_balance, commission, is_frozen và vip_level có tồn tại không
     let hasWalletBalance = false;
     let hasCommission = false;
     let hasIsFrozen = false;
+    let hasVipLevel = false;
     
     try {
       const columns = await sql`
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = 'users' 
-        AND column_name IN ('wallet_balance', 'commission', 'is_frozen')
+        AND column_name IN ('wallet_balance', 'commission', 'is_frozen', 'vip_level', 'is_vip')
       `;
       
       hasWalletBalance = columns.some((col: any) => col.column_name === 'wallet_balance');
       hasCommission = columns.some((col: any) => col.column_name === 'commission');
       hasIsFrozen = columns.some((col: any) => col.column_name === 'is_frozen');
+      hasVipLevel = columns.some((col: any) => col.column_name === 'vip_level');
     } catch (error) {
       console.log('Error checking columns:', error);
     }
 
     // Xây dựng query động dựa trên các cột có sẵn
     let query;
-    if (hasWalletBalance && hasCommission && hasIsFrozen) {
+    if (hasWalletBalance && hasCommission && hasIsFrozen && hasVipLevel) {
+      query = sql`
+        SELECT 
+          id, 
+          email, 
+          name, 
+          phone,
+          agent_code,
+          role, 
+          wallet_balance,
+          commission,
+          COALESCE(is_frozen, false) as is_frozen,
+          COALESCE(vip_level, 0) as vip_level,
+          created_at 
+        FROM users 
+        WHERE id = ${decoded.userId}
+      `;
+    } else if (hasWalletBalance && hasCommission && hasIsFrozen) {
       query = sql`
         SELECT 
           id, 
@@ -102,10 +121,11 @@ export async function GET(request: NextRequest) {
 
     const user = users[0];
 
-    // Xử lý wallet_balance, commission và is_frozen
+    // Xử lý wallet_balance, commission, is_frozen và vip_level
     let walletBalance = 0;
     let commission = 0;
     let isFrozen = false;
+    let vipLevel = 0;
     
     if (hasWalletBalance && user.wallet_balance !== undefined && user.wallet_balance !== null) {
       walletBalance = typeof user.wallet_balance === 'string' 
@@ -123,6 +143,14 @@ export async function GET(request: NextRequest) {
       isFrozen = user.is_frozen === true || user.is_frozen === 'true';
     }
 
+    if (hasVipLevel && user.vip_level !== undefined && user.vip_level !== null) {
+      vipLevel = typeof user.vip_level === 'number' 
+        ? user.vip_level 
+        : parseInt(user.vip_level.toString()) || 0;
+      // Đảm bảo vip_level trong khoảng 0-10
+      vipLevel = Math.max(0, Math.min(10, vipLevel));
+    }
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -134,6 +162,7 @@ export async function GET(request: NextRequest) {
         wallet_balance: walletBalance,
         commission: commission,
         is_frozen: isFrozen,
+        vip_level: vipLevel,
         created_at: user.created_at,
       },
     });

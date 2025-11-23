@@ -225,6 +225,12 @@ export async function PUT(request: NextRequest) {
       `;
     }
 
+    // Nếu là duyệt transaction nạp tiền, cập nhật VIP status
+    if (transaction.type === 'deposit' && status === 'completed') {
+      const { updateVipStatus } = await import('@/lib/vip-utils');
+      await updateVipStatus(transaction.user_id);
+    }
+
     return NextResponse.json({
       message: status === 'completed' 
         ? 'Duyệt giao dịch thành công'

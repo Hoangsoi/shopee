@@ -15,6 +15,7 @@ interface User {
   wallet_balance: number
   commission: number
   is_frozen?: boolean
+  vip_level?: number
 }
 
 interface BankAccount {
@@ -249,7 +250,18 @@ export default function ProfilePage() {
               </h2>
               <div className="space-y-3 md:space-y-4">
                 <div className="p-3 md:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                  <label className="text-xs md:text-sm text-gray-600 block mb-2">Số dư ví</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs md:text-sm text-gray-600">Số dư ví</label>
+                    {user.vip_level !== undefined && user.vip_level !== null && user.vip_level > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs md:text-sm font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white shadow-md animate-pulse">
+                        Cấp độ ⭐ VIP {user.vip_level}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs md:text-sm font-semibold bg-gray-300 text-gray-700">
+                        Cấp độ VIP {user.vip_level || 0}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xl md:text-2xl font-bold text-[#ee4d2d] mb-3">
                     {formatCurrency(user.wallet_balance || 0)}
                   </p>

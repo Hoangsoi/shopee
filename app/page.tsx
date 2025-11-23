@@ -133,7 +133,20 @@ export default function Home() {
       const response = await fetch('/api/categories')
       if (response.ok) {
         const data = await response.json()
-        setCategories(data.categories || [])
+        const categories = data.categories || []
+        
+        // Debug log để kiểm tra VIP category
+        const vipCategory = categories.find((cat: Category) => cat.name === 'VIP')
+        if (vipCategory) {
+          console.log('Homepage VIP Category Debug:', {
+            name: vipCategory.name,
+            id: vipCategory.id,
+            discount_percent: vipCategory.discount_percent,
+            type: typeof vipCategory.discount_percent
+          })
+        }
+        
+        setCategories(categories)
       }
     } catch (error) {
       console.error('Error fetching categories:', error)

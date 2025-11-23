@@ -246,7 +246,8 @@ export default function AdminUsersPage() {
               placeholder="Tìm kiếm theo tên, email, số điện thoại..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+              style={{ fontSize: '16px' }}
             />
           </div>
 
@@ -463,7 +464,8 @@ export default function AdminUsersPage() {
                           value={editFormData.name || ''}
                           onChange={handleChange}
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                          style={{ fontSize: '16px' }}
                         />
                       </div>
 
@@ -477,7 +479,8 @@ export default function AdminUsersPage() {
                           value={editFormData.email || ''}
                           onChange={handleChange}
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                          style={{ fontSize: '16px' }}
                         />
                       </div>
 
@@ -489,7 +492,8 @@ export default function AdminUsersPage() {
                           value={editFormData.phone || ''}
                           onChange={handleChange}
                           placeholder="Nhập số điện thoại"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                          style={{ fontSize: '16px' }}
                         />
                       </div>
 
@@ -501,7 +505,8 @@ export default function AdminUsersPage() {
                           value={editFormData.agent_code || ''}
                           onChange={handleChange}
                           placeholder="Nhập mã đại lý"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                          style={{ fontSize: '16px' }}
                         />
                       </div>
 
@@ -530,7 +535,8 @@ export default function AdminUsersPage() {
                           onChange={handleChange}
                           min="0"
                           step="1000"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                          style={{ fontSize: '16px' }}
                         />
                         <p className="text-xs text-gray-500 mt-1">
                           Hiện tại: {formatCurrency(users.find((u) => u.id === editingId)?.wallet_balance || 0)}
@@ -546,7 +552,8 @@ export default function AdminUsersPage() {
                           onChange={handleChange}
                           min="0"
                           step="1000"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                          style={{ fontSize: '16px' }}
                         />
                         <p className="text-xs text-gray-500 mt-1">
                           Hiện tại: {formatCurrency(users.find((u) => u.id === editingId)?.commission || 0)}
@@ -689,7 +696,8 @@ export default function AdminUsersPage() {
                       min="1"
                       step="1000"
                       placeholder="Nhập số tiền"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                      style={{ fontSize: '16px' }}
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Số dư hiện tại: {formatCurrency(users.find((u) => u.id === editingId)?.wallet_balance || 0)}
@@ -706,7 +714,8 @@ export default function AdminUsersPage() {
                       onChange={handleBalanceChange}
                       rows={3}
                       placeholder="Nhập ghi chú (nếu có)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                      style={{ fontSize: '16px' }}
                     />
                   </div>
 

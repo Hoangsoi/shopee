@@ -77,7 +77,9 @@ export async function GET(request: NextRequest) {
         id: cat.id,
         name: cat.name,
         slug: cat.slug,
-        discount_percent: cat.discount_percent || 0,
+        discount_percent: cat.discount_percent !== null && cat.discount_percent !== undefined
+          ? parseInt(cat.discount_percent.toString()) || 0
+          : 0,
         sort_order: cat.sort_order || 0,
         is_active: cat.is_active !== false,
         created_at: cat.created_at,
@@ -128,7 +130,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: 'Tạo danh mục thành công',
-      category: result[0],
+      category: {
+        ...result[0],
+        discount_percent: result[0].discount_percent !== null && result[0].discount_percent !== undefined
+          ? parseInt(result[0].discount_percent.toString()) || 0
+          : 0,
+      },
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -190,7 +197,12 @@ export async function PUT(request: NextRequest) {
       await sql`UPDATE categories SET slug = ${updateData.slug}, updated_at = CURRENT_TIMESTAMP WHERE id = ${category_id}`;
     }
     if (updateData.discount_percent !== undefined) {
-      await sql`UPDATE categories SET discount_percent = ${updateData.discount_percent}, updated_at = CURRENT_TIMESTAMP WHERE id = ${category_id}`;
+      // Đảm bảo discount_percent là số nguyên hợp lệ
+      const discountValue = typeof updateData.discount_percent === 'number' 
+        ? updateData.discount_percent 
+        : parseInt(String(updateData.discount_percent)) || 0
+      await sql`UPDATE categories SET discount_percent = ${discountValue}, updated_at = CURRENT_TIMESTAMP WHERE id = ${category_id}`;
+      console.log(`Updated category ${category_id} discount_percent to:`, discountValue)
     }
     if (updateData.sort_order !== undefined) {
       await sql`UPDATE categories SET sort_order = ${updateData.sort_order}, updated_at = CURRENT_TIMESTAMP WHERE id = ${category_id}`;
@@ -208,7 +220,12 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       message: 'Cập nhật danh mục thành công',
-      category: result[0],
+      category: {
+        ...result[0],
+        discount_percent: result[0].discount_percent !== null && result[0].discount_percent !== undefined
+          ? parseInt(result[0].discount_percent.toString()) || 0
+          : 0,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

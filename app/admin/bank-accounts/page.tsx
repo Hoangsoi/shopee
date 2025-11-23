@@ -157,7 +157,8 @@ export default function BankAccountsPage() {
                               type="text"
                               value={formData.bank_name}
                               onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d]"
+                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                              style={{ fontSize: '16px' }}
                               placeholder="Tên ngân hàng"
                             />
                           </td>
@@ -166,7 +167,8 @@ export default function BankAccountsPage() {
                               type="text"
                               value={formData.account_number}
                               onChange={(e) => setFormData({ ...formData, account_number: e.target.value.replace(/\D/g, '') })}
-                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d]"
+                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                              style={{ fontSize: '16px' }}
                               placeholder="Số tài khoản"
                             />
                           </td>
@@ -175,7 +177,8 @@ export default function BankAccountsPage() {
                               type="text"
                               value={formData.account_holder_name}
                               onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
-                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d]"
+                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                              style={{ fontSize: '16px' }}
                               placeholder="Tên chủ TK"
                             />
                           </td>
@@ -184,7 +187,8 @@ export default function BankAccountsPage() {
                               type="text"
                               value={formData.branch}
                               onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d]"
+                              className="w-full h-9 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                              style={{ fontSize: '16px' }}
                               placeholder="Chi nhánh"
                             />
                           </td>

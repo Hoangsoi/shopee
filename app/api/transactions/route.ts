@@ -192,6 +192,10 @@ export async function POST(request: NextRequest) {
         SET status = 'completed', updated_at = CURRENT_TIMESTAMP
         WHERE id = ${result[0].id}
       `;
+      
+      // Cập nhật VIP status sau khi nạp tiền thành công
+      const { updateVipStatus } = await import('@/lib/vip-utils');
+      await updateVipStatus(decoded.userId);
     } else if (validatedData.type === 'withdraw') {
       // Nếu là rút tiền, trừ số dư và chờ admin duyệt
       await sql`

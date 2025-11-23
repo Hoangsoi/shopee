@@ -92,8 +92,11 @@ export default function WithdrawAmountModal({ isOpen, onClose, onSuccess, wallet
             <label className="text-sm text-gray-700 block mb-1">Số tiền rút *</label>
             <input
               type="text"
+              inputMode="numeric"
               required
-              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+              autoComplete="off"
+              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+              style={{ fontSize: '16px' }}
               value={amount}
               onChange={(e) => {
                 const value = e.target.value.replace(/[^\d]/g, '')
@@ -112,7 +115,9 @@ export default function WithdrawAmountModal({ isOpen, onClose, onSuccess, wallet
             <label className="text-sm text-gray-700 block mb-1">Ghi chú (tùy chọn)</label>
             <input
               type="text"
-              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm"
+              autoComplete="off"
+              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+              style={{ fontSize: '16px' }}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Nhập ghi chú"

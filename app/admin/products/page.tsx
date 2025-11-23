@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 
 interface Product {
   id: number
@@ -487,11 +488,15 @@ export default function AdminProductsPage() {
                             placeholder="URL hình ảnh"
                           />
                         ) : (
-                          <img
-                            src={product.image_url || 'https://via.placeholder.com/60x60?text=No+Image'}
-                            alt={product.name}
-                            className="w-16 h-16 object-cover rounded"
-                          />
+                          <div className="relative w-16 h-16 rounded overflow-hidden">
+                            <Image
+                              src={product.image_url || 'https://via.placeholder.com/60x60?text=No+Image'}
+                              alt={product.name}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
                         )}
                       </td>
                       <td className="py-2 px-4 border-b text-sm text-gray-800">

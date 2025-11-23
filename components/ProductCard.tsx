@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 
 interface Product {
   id: number
@@ -70,10 +71,12 @@ export default function ProductCard({ product, hasPermission = true }: ProductCa
   return (
     <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="relative aspect-square bg-gray-100">
-        <img
+        <Image
           src={product.image_url || 'https://via.placeholder.com/300x300?text=Product'}
           alt={product.name}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
+          unoptimized
         />
         {discount > 0 && (
           <div className="absolute top-2 right-2 bg-[#ee4d2d] text-white text-xs font-bold px-2 py-1 rounded">

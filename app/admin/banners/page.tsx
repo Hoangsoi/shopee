@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 
 interface Banner {
   id: number
@@ -268,14 +269,18 @@ export default function AdminBannersPage() {
                 {addFormData.image_url && (
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">Xem trước</label>
-                    <img
-                      src={addFormData.image_url}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded border border-gray-300"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Image+Not+Found'
-                      }}
-                    />
+                    <div className="relative w-full h-48 rounded border border-gray-300 overflow-hidden">
+                      <Image
+                        src={addFormData.image_url}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Image+Not+Found'
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -338,25 +343,33 @@ export default function AdminBannersPage() {
                               placeholder="URL ảnh"
                             />
                             {editFormData.image_url && (
-                              <img
-                                src={editFormData.image_url}
-                                alt="Preview"
-                                className="w-32 h-20 object-cover rounded border"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x100?text=Error'
-                                }}
-                              />
+                              <div className="relative w-32 h-20 rounded border overflow-hidden">
+                                <Image
+                                  src={editFormData.image_url}
+                                  alt="Preview"
+                                  fill
+                                  className="object-cover"
+                                  unoptimized
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x100?text=Error'
+                                  }}
+                                />
+                              </div>
                             )}
                           </div>
                         ) : (
-                          <img
-                            src={banner.image_url}
-                            alt={banner.title}
-                            className="w-32 h-20 object-cover rounded border"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x100?text=Error'
-                            }}
-                          />
+                          <div className="relative w-32 h-20 rounded border overflow-hidden">
+                            <Image
+                              src={banner.image_url}
+                              alt={banner.title}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x100?text=Error'
+                              }}
+                            />
+                          </div>
                         )}
                       </td>
                       <td className="py-2 px-4 border-b text-sm text-gray-800">

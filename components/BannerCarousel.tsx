@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface Banner {
   id: number
@@ -59,23 +60,27 @@ export default function BannerCarousel() {
   }
 
   const BannerContent = ({ banner }: { banner: Banner }) => (
-    <div className="min-w-full h-full">
+    <div className="min-w-full h-full relative">
       {banner.link_url ? (
         <Link href={banner.link_url} target="_blank" rel="noopener noreferrer">
-          <img
+          <Image
             src={banner.image_url}
             alt={banner.title}
-            className="w-full h-full object-cover cursor-pointer"
+            fill
+            className="object-cover cursor-pointer"
+            unoptimized
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Banner'
             }}
           />
         </Link>
       ) : (
-        <img
+        <Image
           src={banner.image_url}
           alt={banner.title}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
+          unoptimized
           onError={(e) => {
             (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Banner'
           }}

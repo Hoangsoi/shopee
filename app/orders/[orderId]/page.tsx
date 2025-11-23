@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface OrderItem {
   id: number
@@ -139,11 +140,13 @@ export default function OrderDetailPage() {
             <h3 className="font-semibold text-gray-800">Sản phẩm</h3>
             {order.items.map((item) => (
               <div key={item.id} className="flex gap-4 p-3 bg-gray-50 rounded-lg">
-                <div className="w-16 h-16 flex-shrink-0 bg-gray-200 rounded overflow-hidden">
-                  <img
+                <div className="w-16 h-16 flex-shrink-0 bg-gray-200 rounded overflow-hidden relative">
+                  <Image
                     src={item.image_url || 'https://via.placeholder.com/64x64?text=Product'}
                     alt={item.product_name}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
                   />
                 </div>
                 <div className="flex-1 min-w-0">

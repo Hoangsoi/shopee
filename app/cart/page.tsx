@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface CartItem {
   id: number
@@ -188,11 +189,13 @@ export default function CartPage() {
               {cartItems.map((item) => (
                 <div key={item.id} className="p-4 border-b border-gray-200 last:border-b-0">
                   <div className="flex gap-4">
-                    <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded overflow-hidden">
-                      <img
+                    <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded overflow-hidden relative">
+                      <Image
                         src={item.image_url || 'https://via.placeholder.com/80x80?text=Product'}
                         alt={item.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
+                        unoptimized
                       />
                     </div>
                     <div className="flex-1 min-w-0">

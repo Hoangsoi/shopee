@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Banner {
   id: number
@@ -28,11 +28,7 @@ export default function AdminBannersPage() {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchBanners()
-  }, [])
-
-  const fetchBanners = async () => {
+  const fetchBanners = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch('/api/admin/banners')
@@ -48,7 +44,11 @@ export default function AdminBannersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchBanners()
+  }, [fetchBanners])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()

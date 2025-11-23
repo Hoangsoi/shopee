@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface User {
   id: number
@@ -26,19 +26,7 @@ export default function CategoryPermissionsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchUserPermissions(selectedUserId)
-    } else {
-      setCategories([])
-    }
-  }, [selectedUserId])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/users')
       if (response.ok) {
@@ -50,9 +38,9 @@ export default function CategoryPermissionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchUserPermissions = async (userId: number) => {
+  const fetchUserPermissions = useCallback(async (userId: number) => {
     try {
       setLoading(true)
       const response = await fetch(`/api/admin/user-category-permissions?user_id=${userId}`)
@@ -68,7 +56,19 @@ export default function CategoryPermissionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchUserPermissions(selectedUserId)
+    } else {
+      setCategories([])
+    }
+  }, [selectedUserId, fetchUserPermissions])
 
   const handlePermissionToggle = async (categoryId: number, hasPermission: boolean) => {
     if (!selectedUserId) return

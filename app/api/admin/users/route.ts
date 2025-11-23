@@ -88,7 +88,8 @@ export async function GET(request: NextRequest) {
             wallet_balance,
             commission,
             created_at,
-            COALESCE(is_frozen, false) as is_frozen
+            COALESCE(is_frozen, false) as is_frozen,
+            COALESCE(vip_level, 0) as vip_level
           FROM users
           WHERE 
             name ILIKE ${'%' + search + '%'} OR
@@ -108,7 +109,8 @@ export async function GET(request: NextRequest) {
             wallet_balance,
             commission,
             created_at,
-            COALESCE(is_frozen, false) as is_frozen
+            COALESCE(is_frozen, false) as is_frozen,
+            COALESCE(vip_level, 0) as vip_level
           FROM users
           ORDER BY created_at DESC
         `;
@@ -128,7 +130,8 @@ export async function GET(request: NextRequest) {
               role,
               wallet_balance,
               commission,
-              created_at
+              created_at,
+              COALESCE(vip_level, 0) as vip_level
             FROM users
             WHERE 
               name ILIKE ${'%' + search + '%'} OR
@@ -147,7 +150,8 @@ export async function GET(request: NextRequest) {
               role,
               wallet_balance,
               commission,
-              created_at
+              created_at,
+              COALESCE(vip_level, 0) as vip_level
             FROM users
             ORDER BY created_at DESC
           `;

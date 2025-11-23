@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Notification {
   id: number
@@ -24,11 +24,7 @@ export default function AdminNotificationsPage() {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchNotifications()
-  }, [])
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch('/api/admin/notifications')
@@ -44,7 +40,11 @@ export default function AdminNotificationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()

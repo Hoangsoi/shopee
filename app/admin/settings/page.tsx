@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export default function AdminSettingsPage() {
   const [agentCode, setAgentCode] = useState('')
@@ -15,13 +15,7 @@ export default function AdminSettingsPage() {
   const [zaloMessage, setZaloMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [vipMessage, setVipMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchAgentCode()
-    fetchZaloSettings()
-    fetchVipSettings()
-  }, [])
-
-  const fetchAgentCode = async () => {
+  const fetchAgentCode = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/agent-code')
       if (response.ok) {
@@ -33,9 +27,9 @@ export default function AdminSettingsPage() {
     } finally {
       setFetching(false)
     }
-  }
+  }, [])
 
-  const fetchZaloSettings = async () => {
+  const fetchZaloSettings = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/zalo')
       if (response.ok) {
@@ -46,9 +40,9 @@ export default function AdminSettingsPage() {
     } catch (error) {
       console.error('Error fetching Zalo settings:', error)
     }
-  }
+  }, [])
 
-  const fetchVipSettings = async () => {
+  const fetchVipSettings = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/settings/vip')
       if (response.ok) {
@@ -62,7 +56,13 @@ export default function AdminSettingsPage() {
     } catch (error) {
       console.error('Error fetching VIP settings:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchAgentCode()
+    fetchZaloSettings()
+    fetchVipSettings()
+  }, [fetchAgentCode, fetchZaloSettings, fetchVipSettings])
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Product {
   id: number
@@ -46,23 +46,7 @@ export default function AdminProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchCategories()
-    fetchProducts()
-  }, [])
-
-  useEffect(() => {
-    if (searchTerm || selectedCategory) {
-      const timeoutId = setTimeout(() => {
-        fetchProducts(searchTerm, selectedCategory)
-      }, 500)
-      return () => clearTimeout(timeoutId)
-    } else {
-      fetchProducts()
-    }
-  }, [searchTerm, selectedCategory])
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await fetch('/api/categories')
       if (response.ok) {
@@ -72,9 +56,9 @@ export default function AdminProductsPage() {
     } catch (error) {
       console.error('Error fetching categories:', error)
     }
-  }
+  }, [])
 
-  const fetchProducts = async (search?: string, categoryId?: string) => {
+  const fetchProducts = useCallback(async (search?: string, categoryId?: string) => {
     setLoading(true)
     try {
       let url = '/api/admin/products'
@@ -96,7 +80,23 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchCategories()
+    fetchProducts()
+  }, [fetchCategories, fetchProducts])
+
+  useEffect(() => {
+    if (searchTerm || selectedCategory) {
+      const timeoutId = setTimeout(() => {
+        fetchProducts(searchTerm, selectedCategory)
+      }, 500)
+      return () => clearTimeout(timeoutId)
+    } else {
+      fetchProducts()
+    }
+  }, [searchTerm, selectedCategory, fetchProducts])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()

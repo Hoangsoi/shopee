@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface BankAccount {
   id: number
@@ -27,23 +27,26 @@ export default function BankAccountsPage() {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchBankAccounts()
-  }, [])
-
-  const fetchBankAccounts = async () => {
+  const fetchBankAccounts = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/bank-accounts')
       if (response.ok) {
         const data = await response.json()
         setBankAccounts(data.bank_accounts || [])
+      } else {
+        setMessage({ type: 'error', text: 'Lỗi khi tải danh sách tài khoản ngân hàng' })
       }
     } catch (error) {
       console.error('Error fetching bank accounts:', error)
+      setMessage({ type: 'error', text: 'Lỗi kết nối khi tải danh sách tài khoản ngân hàng' })
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchBankAccounts()
+  }, [fetchBankAccounts])
 
   const handleEdit = (account: BankAccount) => {
     setEditingId(account.id)

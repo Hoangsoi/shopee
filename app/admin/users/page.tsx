@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface User {
   id: number
@@ -13,6 +13,7 @@ interface User {
   commission: number
   created_at: string
   is_frozen?: boolean
+  vip_level?: number
 }
 
 export default function AdminUsersPage() {
@@ -30,22 +31,7 @@ export default function AdminUsersPage() {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  useEffect(() => {
-    if (searchTerm) {
-      const timeoutId = setTimeout(() => {
-        fetchUsers(searchTerm)
-      }, 500)
-      return () => clearTimeout(timeoutId)
-    } else {
-      fetchUsers()
-    }
-  }, [searchTerm])
-
-  const fetchUsers = async (search?: string) => {
+  const fetchUsers = useCallback(async (search?: string) => {
     setLoading(true)
     try {
       const url = search ? `/api/admin/users?search=${encodeURIComponent(search)}` : '/api/admin/users'
@@ -62,7 +48,22 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  useEffect(() => {
+    if (searchTerm) {
+      const timeoutId = setTimeout(() => {
+        fetchUsers(searchTerm)
+      }, 500)
+      return () => clearTimeout(timeoutId)
+    } else {
+      fetchUsers()
+    }
+  }, [searchTerm, fetchUsers])
 
   const handleEdit = (user: User) => {
     setEditingId(user.id)
@@ -277,6 +278,7 @@ export default function AdminUsersPage() {
                     <th className="py-1 px-2 border-b text-left text-xs font-semibold text-gray-700">Email</th>
                     <th className="py-1 px-2 border-b text-left text-xs font-semibold text-gray-700">SĐT</th>
                     <th className="py-1 px-2 border-b text-left text-xs font-semibold text-gray-700">Vai trò</th>
+                    <th className="py-1 px-2 border-b text-left text-xs font-semibold text-gray-700">VIP</th>
                     <th className="py-1 px-2 border-b text-left text-xs font-semibold text-gray-700">Trạng thái</th>
                     <th className="py-1 px-2 border-b text-left text-xs font-semibold text-gray-700">Số dư ví</th>
                     <th className="py-1 px-2 border-b text-left text-xs font-semibold text-gray-700">Hoa hồng</th>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Order {
   id: number
@@ -22,11 +22,7 @@ export default function AdminOrdersPage() {
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchOrders()
-  }, [filterStatus])
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true)
     try {
       const url = filterStatus 
@@ -45,7 +41,11 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterStatus])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
   const handleApprove = async (orderId: number) => {
     if (!confirm('Xác nhận phê duyệt đơn hàng này? Khách hàng sẽ nhận lại tiền gốc và hoa hồng.')) {

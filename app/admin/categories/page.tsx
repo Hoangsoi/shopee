@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Category {
   id: number
@@ -27,11 +27,7 @@ export default function AdminCategoriesPage() {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchCategories()
-  }, [])
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch('/api/admin/categories')
@@ -47,7 +43,11 @@ export default function AdminCategoriesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()

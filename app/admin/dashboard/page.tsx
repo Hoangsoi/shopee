@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Stats {
   totalUsers: number
@@ -16,15 +16,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchStats()
-    
-    // Cập nhật real-time mỗi 5 giây
-    const interval = setInterval(fetchStats, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/stats')
       if (response.ok) {
@@ -36,7 +28,15 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchStats()
+    
+    // Cập nhật real-time mỗi 5 giây
+    const interval = setInterval(fetchStats, 5000)
+    return () => clearInterval(interval)
+  }, [fetchStats])
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('vi-VN', {

@@ -1,7 +1,7 @@
 // Simple in-memory rate limiter
 // Note: For production, consider using Redis-based rate limiting (e.g., @upstash/ratelimit)
 
-import type { RateLimitStore, RateLimitResult, RateLimitOptions } from './types';
+import type { RateLimitResult, RateLimitOptions } from './types';
 
 interface RateLimitStore {
   [key: string]: {
@@ -23,8 +23,6 @@ if (typeof setInterval !== 'undefined') {
     });
   }, 5 * 60 * 1000);
 }
-
-import type { RateLimitOptions, RateLimitResult } from './types';
 
 export function rateLimit(
   identifier: string,

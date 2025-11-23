@@ -813,7 +813,7 @@ export default function AdminUsersPage() {
                       </p>
                     </div>
                     <p className="text-sm text-gray-600 mb-4">
-                      Để xác nhận, vui lòng nhập <strong className="text-red-600">"XÓA"</strong> vào ô bên dưới:
+                      Để xác nhận, vui lòng nhập <strong className="text-red-600">&quot;XÓA&quot;</strong> vào ô bên dưới:
                     </p>
                     <input
                       type="text"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 
@@ -47,16 +47,7 @@ export default function AdminLayout({
     newUsers: 0,
   })
 
-  useEffect(() => {
-    checkAuth()
-    fetchNotificationCounts()
-    
-    // Cập nhật real-time mỗi 5 giây
-    const interval = setInterval(fetchNotificationCounts, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/me')
       if (response.ok) {
@@ -78,9 +69,9 @@ export default function AdminLayout({
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
-  const fetchNotificationCounts = async () => {
+  const fetchNotificationCounts = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/notifications-count')
       if (response.ok) {
@@ -95,7 +86,16 @@ export default function AdminLayout({
       // Ignore errors (silent fail)
       console.error('Error fetching notification counts:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    checkAuth()
+    fetchNotificationCounts()
+    
+    // Cập nhật real-time mỗi 5 giây
+    const interval = setInterval(fetchNotificationCounts, 5000)
+    return () => clearInterval(interval)
+  }, [checkAuth, fetchNotificationCounts])
 
   const handleLogout = async () => {
     try {

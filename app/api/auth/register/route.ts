@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { z } from 'zod';
+import { rateLimit, getClientIdentifier } from '@/lib/rate-limit';
+import { handleError } from '@/lib/error-handler';
 
 const registerSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
@@ -13,6 +15,30 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: 3 registrations per hour per IP
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = rateLimit(`register:${clientId}`, {
+      windowMs: 60 * 60 * 1000, // 1 hour
+      maxRequests: 3,
+    });
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Quá nhiều lần thử đăng ký. Vui lòng thử lại sau 1 giờ.',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+            'X-RateLimit-Limit': '3',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
 
@@ -49,7 +75,9 @@ export async function POST(request: NextRequest) {
         ON CONFLICT (key) DO NOTHING
       `;
     } catch (setupError) {
-      console.error('Table setup error (may already exist):', setupError);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Table setup error (may already exist):', setupError);
+      }
       // Tiếp tục vì bảng có thể đã tồn tại
     }
 
@@ -95,7 +123,9 @@ export async function POST(request: NextRequest) {
         ON CONFLICT (key) DO NOTHING
       `;
     } catch (setupError) {
-      console.error('Settings table setup error:', setupError);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Settings table setup error:', setupError);
+      }
     }
 
     // Kiểm tra mã đại lý hợp lệ
@@ -136,7 +166,9 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Error adding columns:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error adding columns:', error);
+        }
       }
     }
 
@@ -155,7 +187,9 @@ export async function POST(request: NextRequest) {
     } catch (insertError: any) {
       // Nếu lỗi do thiếu cột, thử INSERT không có các cột đó
       if (insertError.message?.includes('column') || insertError.message?.includes('does not exist')) {
-        console.log('Retrying insert without optional columns...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Retrying insert without optional columns...');
+        }
         result = await sql`
           INSERT INTO users (email, password, name, phone, agent_code)
           VALUES (${validatedData.email}, ${hashedPassword}, ${validatedData.name}, ${validatedData.phone}, ${validatedData.agent_code || null})
@@ -194,13 +228,19 @@ export async function POST(request: NextRequest) {
           VALUES (${result[0].id}, ${myPhamCategory[0].id})
           ON CONFLICT (user_id, category_id) DO NOTHING
         `;
-        console.log(`✓ Đã cấp quyền "Mỹ phẩm" cho user ${result[0].id}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✓ Đã cấp quyền "Mỹ phẩm" cho user ${result[0].id}`);
+        }
       } else {
-        console.log('⚠ Category "Mỹ phẩm" chưa tồn tại, bỏ qua cấp quyền mặc định');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⚠ Category "Mỹ phẩm" chưa tồn tại, bỏ qua cấp quyền mặc định');
+        }
       }
     } catch (permissionError) {
       // Log lỗi nhưng không làm gián đoạn quá trình đăng ký
-      console.error('Error granting default category permission:', permissionError);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error granting default category permission:', permissionError);
+      }
     }
 
     return NextResponse.json(
@@ -217,27 +257,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Registration error:', error);
-    
-    // Log chi tiết lỗi để debug
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('Error details:', { errorMessage, errorStack });
-
-    return NextResponse.json(
-      { 
-        error: 'Lỗi server khi đăng ký',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-      },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

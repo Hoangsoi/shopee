@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import type { User, DatabaseColumn } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,10 +37,10 @@ export async function GET(request: NextRequest) {
         AND column_name IN ('wallet_balance', 'commission', 'is_frozen', 'vip_level', 'is_vip')
       `;
       
-      hasWalletBalance = columns.some((col: any) => col.column_name === 'wallet_balance');
-      hasCommission = columns.some((col: any) => col.column_name === 'commission');
-      hasIsFrozen = columns.some((col: any) => col.column_name === 'is_frozen');
-      hasVipLevel = columns.some((col: any) => col.column_name === 'vip_level');
+      hasWalletBalance = columns.some((col: DatabaseColumn) => col.column_name === 'wallet_balance');
+      hasCommission = columns.some((col: DatabaseColumn) => col.column_name === 'commission');
+      hasIsFrozen = columns.some((col: DatabaseColumn) => col.column_name === 'is_frozen');
+      hasVipLevel = columns.some((col: DatabaseColumn) => col.column_name === 'vip_level');
     } catch (error) {
       console.log('Error checking columns:', error);
     }

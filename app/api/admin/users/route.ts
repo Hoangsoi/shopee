@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateUserSchema = z.object({
@@ -15,42 +15,28 @@ const updateUserSchema = z.object({
   is_frozen: z.boolean().optional(),
 });
 
-// Helper to check admin role
-async function isAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value;
-  if (!token) {
-    console.log('No token found');
-    return false;
-  }
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    console.log('Token verification failed');
-    return false;
-  }
-  // Nếu token không có role, query từ database
-  if (!decoded.role) {
-    try {
-      const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
-      if (users.length === 0 || users[0].role !== 'admin') {
-        console.log('User is not admin');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking role from database:', error);
-      return false;
-    }
-  } else if (decoded.role !== 'admin') {
-    console.log('User role is not admin:', decoded.role);
-    return false;
-  }
-  return true;
-}
+// Admin check is now handled by lib/auth.ts isAdmin() function
 
-// GET: Lấy danh sách tất cả users (chỉ admin)
+// GET: Lấy danh sách tất cả users (chỉ admin) với pagination
 export async function GET(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
       return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
+    // Parse pagination parameters
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const search = searchParams.get('search') || '';
+    const offset = (page - 1) * limit;
+
+    // Validate pagination
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Tham số pagination không hợp lệ. Page >= 1, Limit 1-100' },
+        { status: 400 }
+      );
     }
 
     // Kiểm tra và tạo cột is_frozen nếu chưa có
@@ -62,12 +48,16 @@ export async function GET(request: NextRequest) {
       `;
       if (checkColumn.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN is_frozen BOOLEAN DEFAULT false`;
-        console.log('✓ Đã thêm cột is_frozen vào bảng users');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✓ Đã thêm cột is_frozen vào bảng users');
+        }
       }
     } catch (error: any) {
       // Bỏ qua lỗi nếu cột đã tồn tại
       if (!error.message?.includes('already exists') && !error.message?.includes('duplicate')) {
-        console.error('Error checking is_frozen column:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error checking is_frozen column:', error);
+        }
       }
     }
 
@@ -75,6 +65,39 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search'); // Tìm kiếm theo tên, email, phone
 
     let users;
+    // Get total count for pagination
+    let totalCount = 0;
+    try {
+      if (search) {
+        const countResult = await sql`
+          SELECT COUNT(*)::int as count
+          FROM users
+          WHERE 
+            name ILIKE ${'%' + search + '%'} OR
+            email ILIKE ${'%' + search + '%'} OR
+            phone ILIKE ${'%' + search + '%'}
+        `;
+        totalCount = countResult[0]?.count || 0;
+      } else {
+        const countResult = await sql`SELECT COUNT(*)::int as count FROM users`;
+        totalCount = countResult[0]?.count || 0;
+      }
+    } catch (error: any) {
+      // If table doesn't exist, return empty
+      if (error.message?.includes('does not exist') || error.message?.includes('relation')) {
+        return NextResponse.json({
+          users: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+      throw error;
+    }
+
     try {
       if (search) {
         users = await sql`
@@ -96,6 +119,7 @@ export async function GET(request: NextRequest) {
             email ILIKE ${'%' + search + '%'} OR
             phone ILIKE ${'%' + search + '%'}
           ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
         `;
       } else {
         users = await sql`
@@ -113,6 +137,7 @@ export async function GET(request: NextRequest) {
             COALESCE(vip_level, 0) as vip_level
           FROM users
           ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
         `;
       }
     } catch (error: any) {
@@ -138,6 +163,7 @@ export async function GET(request: NextRequest) {
               email ILIKE ${'%' + search + '%'} OR
               phone ILIKE ${'%' + search + '%'}
             ORDER BY created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
           `;
         } else {
           users = await sql`
@@ -154,6 +180,7 @@ export async function GET(request: NextRequest) {
               COALESCE(vip_level, 0) as vip_level
             FROM users
             ORDER BY created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
           `;
         }
       } else {
@@ -174,6 +201,12 @@ export async function GET(request: NextRequest) {
         created_at: user.created_at,
         is_frozen: user.is_frozen !== undefined ? (user.is_frozen || false) : false,
       })),
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     });
   } catch (error) {
     console.error('Get users error:', error);

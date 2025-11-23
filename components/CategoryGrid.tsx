@@ -74,8 +74,8 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
           }
         }
 
-        // Debug log để kiểm tra giá trị
-        if (category.name === 'VIP') {
+        // VIP category discount parsing (debug only in development)
+        if (category.name === 'VIP' && process.env.NODE_ENV === 'development') {
           console.log('VIP Category Debug:', {
             name: category.name,
             id: category.id,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 import { calculateVipLevel } from '@/lib/vip-utils';
 
@@ -19,31 +19,7 @@ const vipThresholdsSchema = z.object({
   ),
 });
 
-// Helper to check admin role
-async function isAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value;
-  if (!token) {
-    return false;
-  }
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    return false;
-  }
-  if (!decoded.role) {
-    try {
-      const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
-      if (users.length === 0 || users[0].role !== 'admin') {
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking role from database:', error);
-      return false;
-    }
-  } else if (decoded.role !== 'admin') {
-    return false;
-  }
-  return true;
-}
+// Admin check is now handled by lib/auth.ts isAdmin() function
 
 // GET: Lấy các ngưỡng VIP
 export async function GET(request: NextRequest) {

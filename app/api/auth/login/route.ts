@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyPassword, generateToken } from '@/lib/auth';
 import { z } from 'zod';
+import { rateLimit, getClientIdentifier } from '@/lib/rate-limit';
+import { handleError } from '@/lib/error-handler';
 
 const loginSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
@@ -10,6 +12,30 @@ const loginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: 5 attempts per 15 minutes per IP
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = rateLimit(`login:${clientId}`, {
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      maxRequests: 5,
+    });
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 15 phút.',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+            'X-RateLimit-Limit': '5',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const validatedData = loginSchema.parse(body);
 
@@ -64,27 +90,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Login error:', error);
-    
-    // Log chi tiết lỗi để debug
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('Error details:', { errorMessage, errorStack });
-
-    return NextResponse.json(
-      { 
-        error: 'Lỗi server khi đăng nhập',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-      },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

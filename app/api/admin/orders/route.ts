@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateOrderStatusSchema = z.object({
@@ -10,38 +10,9 @@ const updateOrderStatusSchema = z.object({
   }),
 });
 
-// Helper to check admin role
-async function isAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value;
-  if (!token) {
-    console.log('No token found');
-    return false;
-  }
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    console.log('Token verification failed');
-    return false;
-  }
-  // Nếu token không có role, query từ database
-  if (!decoded.role) {
-    try {
-      const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
-      if (users.length === 0 || users[0].role !== 'admin') {
-        console.log('User is not admin');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking role from database:', error);
-      return false;
-    }
-  } else if (decoded.role !== 'admin') {
-    console.log('User role is not admin:', decoded.role);
-    return false;
-  }
-  return true;
-}
+// Admin check is now handled by lib/auth.ts isAdmin() function
 
-// GET: Lấy tất cả đơn hàng (chỉ admin)
+// GET: Lấy tất cả đơn hàng (chỉ admin) với pagination
 export async function GET(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
@@ -49,9 +20,34 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status'); // Filter by status if provided
+    const status = searchParams.get('status');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const offset = (page - 1) * limit;
+
+    // Validate pagination
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Tham số pagination không hợp lệ. Page >= 1, Limit 1-100' },
+        { status: 400 }
+      );
+    } // Filter by status if provided
 
     try {
+      // Get total count
+      let totalCount = 0;
+      if (status) {
+        const countResult = await sql`
+          SELECT COUNT(*)::int as count
+          FROM orders
+          WHERE status = ${status}
+        `;
+        totalCount = countResult[0]?.count || 0;
+      } else {
+        const countResult = await sql`SELECT COUNT(*)::int as count FROM orders`;
+        totalCount = countResult[0]?.count || 0;
+      }
+
       let query;
       if (status) {
         query = sql`
@@ -75,6 +71,7 @@ export async function GET(request: NextRequest) {
           WHERE o.status = ${status}
           GROUP BY o.id, o.order_number, o.user_id, o.total_amount, o.status, o.payment_method, o.shipping_address, o.notes, o.created_at, o.updated_at, u.name, u.email
           ORDER BY o.created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
         `;
       } else {
         query = sql`
@@ -97,6 +94,7 @@ export async function GET(request: NextRequest) {
           LEFT JOIN order_items oi ON o.id = oi.order_id
           GROUP BY o.id, o.order_number, o.user_id, o.total_amount, o.status, o.payment_method, o.shipping_address, o.notes, o.created_at, o.updated_at, u.name, u.email
           ORDER BY o.created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
         `;
       }
 
@@ -118,6 +116,12 @@ export async function GET(request: NextRequest) {
           created_at: order.created_at,
           updated_at: order.updated_at,
         })),
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        },
       });
     } catch (dbError: any) {
       // Nếu bảng chưa tồn tại, trả về mảng rỗng

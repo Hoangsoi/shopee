@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 const createProductSchema = z.object({
@@ -30,36 +30,7 @@ const updateProductSchema = z.object({
   stock: z.number().int().min(0).optional(),
 });
 
-// Helper to check admin role
-async function isAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value;
-  if (!token) {
-    console.log('No token found');
-    return false;
-  }
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    console.log('Token verification failed');
-    return false;
-  }
-  // Nếu token không có role, query từ database
-  if (!decoded.role) {
-    try {
-      const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
-      if (users.length === 0 || users[0].role !== 'admin') {
-        console.log('User is not admin');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking role from database:', error);
-      return false;
-    }
-  } else if (decoded.role !== 'admin') {
-    console.log('User role is not admin:', decoded.role);
-    return false;
-  }
-  return true;
-}
+// Admin check is now handled by lib/auth.ts isAdmin() function
 
 // GET: Lấy danh sách products
 export async function GET(request: NextRequest) {
@@ -71,6 +42,45 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('category_id');
     const search = searchParams.get('search');
+    const isActive = searchParams.get('is_active');
+    
+    // Pagination parameters
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const offset = (page - 1) * limit;
+
+    // Get total count for pagination
+    let totalCount = 0;
+    let totalPages = 0;
+    try {
+      let countQuery;
+      if (categoryId) {
+        countQuery = sql`SELECT COUNT(*)::int as count FROM products WHERE category_id = ${parseInt(categoryId)}`;
+      } else if (search) {
+        countQuery = sql`SELECT COUNT(*)::int as count FROM products WHERE name ILIKE ${'%' + search + '%'}`;
+      } else if (isActive !== null) {
+        countQuery = sql`SELECT COUNT(*)::int as count FROM products WHERE is_active = ${isActive === 'true'}`;
+      } else {
+        countQuery = sql`SELECT COUNT(*)::int as count FROM products`;
+      }
+      const countResult = await countQuery;
+      totalCount = countResult[0]?.count || 0;
+      totalPages = Math.ceil(totalCount / limit);
+    } catch (error: any) {
+      // If table doesn't exist, return empty
+      if (error.message?.includes('does not exist') || error.message?.includes('relation')) {
+        return NextResponse.json({
+          products: [],
+          pagination: {
+            page: 1,
+            limit: 20,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+      throw error;
+    }
 
     let query;
     if (categoryId) {
@@ -94,6 +104,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.category_id = ${parseInt(categoryId)}
         ORDER BY p.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     } else if (search) {
       query = sql`
@@ -116,6 +127,30 @@ export async function GET(request: NextRequest) {
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.name ILIKE ${'%' + search + '%'}
         ORDER BY p.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+    } else if (isActive !== null) {
+      query = sql`
+        SELECT 
+          p.id,
+          p.name,
+          p.slug,
+          p.description,
+          p.price,
+          p.original_price,
+          p.image_url,
+          p.category_id,
+          p.is_featured,
+          p.is_active,
+          p.stock,
+          p.created_at,
+          p.updated_at,
+          c.name as category_name
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.is_active = ${isActive === 'true'}
+        ORDER BY p.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     } else {
       query = sql`
@@ -137,6 +172,7 @@ export async function GET(request: NextRequest) {
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         ORDER BY p.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     }
 
@@ -159,9 +195,17 @@ export async function GET(request: NextRequest) {
         created_at: p.created_at,
         updated_at: p.updated_at,
       })),
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages,
+      },
     });
   } catch (error) {
-    console.error('Get products error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Get products error:', error);
+    }
     return NextResponse.json(
       { error: 'Lỗi khi lấy danh sách sản phẩm' },
       { status: 500 }

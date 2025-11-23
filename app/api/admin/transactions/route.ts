@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateTransactionSchema = z.object({
@@ -10,38 +10,9 @@ const updateTransactionSchema = z.object({
   }),
 });
 
-// Helper to check admin role
-async function isAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value;
-  if (!token) {
-    console.log('No token found');
-    return false;
-  }
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    console.log('Token verification failed');
-    return false;
-  }
-  // Nếu token không có role, query từ database
-  if (!decoded.role) {
-    try {
-      const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
-      if (users.length === 0 || users[0].role !== 'admin') {
-        console.log('User is not admin');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking role from database:', error);
-      return false;
-    }
-  } else if (decoded.role !== 'admin') {
-    console.log('User role is not admin:', decoded.role);
-    return false;
-  }
-  return true;
-}
+// Admin check is now handled by lib/auth.ts isAdmin() function
 
-// GET: Lấy tất cả transactions (chỉ admin)
+// GET: Lấy tất cả transactions (chỉ admin) với pagination
 export async function GET(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
@@ -51,6 +22,32 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const type = searchParams.get('type');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const offset = (page - 1) * limit;
+
+    // Validate pagination
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Tham số pagination không hợp lệ. Page >= 1, Limit 1-100' },
+        { status: 400 }
+      );
+    }
+
+    // Get total count
+    let totalCount = 0;
+    let countQuery;
+    if (status && type) {
+      countQuery = sql`SELECT COUNT(*)::int as count FROM transactions WHERE status = ${status} AND type = ${type}`;
+    } else if (status) {
+      countQuery = sql`SELECT COUNT(*)::int as count FROM transactions WHERE status = ${status}`;
+    } else if (type) {
+      countQuery = sql`SELECT COUNT(*)::int as count FROM transactions WHERE type = ${type}`;
+    } else {
+      countQuery = sql`SELECT COUNT(*)::int as count FROM transactions`;
+    }
+    const countResult = await countQuery;
+    totalCount = countResult[0]?.count || 0;
 
     let query;
     if (status && type) {
@@ -73,6 +70,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
         WHERE t.status = ${status} AND t.type = ${type}
         ORDER BY t.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     } else if (status) {
       query = sql`
@@ -94,6 +92,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
         WHERE t.status = ${status}
         ORDER BY t.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     } else if (type) {
       query = sql`
@@ -115,6 +114,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
         WHERE t.type = ${type}
         ORDER BY t.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     } else {
       query = sql`
@@ -135,6 +135,7 @@ export async function GET(request: NextRequest) {
         JOIN users u ON t.user_id = u.id
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
         ORDER BY t.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     }
 
@@ -155,6 +156,12 @@ export async function GET(request: NextRequest) {
         created_at: t.created_at,
         updated_at: t.updated_at,
       })),
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     });
   } catch (error) {
     console.error('Get transactions error:', error);

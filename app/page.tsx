@@ -135,9 +135,9 @@ export default function Home() {
         const data = await response.json()
         const categories = data.categories || []
         
-        // Debug log để kiểm tra VIP category
+        // VIP category discount parsing (debug only in development)
         const vipCategory = categories.find((cat: Category) => cat.name === 'VIP')
-        if (vipCategory) {
+        if (vipCategory && process.env.NODE_ENV === 'development') {
           console.log('Homepage VIP Category Debug:', {
             name: vipCategory.name,
             id: vipCategory.id,

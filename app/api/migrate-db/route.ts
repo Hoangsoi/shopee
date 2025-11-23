@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+
+// Helper function for safe logging (only in development)
+const safeLog = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(...args);
+  }
+};
+
+const safeError = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(...args);
+  }
+};
 
 // GET: Hiển thị trang HTML với nút chạy migration
 export async function GET(request: NextRequest) {
@@ -184,9 +198,35 @@ export async function GET(request: NextRequest) {
 }
 
 // POST: Chạy migration
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    console.log('Bắt đầu migration database...');
+    // Chỉ admin mới được chạy migration
+    const token = request.cookies.get('auth-token')?.value;
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Không có quyền truy cập. Vui lòng đăng nhập với tài khoản admin.' },
+        { status: 401 }
+      );
+    }
+    
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Token không hợp lệ' },
+        { status: 401 }
+      );
+    }
+    
+    // Kiểm tra role admin
+    const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
+    if (users.length === 0 || users[0].role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Không có quyền truy cập. Chỉ admin mới được chạy migration.' },
+        { status: 403 }
+      );
+    }
+    
+    safeLog('Bắt đầu migration database...');
 
     // 1. Tạo bảng users với đầy đủ cột
     await sql`
@@ -202,7 +242,7 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng users đã được tạo/cập nhật');
+    safeLog('✓ Bảng users đã được tạo/cập nhật');
 
     // 2. Kiểm tra và thêm các cột cần thiết nếu bảng users đã tồn tại
     const addedColumns: string[] = [];
@@ -217,12 +257,12 @@ export async function POST() {
       if (checkPhone.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN phone VARCHAR(20)`;
         addedColumns.push('phone');
-        console.log('✓ Đã thêm cột phone vào bảng users');
+        safeLog('✓ Đã thêm cột phone vào bảng users');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Lỗi khi thêm cột phone:', error);
+        safeError('Lỗi khi thêm cột phone:', error);
       }
     }
 
@@ -236,12 +276,12 @@ export async function POST() {
       if (checkAgentCode.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN agent_code VARCHAR(50)`;
         addedColumns.push('agent_code');
-        console.log('✓ Đã thêm cột agent_code vào bảng users');
+        safeLog('✓ Đã thêm cột agent_code vào bảng users');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Lỗi khi thêm cột agent_code:', error);
+        safeError('Lỗi khi thêm cột agent_code:', error);
       }
     }
 
@@ -255,12 +295,12 @@ export async function POST() {
       if (checkRole.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'`;
         addedColumns.push('role');
-        console.log('✓ Đã thêm cột role vào bảng users');
+        safeLog('✓ Đã thêm cột role vào bảng users');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Lỗi khi thêm cột role:', error);
+        safeError('Lỗi khi thêm cột role:', error);
       }
     }
 
@@ -274,12 +314,12 @@ export async function POST() {
       if (checkWallet.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN wallet_balance DECIMAL(15, 2) DEFAULT 0`;
         addedColumns.push('wallet_balance');
-        console.log('✓ Đã thêm cột wallet_balance vào bảng users');
+        safeLog('✓ Đã thêm cột wallet_balance vào bảng users');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Lỗi khi thêm cột wallet_balance:', error);
+        safeError('Lỗi khi thêm cột wallet_balance:', error);
       }
     }
 
@@ -293,12 +333,12 @@ export async function POST() {
       if (checkCommission.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN commission DECIMAL(15, 2) DEFAULT 0`;
         addedColumns.push('commission');
-        console.log('✓ Đã thêm cột commission vào bảng users');
+        safeLog('✓ Đã thêm cột commission vào bảng users');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Lỗi khi thêm cột commission:', error);
+        safeError('Lỗi khi thêm cột commission:', error);
       }
     }
 
@@ -312,12 +352,12 @@ export async function POST() {
       if (checkIsFrozen.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN is_frozen BOOLEAN DEFAULT false`;
         addedColumns.push('is_frozen');
-        console.log('✓ Đã thêm cột is_frozen vào bảng users');
+        safeLog('✓ Đã thêm cột is_frozen vào bảng users');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Lỗi khi thêm cột is_frozen:', error);
+        safeError('Lỗi khi thêm cột is_frozen:', error);
       }
     }
 
@@ -332,12 +372,12 @@ export async function POST() {
         await sql`ALTER TABLE users ADD COLUMN username VARCHAR(50) UNIQUE`;
         await sql`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`;
         addedColumns.push('username');
-        console.log('✓ Đã thêm cột username vào bảng users');
+        safeLog('✓ Đã thêm cột username vào bảng users');
       }
     } catch (error: any) {
       const errorMsg = error?.message || '';
       if (!errorMsg.includes('already exists') && !errorMsg.includes('duplicate') && !errorMsg.includes('column')) {
-        console.error('Lỗi khi thêm cột username:', error);
+        safeError('Lỗi khi thêm cột username:', error);
       }
     }
 
@@ -359,7 +399,7 @@ export async function POST() {
     // 3. Tạo index cho users
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)`;
-    console.log('✓ Index cho bảng users đã được tạo');
+    safeLog('✓ Index cho bảng users đã được tạo');
 
     // 4. Tạo bảng settings
     await sql`
@@ -371,7 +411,7 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng settings đã được tạo');
+    safeLog('✓ Bảng settings đã được tạo');
 
     // 5. Thêm mã đại lý mặc định vào settings
     await sql`
@@ -379,7 +419,7 @@ export async function POST() {
       VALUES ('valid_agent_code', 'SH6688', 'Mã đại lý hợp lệ để đăng ký')
       ON CONFLICT (key) DO NOTHING
     `;
-    console.log('✓ Mã đại lý mặc định đã được thêm vào settings');
+    safeLog('✓ Mã đại lý mặc định đã được thêm vào settings');
 
     // 6. Tạo bảng categories
     await sql`
@@ -395,7 +435,7 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng categories đã được tạo');
+    safeLog('✓ Bảng categories đã được tạo');
 
     // 7. Tạo bảng products
     await sql`
@@ -415,13 +455,13 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng products đã được tạo');
+    safeLog('✓ Bảng products đã được tạo');
 
     // 8. Tạo index cho products và categories
     await sql`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_products_featured ON products(is_featured)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug)`;
-    console.log('✓ Index cho products và categories đã được tạo');
+    safeLog('✓ Index cho products và categories đã được tạo');
 
     // 9. Thêm dữ liệu mẫu cho categories
     await sql`
@@ -433,7 +473,7 @@ export async function POST() {
       ('VIP', 'vip', 0, 5)
       ON CONFLICT (slug) DO NOTHING
     `;
-    console.log('✓ Dữ liệu mẫu categories đã được thêm');
+    safeLog('✓ Dữ liệu mẫu categories đã được thêm');
 
     // 10. Tạo bảng bank_accounts
     await sql`
@@ -448,11 +488,11 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng bank_accounts đã được tạo');
+    safeLog('✓ Bảng bank_accounts đã được tạo');
 
     // Tạo index cho bank_accounts
     await sql`CREATE INDEX IF NOT EXISTS idx_bank_accounts_user ON bank_accounts(user_id)`;
-    console.log('✓ Index cho bank_accounts đã được tạo');
+    safeLog('✓ Index cho bank_accounts đã được tạo');
 
     // 11. Tạo bảng cart_items
     await sql`
@@ -466,12 +506,12 @@ export async function POST() {
         UNIQUE(user_id, product_id)
       )
     `;
-    console.log('✓ Bảng cart_items đã được tạo');
+    safeLog('✓ Bảng cart_items đã được tạo');
 
     // Tạo index cho cart_items
     await sql`CREATE INDEX IF NOT EXISTS idx_cart_items_user ON cart_items(user_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_cart_items_product ON cart_items(product_id)`;
-    console.log('✓ Index cho cart_items đã được tạo');
+    safeLog('✓ Index cho cart_items đã được tạo');
 
     // 12. Tạo bảng orders
     await sql`
@@ -488,13 +528,13 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng orders đã được tạo');
+    safeLog('✓ Bảng orders đã được tạo');
 
     // Tạo index cho orders
     await sql`CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC)`;
-    console.log('✓ Index cho orders đã được tạo');
+    safeLog('✓ Index cho orders đã được tạo');
 
     // 13. Tạo bảng order_items
     await sql`
@@ -509,12 +549,12 @@ export async function POST() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng order_items đã được tạo');
+    safeLog('✓ Bảng order_items đã được tạo');
 
     // Tạo index cho order_items
     await sql`CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id)`;
-    console.log('✓ Index cho order_items đã được tạo');
+    safeLog('✓ Index cho order_items đã được tạo');
 
     // 14. Tạo bảng transactions
     await sql`
@@ -530,14 +570,14 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng transactions đã được tạo');
+    safeLog('✓ Bảng transactions đã được tạo');
 
     // Tạo index cho transactions
     await sql`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC)`;
-    console.log('✓ Index cho transactions đã được tạo');
+    safeLog('✓ Index cho transactions đã được tạo');
 
     // 15. Tạo bảng notifications
     await sql`
@@ -550,12 +590,12 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng notifications đã được tạo');
+    safeLog('✓ Bảng notifications đã được tạo');
 
     // Tạo index cho notifications
     await sql`CREATE INDEX IF NOT EXISTS idx_notifications_active ON notifications(is_active)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_notifications_sort ON notifications(sort_order)`;
-    console.log('✓ Index cho notifications đã được tạo');
+    safeLog('✓ Index cho notifications đã được tạo');
 
     // Thêm dữ liệu mẫu cho notifications
     await sql`
@@ -566,7 +606,7 @@ export async function POST() {
       ('💎 Chương trình VIP với nhiều ưu đãi độc quyền', true, 4)
       ON CONFLICT DO NOTHING
     `;
-    console.log('✓ Dữ liệu mẫu notifications đã được thêm');
+    safeLog('✓ Dữ liệu mẫu notifications đã được thêm');
 
     // 16. Tạo bảng banners
     await sql`
@@ -581,12 +621,12 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-    console.log('✓ Bảng banners đã được tạo');
+    safeLog('✓ Bảng banners đã được tạo');
 
     // Tạo index cho banners
     await sql`CREATE INDEX IF NOT EXISTS idx_banners_active ON banners(is_active)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_banners_sort ON banners(sort_order)`;
-    console.log('✓ Index cho banners đã được tạo');
+    safeLog('✓ Index cho banners đã được tạo');
 
     // Thêm dữ liệu mẫu cho banners
     await sql`
@@ -598,7 +638,7 @@ export async function POST() {
       ('https://images.unsplash.com/photo-1607082349566-187342175e2f?w=800', 'Banner 5', true, 5)
       ON CONFLICT DO NOTHING
     `;
-    console.log('✓ Dữ liệu mẫu banners đã được thêm');
+    safeLog('✓ Dữ liệu mẫu banners đã được thêm');
 
     // 6. Kiểm tra kết quả
     const usersColumns = await sql`
@@ -661,7 +701,7 @@ export async function POST() {
       currentAgentCode: validAgentCode.length > 0 ? validAgentCode[0].value : 'SH6688',
     });
   } catch (error) {
-    console.error('Migration error:', error);
+    safeError('Migration error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
 

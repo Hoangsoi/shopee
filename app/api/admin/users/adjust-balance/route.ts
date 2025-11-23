@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 const adjustBalanceSchema = z.object({
@@ -12,36 +12,7 @@ const adjustBalanceSchema = z.object({
   description: z.string().optional(),
 });
 
-// Helper to check admin role
-async function isAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value;
-  if (!token) {
-    console.log('No token found');
-    return false;
-  }
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    console.log('Token verification failed');
-    return false;
-  }
-  // Nếu token không có role, query từ database
-  if (!decoded.role) {
-    try {
-      const users = await sql`SELECT role FROM users WHERE id = ${decoded.userId}`;
-      if (users.length === 0 || users[0].role !== 'admin') {
-        console.log('User is not admin');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking role from database:', error);
-      return false;
-    }
-  } else if (decoded.role !== 'admin') {
-    console.log('User role is not admin:', decoded.role);
-    return false;
-  }
-  return true;
-}
+// Admin check is now handled by lib/auth.ts isAdmin() function
 
 // POST: Cộng hoặc trừ tiền cho user (chỉ admin)
 export async function POST(request: NextRequest) {

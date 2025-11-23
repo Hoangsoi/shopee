@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import type { Product } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     const products = await query;
 
     return NextResponse.json({
-      products: products.map((product: any) => ({
+      products: products.map((product): Product => ({
         id: product.id,
         name: product.name,
         slug: product.slug,
@@ -59,7 +60,9 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('Get products error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Get products error:', error);
+    }
     return NextResponse.json(
       { error: 'Lỗi khi lấy sản phẩm' },
       { status: 500 }

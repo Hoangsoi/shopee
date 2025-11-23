@@ -30,6 +30,10 @@ export default function AdminUsersPage() {
     description: '',
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showClearDataModal, setShowClearDataModal] = useState(false)
+  const [clearingUserId, setClearingUserId] = useState<number | null>(null)
+  const [clearingData, setClearingData] = useState(false)
+  const [clearDataMessage, setClearDataMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const fetchUsers = useCallback(async (search?: string) => {
     setLoading(true)
@@ -392,6 +396,17 @@ export default function AdminUsersPage() {
                             title="Cộng/Trừ tiền"
                           >
                             💰
+                          </button>
+                          <button
+                            onClick={() => {
+                              setClearingUserId(user.id)
+                              setShowClearDataModal(true)
+                              setClearDataMessage(null)
+                            }}
+                            className="px-2 py-0.5 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors text-[10px]"
+                            title="Xóa lịch sử giao dịch"
+                          >
+                            🗑️📋
                           </button>
                           <button
                             onClick={() => handleDelete(user.id)}
@@ -770,6 +785,122 @@ export default function AdminUsersPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Clear User Data Confirmation Modal */}
+          {showClearDataModal && clearingUserId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <span className="text-2xl">⚠️</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Xác nhận xóa lịch sử</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Bạn có chắc chắn muốn xóa <strong>TẤT CẢ</strong> giao dịch và đơn hàng của khách hàng{' '}
+                      <strong className="text-[#ee4d2d]">
+                        {users.find((u) => u.id === clearingUserId)?.name || `ID: ${clearingUserId}`}
+                      </strong>{' '}
+                      không?
+                    </p>
+                    <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+                      <p className="text-xs text-red-800 font-semibold mb-1">⚠️ Hành động này không thể hoàn tác!</p>
+                      <p className="text-xs text-red-700">
+                        Tất cả dữ liệu giao dịch và đơn hàng của khách hàng này sẽ bị xóa vĩnh viễn.
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Để xác nhận, vui lòng nhập <strong className="text-red-600">"XÓA"</strong> vào ô bên dưới:
+                    </p>
+                    <input
+                      type="text"
+                      id="confirm-clear-text"
+                      placeholder="Nhập: XÓA"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-red-500 text-sm"
+                      style={{ fontSize: '16px' }}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowClearDataModal(false)
+                      setClearingUserId(null)
+                      setClearDataMessage(null)
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-sm font-medium hover:bg-gray-50 transition-colors text-sm"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const confirmText = (document.getElementById('confirm-clear-text') as HTMLInputElement)?.value
+                      if (confirmText !== 'XÓA') {
+                        setClearDataMessage({
+                          type: 'error',
+                          text: 'Vui lòng nhập chính xác "XÓA" để xác nhận',
+                        })
+                        return
+                      }
+
+                      setClearingData(true)
+                      setClearDataMessage(null)
+
+                      try {
+                        const response = await fetch(`/api/admin/users/${clearingUserId}/clear-data`, {
+                          method: 'DELETE',
+                        })
+
+                        const data = await response.json()
+
+                        if (response.ok) {
+                          setClearDataMessage({
+                            type: 'success',
+                            text: data.message || 'Đã xóa lịch sử thành công!',
+                          })
+                          // Reload users after 1.5 seconds
+                          setTimeout(() => {
+                            setShowClearDataModal(false)
+                            setClearingUserId(null)
+                            fetchUsers(searchTerm)
+                          }, 1500)
+                        } else {
+                          setClearDataMessage({
+                            type: 'error',
+                            text: data.error || 'Xóa lịch sử thất bại',
+                          })
+                        }
+                      } catch (error) {
+                        setClearDataMessage({
+                          type: 'error',
+                          text: 'Có lỗi xảy ra. Vui lòng thử lại.',
+                        })
+                      } finally {
+                        setClearingData(false)
+                      }
+                    }}
+                    disabled={clearingData}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {clearingData ? 'Đang xóa...' : 'Xác nhận xóa'}
+                  </button>
+                </div>
+                {clearDataMessage && (
+                  <div
+                    className={`mt-4 py-2 px-3 rounded text-sm ${
+                      clearDataMessage.type === 'success'
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-red-50 text-red-600'
+                    }`}
+                  >
+                    {clearDataMessage.text}
+                  </div>
+                )}
               </div>
             </div>
           )}

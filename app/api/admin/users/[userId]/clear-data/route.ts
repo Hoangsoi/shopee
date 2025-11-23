@@ -1,0 +1,71 @@
+import { NextRequest, NextResponse } from 'next/server';
+import sql from '@/lib/db';
+import { isAdmin } from '@/lib/auth';
+
+// DELETE: Xóa tất cả giao dịch và đơn hàng của một user cụ thể (chỉ admin)
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
+  try {
+    if (!(await isAdmin(request))) {
+      return NextResponse.json(
+        { error: 'Không có quyền truy cập. Chỉ admin mới được thực hiện thao tác này.' },
+        { status: 403 }
+      );
+    }
+
+    const userId = parseInt(params.userId, 10);
+    if (isNaN(userId) || userId <= 0) {
+      return NextResponse.json(
+        { error: 'ID người dùng không hợp lệ' },
+        { status: 400 }
+      );
+    }
+
+    // Kiểm tra user có tồn tại không
+    const userCheck = await sql`SELECT id FROM users WHERE id = ${userId}`;
+    if (userCheck.length === 0) {
+      return NextResponse.json(
+        { error: 'Người dùng không tồn tại' },
+        { status: 404 }
+      );
+    }
+
+    // Đếm số bản ghi trước khi xóa
+    const ordersCountBefore = await sql`
+      SELECT COUNT(*)::int as count FROM orders WHERE user_id = ${userId}
+    `;
+    const transactionsCountBefore = await sql`
+      SELECT COUNT(*)::int as count FROM transactions WHERE user_id = ${userId}
+    `;
+
+    const ordersCount = ordersCountBefore[0]?.count || 0;
+    const transactionsCount = transactionsCountBefore[0]?.count || 0;
+
+    // Xóa tất cả order_items của user (thông qua orders)
+    // Vì order_items có foreign key với orders, nên khi xóa orders sẽ tự động xóa order_items
+    await sql`DELETE FROM orders WHERE user_id = ${userId}`;
+    
+    // Xóa tất cả transactions của user
+    await sql`DELETE FROM transactions WHERE user_id = ${userId}`;
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã xóa ${ordersCount} đơn hàng và ${transactionsCount} giao dịch của người dùng thành công`,
+      deleted: {
+        orders: ordersCount,
+        transactions: transactionsCount,
+      },
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error clearing user data:', error);
+    }
+    return NextResponse.json(
+      { error: 'Lỗi khi xóa dữ liệu. Vui lòng thử lại.' },
+      { status: 500 }
+    );
+  }
+}
+

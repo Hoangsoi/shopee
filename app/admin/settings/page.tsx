@@ -17,6 +17,9 @@ export default function AdminSettingsPage() {
   const [vipMessage, setVipMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [investmentMessage, setInvestmentMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [investmentRate, setInvestmentRate] = useState('1.00')
+  const [showClearDataModal, setShowClearDataModal] = useState(false)
+  const [clearingData, setClearingData] = useState(false)
+  const [clearDataMessage, setClearDataMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const fetchAgentCode = useCallback(async () => {
     try {
@@ -508,6 +511,46 @@ export default function AdminSettingsPage() {
             </form>
           </div>
 
+          {/* Clear Data Section */}
+          <div className="mb-8 pb-8 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Xóa dữ liệu giao dịch</h2>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-red-800 mb-2">Cảnh báo quan trọng</h3>
+                  <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                    <li>Thao tác này sẽ xóa <strong>TẤT CẢ</strong> giao dịch và đơn hàng trong hệ thống</li>
+                    <li>Dữ liệu đã xóa <strong>KHÔNG THỂ</strong> khôi phục</li>
+                    <li>Hãy đảm bảo bạn đã sao lưu dữ liệu trước khi thực hiện</li>
+                    <li>Chỉ thực hiện khi thực sự cần thiết</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {clearDataMessage && (
+              <div
+                className={`py-3 px-4 rounded-sm mb-4 ${
+                  clearDataMessage.type === 'success'
+                    ? 'bg-green-50 border border-green-200 text-green-600'
+                    : 'bg-red-50 border border-red-200 text-red-600'
+                }`}
+              >
+                {clearDataMessage.text}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowClearDataModal(true)}
+              disabled={clearingData}
+              className="px-6 py-2 bg-red-600 text-white rounded-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {clearingData ? 'Đang xóa...' : 'XÓA TẤT CẢ GIAO DỊCH VÀ ĐƠN HÀNG'}
+            </button>
+          </div>
+
           {/* System Information */}
           <div>
             <h2 className="text-xl font-bold text-gray-800 mb-4">Thông tin hệ thống</h2>
@@ -518,6 +561,118 @@ export default function AdminSettingsPage() {
               <p>• Để quản lý toàn bộ website, sử dụng menu Dashboard</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Clear Data Confirmation Modal */}
+      {showClearDataModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Xác nhận xóa dữ liệu</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Bạn có chắc chắn muốn xóa <strong>TẤT CẢ</strong> giao dịch và đơn hàng không?
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+                  <p className="text-xs text-red-800 font-semibold mb-1">⚠️ Hành động này không thể hoàn tác!</p>
+                  <p className="text-xs text-red-700">
+                    Tất cả dữ liệu giao dịch và đơn hàng sẽ bị xóa vĩnh viễn.
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Để xác nhận, vui lòng nhập <strong className="text-red-600">"XÓA TẤT CẢ"</strong> vào ô bên dưới:
+                </p>
+                <input
+                  type="text"
+                  id="confirm-text"
+                  placeholder="Nhập: XÓA TẤT CẢ"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-red-500 text-sm"
+                  style={{ fontSize: '16px' }}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowClearDataModal(false)
+                  setClearDataMessage(null)
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-sm font-medium hover:bg-gray-50 transition-colors text-sm"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const confirmText = (document.getElementById('confirm-text') as HTMLInputElement)?.value
+                  if (confirmText !== 'XÓA TẤT CẢ') {
+                    setClearDataMessage({
+                      type: 'error',
+                      text: 'Vui lòng nhập chính xác "XÓA TẤT CẢ" để xác nhận',
+                    })
+                    return
+                  }
+
+                  setClearingData(true)
+                  setClearDataMessage(null)
+
+                  try {
+                    const response = await fetch('/api/admin/clear-data', {
+                      method: 'DELETE',
+                    })
+
+                    const data = await response.json()
+
+                    if (response.ok) {
+                      setClearDataMessage({
+                        type: 'success',
+                        text: 'Đã xóa tất cả giao dịch và đơn hàng thành công!',
+                      })
+                      setShowClearDataModal(false)
+                      // Reload page after 2 seconds to refresh data
+                      setTimeout(() => {
+                        window.location.reload()
+                      }, 2000)
+                    } else {
+                      setClearDataMessage({
+                        type: 'error',
+                        text: data.error || 'Xóa dữ liệu thất bại',
+                      })
+                    }
+                  } catch (error) {
+                    setClearDataMessage({
+                      type: 'error',
+                      text: 'Có lỗi xảy ra. Vui lòng thử lại.',
+                    })
+                  } finally {
+                    setClearingData(false)
+                  }
+                }}
+                disabled={clearingData}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {clearingData ? 'Đang xóa...' : 'Xác nhận xóa'}
+              </button>
+            </div>
+            {clearDataMessage && (
+              <div
+                className={`mt-4 py-2 px-3 rounded text-sm ${
+                  clearDataMessage.type === 'success'
+                    ? 'bg-green-50 text-green-600'
+                    : 'bg-red-50 text-red-600'
+                }`}
+              >
+                {clearDataMessage.text}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
         </div>
       </div>
     </div>

@@ -10,10 +10,13 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false)
   const [loadingZalo, setLoadingZalo] = useState(false)
   const [loadingVip, setLoadingVip] = useState(false)
+  const [loadingInvestment, setLoadingInvestment] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [zaloMessage, setZaloMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [vipMessage, setVipMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [investmentMessage, setInvestmentMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [investmentRate, setInvestmentRate] = useState('1.00')
 
   const fetchAgentCode = useCallback(async () => {
     try {
@@ -42,6 +45,18 @@ export default function AdminSettingsPage() {
     }
   }, [])
 
+  const fetchInvestmentSettings = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/settings/investment')
+      if (response.ok) {
+        const data = await response.json()
+        setInvestmentRate(data.daily_profit_rate?.toString() || '1.00')
+      }
+    } catch (error) {
+      console.error('Error fetching investment settings:', error)
+    }
+  }, [])
+
   const fetchVipSettings = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/settings/vip')
@@ -62,7 +77,8 @@ export default function AdminSettingsPage() {
     fetchAgentCode()
     fetchZaloSettings()
     fetchVipSettings()
-  }, [fetchAgentCode, fetchZaloSettings, fetchVipSettings])
+    fetchInvestmentSettings()
+  }, [fetchAgentCode, fetchZaloSettings, fetchVipSettings, fetchInvestmentSettings])
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -139,6 +155,42 @@ export default function AdminSettingsPage() {
     const newThresholds = [...vipThresholds]
     newThresholds[index] = value
     setVipThresholds(newThresholds)
+  }
+
+  const handleUpdateInvestment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoadingInvestment(true)
+    setInvestmentMessage(null)
+
+    try {
+      const rate = parseFloat(investmentRate)
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        setInvestmentMessage({ type: 'error', text: 'Tỷ lệ lợi nhuận phải từ 0 đến 100%' })
+        setLoadingInvestment(false)
+        return
+      }
+
+      const response = await fetch('/api/admin/settings/investment', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ daily_profit_rate: rate }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setInvestmentMessage({ type: 'success', text: 'Cập nhật tỷ lệ lợi nhuận đầu tư thành công!' })
+        await fetchInvestmentSettings()
+      } else {
+        setInvestmentMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
+      }
+    } catch (error) {
+      setInvestmentMessage({ type: 'error', text: 'Có lỗi xảy ra. Vui lòng thử lại.' })
+    } finally {
+      setLoadingInvestment(false)
+    }
   }
 
   const handleUpdateVip = async (e: React.FormEvent) => {
@@ -314,6 +366,56 @@ export default function AdminSettingsPage() {
                 className="px-6 py-2 bg-[#ee4d2d] text-white rounded-sm font-medium hover:bg-[#f05d40] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {loadingZalo ? 'Đang cập nhật...' : 'CẬP NHẬT CÀI ĐẶT ZALO'}
+              </button>
+            </form>
+          </div>
+
+          {/* Investment Management */}
+          <div className="mb-8 pb-8 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Quản lý đầu tư</h2>
+            <form onSubmit={handleUpdateInvestment} className="space-y-4">
+              <div>
+                <label htmlFor="investment-rate" className="block text-sm font-medium text-gray-700 mb-2">
+                  Tỷ lệ lợi nhuận qua đêm (%)
+                </label>
+                <input
+                  id="investment-rate"
+                  type="number"
+                  value={investmentRate}
+                  onChange={(e) => setInvestmentRate(e.target.value)}
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  required
+                  className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                  style={{ fontSize: '16px' }}
+                  placeholder="Nhập tỷ lệ lợi nhuận (ví dụ: 1.00 cho 1%)"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  Tỷ lệ lợi nhuận hàng ngày cho các khoản đầu tư. Ví dụ: 1.00 = 1% mỗi ngày.
+                  <br />
+                  <strong>Lưu ý:</strong> Tỷ lệ này sẽ áp dụng cho các đầu tư mới. Các đầu tư đã tạo sẽ giữ nguyên tỷ lệ ban đầu.
+                </p>
+              </div>
+
+              {investmentMessage && (
+                <div
+                  className={`py-3 px-4 rounded-sm ${
+                    investmentMessage.type === 'success'
+                      ? 'bg-green-50 border border-green-200 text-green-600'
+                      : 'bg-red-50 border border-red-200 text-red-600'
+                  }`}
+                >
+                  {investmentMessage.text}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loadingInvestment}
+                className="px-6 py-2 bg-[#ee4d2d] text-white rounded-sm font-medium hover:bg-[#f05d40] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {loadingInvestment ? 'Đang cập nhật...' : 'CẬP NHẬT TỶ LỆ LỢI NHUẬN'}
               </button>
             </form>
           </div>

@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import WithdrawModal from '@/components/WithdrawModal'
 import WithdrawAmountModal from '@/components/WithdrawAmountModal'
+import InvestmentModal from '@/components/InvestmentModal'
+import InvestmentHistoryModal from '@/components/InvestmentHistoryModal'
+import CountdownTimer from '@/components/CountdownTimer'
 
 interface User {
   id: number
@@ -32,12 +35,19 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showWithdrawAmountModal, setShowWithdrawAmountModal] = useState(false)
+  const [showInvestmentModal, setShowInvestmentModal] = useState(false)
+  const [showInvestmentHistoryModal, setShowInvestmentHistoryModal] = useState(false)
   const [hasBankAccount, setHasBankAccount] = useState(false)
   const [bankAccount, setBankAccount] = useState<BankAccount | null>(null)
+  const [investments, setInvestments] = useState<any[]>([])
+  const [investmentSummary, setInvestmentSummary] = useState({ total_invested: 0, total_profit: 0, active_count: 0 })
+  const [dailyProfitRate, setDailyProfitRate] = useState(1.00)
 
   useEffect(() => {
     fetchUser()
     checkBankAccount()
+    fetchInvestments()
+    fetchInvestmentRate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -126,6 +136,45 @@ export default function ProfilePage() {
   const handleDepositClick = () => {
     // Điều hướng đến CSKH để nạp tiền
     router.push('/support')
+  }
+
+  const fetchInvestments = async () => {
+    try {
+      const response = await fetch('/api/investments')
+      if (response.ok) {
+        const data = await response.json()
+        setInvestments(data.investments || [])
+        setInvestmentSummary(data.summary || { total_invested: 0, total_profit: 0, active_count: 0 })
+      }
+    } catch (error) {
+      console.error('Error fetching investments:', error)
+    }
+  }
+
+  const fetchInvestmentRate = async () => {
+    try {
+      const response = await fetch('/api/settings/investment-rate')
+      if (response.ok) {
+        const data = await response.json()
+        setDailyProfitRate(data.daily_profit_rate || 1.00)
+      }
+    } catch (error) {
+      // Sử dụng giá trị mặc định nếu có lỗi
+      setDailyProfitRate(1.00)
+    }
+  }
+
+  const handleInvestmentClick = () => {
+    if (user?.is_frozen) {
+      alert('Tài khoản của bạn đã bị đóng băng. Không thể đầu tư. Vui lòng liên hệ admin để được hỗ trợ.')
+      return
+    }
+    setShowInvestmentModal(true)
+  }
+
+  const handleInvestmentSuccess = () => {
+    fetchUser()
+    fetchInvestments()
   }
 
 
@@ -232,20 +281,27 @@ export default function ProfilePage() {
             <p className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 drop-shadow-lg">
               {formatCurrency(user.wallet_balance || 0)}
             </p>
-            <div className="flex gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <button 
                 onClick={handleDepositClick}
-                className="flex-1 py-3 px-4 bg-white text-[#ee4d2d] text-sm md:text-base font-bold rounded-xl hover:bg-gray-100 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+                className="py-3 px-3 bg-white text-[#ee4d2d] text-sm font-bold rounded-xl hover:bg-gray-100 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
-                <span>💳</span>
-                <span>Nạp tiền</span>
+                <span className="text-base">💳</span>
+                <span>Nạp</span>
+              </button>
+              <button 
+                onClick={handleInvestmentClick}
+                className="py-3 px-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-sm font-bold rounded-xl hover:from-yellow-500 hover:to-orange-600 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                <span className="text-base">📈</span>
+                <span>Đầu tư</span>
               </button>
               <button 
                 onClick={handleWithdraw}
-                className="flex-1 py-3 px-4 bg-white/20 backdrop-blur-sm text-white text-sm md:text-base font-bold rounded-xl hover:bg-white/30 active:scale-95 transition-all border-2 border-white/30 flex items-center justify-center gap-2"
+                className="py-3 px-3 bg-white/20 backdrop-blur-sm text-white text-sm font-bold rounded-xl hover:bg-white/30 active:scale-95 transition-all border-2 border-white/30 flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
-                <span>🏦</span>
-                <span>Rút tiền</span>
+                <span className="text-base">🏦</span>
+                <span>Rút</span>
               </button>
             </div>
           </div>
@@ -262,6 +318,55 @@ export default function ProfilePage() {
             <p className="text-2xl md:text-3xl font-bold drop-shadow-lg">
               {formatCurrency(user.commission || 0)}
             </p>
+          </div>
+
+          {/* Card Đầu tư */}
+          <div className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-2xl shadow-xl p-6 text-white">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl">📈</span>
+              <h2 className="text-lg md:text-xl font-bold">Đầu tư</h2>
+            </div>
+            <p className="text-xl md:text-2xl font-bold drop-shadow-lg mb-2">
+              {formatCurrency(investmentSummary.total_invested || 0)}
+            </p>
+            {investmentSummary.total_profit > 0 && (
+              <p className="text-sm md:text-base opacity-90 mb-2">
+                Lợi nhuận: <span className="font-bold">{formatCurrency(investmentSummary.total_profit)}</span>
+              </p>
+            )}
+            {investmentSummary.active_count > 0 && (
+              <>
+                <p className="text-xs md:text-sm opacity-75 mb-2">
+                  {investmentSummary.active_count} khoản đầu tư đang hoạt động
+                </p>
+                {/* Hiển thị đồng hồ đếm ngược cho đầu tư sớm nhất */}
+                {investments.length > 0 && (() => {
+                  const activeInvestments = investments.filter((inv: any) => inv.status === 'active' && inv.maturity_date)
+                  if (activeInvestments.length > 0) {
+                    // Sắp xếp theo maturity_date, lấy đầu tư sớm nhất
+                    const sorted = [...activeInvestments].sort((a: any, b: any) => 
+                      new Date(a.maturity_date).getTime() - new Date(b.maturity_date).getTime()
+                    )
+                    const earliestInvestment = sorted[0]
+                    return (
+                      <div className="mt-2 pt-2 border-t border-white/20">
+                        <p className="text-xs opacity-75 mb-1">Thời gian hoàn trả sớm nhất:</p>
+                        <CountdownTimer targetDate={earliestInvestment.maturity_date} />
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+              </>
+            )}
+            {/* Nút xem lịch sử đầu tư */}
+            <button
+              onClick={() => setShowInvestmentHistoryModal(true)}
+              className="mt-4 w-full py-2.5 px-4 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm border border-white/30 flex items-center justify-center gap-2"
+            >
+              <span>📋</span>
+              <span>Lịch sử đầu tư</span>
+            </button>
           </div>
 
           {/* Card Thông tin tài khoản */}
@@ -351,6 +456,21 @@ export default function ProfilePage() {
         onClose={() => setShowWithdrawAmountModal(false)}
         onSuccess={handleWithdrawSuccess}
         walletBalance={user.wallet_balance || 0}
+      />
+
+      {/* Modal đầu tư */}
+      <InvestmentModal
+        isOpen={showInvestmentModal}
+        onClose={() => setShowInvestmentModal(false)}
+        onSuccess={handleInvestmentSuccess}
+        walletBalance={user.wallet_balance || 0}
+        dailyProfitRate={dailyProfitRate}
+      />
+
+      {/* Modal lịch sử đầu tư */}
+      <InvestmentHistoryModal
+        isOpen={showInvestmentHistoryModal}
+        onClose={() => setShowInvestmentHistoryModal(false)}
       />
       
       <BottomNavigation />

@@ -79,71 +79,106 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] pb-20">
-      <div className="container mx-auto px-3 py-2">
-        <div className="flex justify-between items-center mb-2">
-          <h1 className="text-lg font-bold text-gray-800">Đơn hàng</h1>
-          <Link href="/" className="text-xs text-[#ee4d2d] hover:underline">
-            Mua sắm
-          </Link>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 pb-24">
+      <div className="container mx-auto px-4 py-4 max-w-4xl">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-[#ee4d2d] via-[#ff6b4a] to-[#ee4d2d] rounded-2xl shadow-xl mb-6 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">📦</span>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-white">Đơn hàng của tôi</h1>
+                <p className="text-white/90 text-sm mt-1">{orders.length} đơn hàng</p>
+              </div>
+            </div>
+            <Link 
+              href="/" 
+              className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl font-semibold hover:bg-white/30 transition-all text-sm md:text-base flex items-center gap-2"
+            >
+              <span>🛍️</span>
+              <span className="hidden md:inline">Mua sắm</span>
+            </Link>
+          </div>
         </div>
 
         {orders.length === 0 ? (
-          <div className="bg-white rounded-lg p-6 text-center">
-            <div className="text-4xl mb-2">📦</div>
-            <p className="text-sm text-gray-600 mb-3">Bạn chưa có đơn hàng nào</p>
+          <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
+            <div className="text-6xl mb-4">📦</div>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">Chưa có đơn hàng</h2>
+            <p className="text-sm md:text-base text-gray-600 mb-6">Bắt đầu mua sắm để xem đơn hàng của bạn tại đây</p>
             <Link
               href="/"
-              className="inline-block px-4 py-2 bg-[#ee4d2d] text-white rounded text-sm font-medium hover:bg-[#f05d40] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#ee4d2d] to-[#ff6b4a] text-white rounded-xl font-bold hover:shadow-lg transition-all text-sm md:text-base"
             >
-              Mua sắm ngay
+              <span>🛒</span>
+              <span>Mua sắm ngay</span>
             </Link>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-4">
             {orders.map((order) => (
               <Link
                 key={order.id}
                 href={`/orders/${order.id}`}
-                className="block bg-white rounded shadow-sm p-2 hover:shadow transition-shadow"
+                className="block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-100"
               >
-                <div className="flex justify-between items-start mb-1">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-800 text-sm truncate">
-                      {order.order_number}
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      {new Date(order.created_at).toLocaleString('vi-VN', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(order.status)}`}>
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="text-xs text-gray-600">
-                    {order.item_count} sp
-                    {order.status === 'confirmed' && order.commission && order.commission > 0 && (
-                      <div className="text-xs text-green-600 font-medium">
-                        HH: {new Intl.NumberFormat('vi-VN').format(order.commission)}đ
+                <div className="p-4 md:p-6">
+                  {/* Header Row */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xl">📋</span>
+                        <h3 className="font-bold text-gray-800 text-base md:text-lg truncate">
+                          {order.order_number}
+                        </h3>
                       </div>
-                    )}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-bold text-[#ee4d2d]">
-                      {new Intl.NumberFormat('vi-VN').format(order.total_amount)}đ
+                      <p className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
+                        <span>🕐</span>
+                        <span>
+                          {new Date(order.created_at).toLocaleString('vi-VN', { 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </p>
                     </div>
-                    {order.status === 'confirmed' && order.commission && order.commission > 0 && (
-                      <div className="text-xs text-green-600 font-medium">
-                        +{new Intl.NumberFormat('vi-VN').format(order.commission)}đ
+                    <span className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-bold flex-shrink-0 ml-3 ${getStatusColor(order.status)} shadow-sm`}>
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
+
+                  {/* Content Row */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📦</span>
+                        <span className="text-sm md:text-base text-gray-700 font-medium">
+                          {order.item_count} sản phẩm
+                        </span>
                       </div>
-                    )}
+                      {order.status === 'confirmed' && order.commission && order.commission > 0 && (
+                        <div className="flex items-center gap-1 px-3 py-1 bg-green-50 rounded-full">
+                          <span className="text-sm">🎁</span>
+                          <span className="text-xs md:text-sm text-green-700 font-bold">
+                            HH: {formatCurrency(order.commission)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg md:text-xl font-bold text-[#ee4d2d] mb-1">
+                        {formatCurrency(order.total_amount)}
+                      </div>
+                      {order.status === 'confirmed' && order.commission && order.commission > 0 && (
+                        <div className="text-xs md:text-sm text-green-600 font-semibold flex items-center justify-end gap-1">
+                          <span>+</span>
+                          <span>{formatCurrency(order.commission)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Link>

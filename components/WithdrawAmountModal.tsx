@@ -11,7 +11,6 @@ interface WithdrawAmountModalProps {
 
 export default function WithdrawAmountModal({ isOpen, onClose, onSuccess, walletBalance }: WithdrawAmountModalProps) {
   const [amount, setAmount] = useState('')
-  const [description, setDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -51,10 +50,10 @@ export default function WithdrawAmountModal({ isOpen, onClose, onSuccess, wallet
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+          body: JSON.stringify({
           type: 'withdraw',
           amount: amountNum,
-          description: description || `Rút tiền ${formatCurrency(amountNum)}`,
+          description: `Rút tiền ${formatCurrency(amountNum)}`,
         }),
       })
 
@@ -64,7 +63,6 @@ export default function WithdrawAmountModal({ isOpen, onClose, onSuccess, wallet
         onSuccess()
         onClose()
         setAmount('')
-        setDescription('')
       } else {
         setError(data.error || 'Rút tiền thất bại')
       }
@@ -109,19 +107,6 @@ export default function WithdrawAmountModal({ isOpen, onClose, onSuccess, wallet
                 {formatCurrency(parseFloat(amount.replace(/[^\d]/g, '')) || 0)}
               </p>
             )}
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-700 block mb-1">Ghi chú (tùy chọn)</label>
-            <input
-              type="text"
-              autoComplete="off"
-              className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
-              style={{ fontSize: '16px' }}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Nhập ghi chú"
-            />
           </div>
 
           {error && (

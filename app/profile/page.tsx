@@ -159,143 +159,177 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] pb-20">
-      <div className="container mx-auto px-3 md:px-4 py-3 md:py-4">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-3 md:mb-4">Của tôi</h1>
-        
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 pb-24">
+      <div className="container mx-auto px-4 py-4 max-w-6xl">
+        {/* Header Section với Avatar */}
+        <div className="bg-gradient-to-r from-[#ee4d2d] via-[#ff6b4a] to-[#ee4d2d] rounded-2xl shadow-xl mb-6 overflow-hidden">
+          <div className="p-6 md:p-8">
+            <div className="flex items-center gap-4 md:gap-6">
+              {/* Avatar Circle */}
+              <div className="relative">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center text-2xl md:text-3xl font-bold text-[#ee4d2d] shadow-lg ring-4 ring-white/50">
+                  {user.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                {user.is_frozen && (
+                  <div className="absolute -bottom-1 -right-1 bg-red-500 rounded-full p-1.5 shadow-lg">
+                    <span className="text-white text-xs">🔒</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <h1 className="text-xl md:text-2xl font-bold text-white mb-1">{user.name || 'Người dùng'}</h1>
+                <p className="text-white/90 text-sm md:text-base break-words">{user.email}</p>
+                {user.vip_level !== undefined && user.vip_level !== null && user.vip_level > 0 && (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs md:text-sm font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white shadow-lg animate-pulse">
+                      ⭐ VIP {user.vip_level}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Thông báo tài khoản bị đóng băng */}
         {user.is_frozen && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">🔒</span>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 p-4 mb-6 rounded-xl shadow-md animate-pulse">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 text-2xl">🔒</div>
+              <div className="flex-1">
+                <h3 className="text-sm md:text-base font-semibold text-red-800 mb-1">
                   Tài khoản của bạn đã bị đóng băng
                 </h3>
-                <div className="mt-2 text-sm text-red-700">
-                  <p>
-                    Tài khoản của bạn hiện đang bị đóng băng. Bạn vẫn có thể đăng nhập và xem thông tin, 
-                    nhưng không thể mua hàng hoặc rút tiền. Vui lòng liên hệ admin để được hỗ trợ.
-                  </p>
-                </div>
+                <p className="text-xs md:text-sm text-red-700 leading-relaxed">
+                  Tài khoản của bạn hiện đang bị đóng băng. Bạn vẫn có thể đăng nhập và xem thông tin, 
+                  nhưng không thể mua hàng hoặc rút tiền. Vui lòng liên hệ admin để được hỗ trợ.
+                </p>
               </div>
             </div>
           </div>
         )}
         
-        {/* Thông tin tài khoản và tài chính trong cùng 1 khung */}
-        <div className="bg-white rounded-lg p-4 md:p-6 mb-4 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            {/* Cột trái - Thông tin tài khoản */}
-            <div className="border-b md:border-b-0 md:border-r border-gray-200 pb-4 md:pb-0 md:pr-6">
-              <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 pb-2 md:pb-3 border-b border-gray-200">
-                Thông tin tài khoản
-              </h2>
-              <div className="space-y-3 md:space-y-4">
-                <div>
-                  <label className="text-xs md:text-sm text-gray-500 block mb-1">Tên</label>
-                  <p className="text-gray-800 font-medium text-base md:text-lg">{user.name || 'Chưa cập nhật'}</p>
-                </div>
-                <div>
-                  <label className="text-xs md:text-sm text-gray-500 block mb-1">Email</label>
-                  <p className="text-gray-800 font-medium text-base md:text-lg break-words">{user.email}</p>
-                </div>
-                <div>
-                  <label className="text-xs md:text-sm text-gray-500 block mb-1">Số điện thoại</label>
-                  <p className="text-gray-800 font-medium text-base md:text-lg">{maskPhone(user.phone)}</p>
-                </div>
+        {/* Card Số dư ví - Nổi bật */}
+        <div className="bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 rounded-2xl shadow-2xl p-6 md:p-8 mb-6 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 md:w-48 md:h-48 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl md:text-3xl">💰</span>
+                <h2 className="text-base md:text-lg font-semibold">Số dư ví</h2>
               </div>
-            </div>
-
-            {/* Cột giữa - Thông tin ngân hàng */}
-            <div className="border-b md:border-b-0 md:border-r border-gray-200 pb-4 md:pb-0 md:pr-6 md:pl-6">
-              <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 pb-2 md:pb-3 border-b border-gray-200">
-                Thông tin ngân hàng
-              </h2>
-              {bankAccount ? (
-                <div className="space-y-3 md:space-y-4">
-                  <div>
-                    <label className="text-xs md:text-sm text-gray-500 block mb-1">Ngân hàng</label>
-                    <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.bank_name}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs md:text-sm text-gray-500 block mb-1">Số tài khoản</label>
-                    <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.account_number}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs md:text-sm text-gray-500 block mb-1">Chủ tài khoản</label>
-                    <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.account_holder_name}</p>
-                  </div>
-                  {bankAccount.branch && (
-                    <div>
-                      <label className="text-xs md:text-sm text-gray-500 block mb-1">Chi nhánh</label>
-                      <p className="text-gray-800 font-medium text-base md:text-lg">{bankAccount.branch}</p>
-                    </div>
-                  )}
-                </div>
+              {user.vip_level !== undefined && user.vip_level !== null && user.vip_level > 0 ? (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs md:text-sm font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-gray-900 shadow-lg">
+                  Cấp độ ⭐ VIP {user.vip_level}
+                </span>
               ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">Chưa có thông tin ngân hàng</p>
-                  <p className="text-xs text-gray-400 mt-2">Thông tin sẽ được lưu khi bạn rút tiền lần đầu</p>
-                </div>
+                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold bg-white/20 text-white backdrop-blur-sm">
+                  Cấp độ Thường
+                </span>
               )}
             </div>
+            <p className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 drop-shadow-lg">
+              {formatCurrency(user.wallet_balance || 0)}
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={handleDepositClick}
+                className="flex-1 py-3 px-4 bg-white text-[#ee4d2d] text-sm md:text-base font-bold rounded-xl hover:bg-gray-100 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <span>💳</span>
+                <span>Nạp tiền</span>
+              </button>
+              <button 
+                onClick={handleWithdraw}
+                className="flex-1 py-3 px-4 bg-white/20 backdrop-blur-sm text-white text-sm md:text-base font-bold rounded-xl hover:bg-white/30 active:scale-95 transition-all border-2 border-white/30 flex items-center justify-center gap-2"
+              >
+                <span>🏦</span>
+                <span>Rút tiền</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
-            {/* Cột phải - Thông tin tài chính */}
-            <div className="pt-4 md:pt-0 md:pl-6">
-              <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 pb-2 md:pb-3 border-b border-gray-200">
-                Thông tin tài chính
-              </h2>
-              <div className="space-y-3 md:space-y-4">
-                <div className="p-3 md:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs md:text-sm text-gray-600">Số dư ví</label>
-                    {user.vip_level !== undefined && user.vip_level !== null && user.vip_level > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs md:text-sm font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white shadow-md animate-pulse">
-                        Cấp độ ⭐ VIP {user.vip_level}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs md:text-sm font-semibold bg-gray-300 text-gray-700">
-                        Cấp độ VIP {user.vip_level || 0}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xl md:text-2xl font-bold text-[#ee4d2d] mb-3">
-                    {formatCurrency(user.wallet_balance || 0)}
-                  </p>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={handleDepositClick}
-                      className="flex-1 py-2 px-3 bg-[#ee4d2d] text-white text-xs md:text-sm font-medium rounded hover:bg-[#f05d40] active:bg-[#d43d20] transition-colors"
-                    >
-                      Nạp
-                    </button>
-                    <button 
-                      onClick={handleWithdraw}
-                      className="flex-1 py-2 px-3 bg-gray-600 text-white text-xs md:text-sm font-medium rounded hover:bg-gray-700 active:bg-gray-800 transition-colors"
-                    >
-                      Rút
-                    </button>
-                  </div>
-                </div>
-                <div className="p-3 md:p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                  <label className="text-xs md:text-sm text-gray-600 block mb-2">Hoa hồng</label>
-                  <p className="text-xl md:text-2xl font-bold text-green-600">
-                    {formatCurrency(user.commission || 0)}
-                  </p>
-                </div>
+        {/* Grid Layout cho các thông tin */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
+          {/* Card Hoa hồng */}
+          <div className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl shadow-xl p-6 text-white">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl">🎁</span>
+              <h2 className="text-lg md:text-xl font-bold">Hoa hồng</h2>
+            </div>
+            <p className="text-2xl md:text-3xl font-bold drop-shadow-lg">
+              {formatCurrency(user.commission || 0)}
+            </p>
+          </div>
+
+          {/* Card Thông tin tài khoản */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+              <span className="text-2xl">👤</span>
+              <h2 className="text-lg md:text-xl font-bold text-gray-800">Thông tin tài khoản</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <span className="text-gray-400 text-sm w-20 flex-shrink-0">Tên:</span>
+                <p className="text-gray-800 font-semibold flex-1">{user.name || 'Chưa cập nhật'}</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-gray-400 text-sm w-20 flex-shrink-0">Email:</span>
+                <p className="text-gray-800 font-semibold flex-1 break-words text-sm md:text-base">{user.email}</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-gray-400 text-sm w-20 flex-shrink-0">SĐT:</span>
+                <p className="text-gray-800 font-semibold flex-1">{maskPhone(user.phone)}</p>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Card Thông tin ngân hàng */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-100">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+            <span className="text-2xl">🏦</span>
+            <h2 className="text-lg md:text-xl font-bold text-gray-800">Thông tin ngân hàng</h2>
+          </div>
+          {bankAccount ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <label className="text-xs text-gray-500 block mb-1">Ngân hàng</label>
+                <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.bank_name}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <label className="text-xs text-gray-500 block mb-1">Số tài khoản</label>
+                <p className="text-gray-800 font-semibold text-base md:text-lg font-mono">{bankAccount.account_number}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <label className="text-xs text-gray-500 block mb-1">Chủ tài khoản</label>
+                <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.account_holder_name}</p>
+              </div>
+              {bankAccount.branch && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <label className="text-xs text-gray-500 block mb-1">Chi nhánh</label>
+                  <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.branch}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-xl">
+              <span className="text-4xl mb-3 block">🏦</span>
+              <p className="text-sm md:text-base text-gray-600 font-medium">Chưa có thông tin ngân hàng</p>
+              <p className="text-xs text-gray-400 mt-2">Thông tin sẽ được lưu khi bạn rút tiền lần đầu</p>
+            </div>
+          )}
+        </div>
         
+        {/* Button Đăng xuất */}
         <button
           onClick={handleLogout}
-          className="w-full py-3 md:py-3 bg-[#ee4d2d] text-white rounded-lg text-sm md:text-base font-medium hover:bg-[#f05d40] active:bg-[#d43d20] transition-colors"
+          className="w-full py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-base md:text-lg font-bold shadow-lg hover:from-red-600 hover:to-red-700 active:scale-98 transition-all flex items-center justify-center gap-2"
         >
-          Đăng xuất
+          <span>🚪</span>
+          <span>Đăng xuất</span>
         </button>
       </div>
       

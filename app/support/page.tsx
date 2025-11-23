@@ -204,50 +204,115 @@ export default function SupportPage() {
           }
         }}
       />
-      <div className="min-h-screen bg-[#f5f5f5] pb-20">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">Chăm sóc khách hàng</h1>
-          
-          <div className="bg-white rounded-lg shadow-sm p-6 md:p-8">
-            <div className="text-center py-8">
-              <div className="text-6xl mb-4">💬</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">Nạp tiền vào ví</h2>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 max-w-2xl mx-auto">
-                <p className="text-lg text-gray-700 mb-2">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 pb-24">
+        <div className="container mx-auto px-4 py-4 max-w-4xl">
+          {/* Header Section */}
+          <div className="bg-gradient-to-r from-[#ee4d2d] via-[#ff6b4a] to-[#ee4d2d] rounded-2xl shadow-xl mb-6 p-6 md:p-8 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 md:w-48 md:h-48 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+            <div className="relative z-10 text-center">
+              <div className="text-5xl md:text-6xl mb-4">💬</div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Chăm sóc khách hàng</h1>
+              <p className="text-white/90 text-sm md:text-base">Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7</p>
+            </div>
+          </div>
+
+          {/* Nạp tiền Section */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6 border border-gray-100">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full mb-4 shadow-lg">
+                <span className="text-4xl md:text-5xl">💰</span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-3">Nạp tiền vào ví</h2>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-xl p-4 md:p-6 mb-6 max-w-2xl mx-auto">
+                <p className="text-base md:text-lg text-gray-700 leading-relaxed">
                   Để nạp tiền vào ví, vui lòng liên hệ với bộ phận Chăm sóc khách hàng để được hướng dẫn chi tiết.
                 </p>
               </div>
+            </div>
 
-              {/* Chat Button */}
-              <div className="mt-8 max-w-md mx-auto">
-                <button
-                  onClick={openCrispChat}
-                  className="w-full py-4 px-6 bg-[#ee4d2d] text-white rounded-lg font-semibold text-lg hover:bg-[#f05d40] active:bg-[#d43d20] transition-colors shadow-md flex items-center justify-center gap-3"
-                >
-                  <span className="text-2xl">💬</span>
-                  <span>Chat ngay với chúng tôi</span>
-                </button>
-              </div>
+            {/* Chat Buttons */}
+            <div className="space-y-4 max-w-md mx-auto">
+              {/* Crisp Chat Button */}
+              <button
+                onClick={openCrispChat}
+                className="w-full py-4 px-6 bg-gradient-to-r from-[#ee4d2d] to-[#ff6b4a] text-white rounded-xl font-bold text-base md:text-lg hover:shadow-xl active:scale-98 transition-all shadow-lg flex items-center justify-center gap-3"
+              >
+                <span className="text-2xl md:text-3xl">💬</span>
+                <span>Chat ngay với chúng tôi</span>
+              </button>
 
+              {/* Zalo Chat Button */}
               {zaloEnabled === true && zaloLink && zaloLink.trim() !== '' ? (
-                <div className="mt-6 max-w-md mx-auto">
-                  <button
-                    onClick={handleZaloChat}
-                    className="w-full bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-[#ee4d2d] hover:bg-gray-50 transition-colors shadow-sm"
-                  >
-                    <div className="flex items-center justify-center gap-3">
-                      <span className="text-2xl">💬</span>
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600">Zalo</p>
-                        <p className="font-semibold text-gray-800 text-lg">Chat ngay</p>
-                      </div>
+                <button
+                  onClick={handleZaloChat}
+                  className="w-full bg-white border-2 border-blue-500 rounded-xl p-4 md:p-5 hover:bg-blue-50 hover:shadow-lg active:scale-98 transition-all shadow-md"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-md">
+                      <span className="text-2xl md:text-3xl">💬</span>
                     </div>
-                  </button>
-                </div>
+                    <div className="text-left">
+                      <p className="text-xs md:text-sm text-gray-600 font-medium">Zalo</p>
+                      <p className="font-bold text-gray-800 text-base md:text-lg">Chat ngay</p>
+                    </div>
+                  </div>
+                </button>
               ) : null}
+            </div>
+          </div>
 
-              <div className="mt-6 text-sm text-gray-500">
-                <p>Thời gian làm việc: 8:00 - 22:00 (Tất cả các ngày trong tuần)</p>
+          {/* Thông tin hỗ trợ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Thời gian làm việc */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-2xl">🕐</span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">Thời gian làm việc</h3>
+              </div>
+              <div className="space-y-2">
+                <p className="text-base md:text-lg font-semibold text-gray-800">8:00 - 22:00</p>
+                <p className="text-sm text-gray-600">Tất cả các ngày trong tuần</p>
+              </div>
+            </div>
+
+            {/* Phương thức hỗ trợ */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-2xl">📞</span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">Phương thức hỗ trợ</h3>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm md:text-base text-gray-700">💬 Chat trực tuyến</p>
+                <p className="text-sm md:text-base text-gray-700">📱 Zalo Chat</p>
+              </div>
+            </div>
+          </div>
+
+          {/* FAQ Section */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-100">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-2xl">❓</span>
+              </div>
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800">Câu hỏi thường gặp</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="border-l-4 border-blue-500 pl-4 py-2">
+                <h4 className="font-semibold text-gray-800 mb-1">Làm thế nào để nạp tiền?</h4>
+                <p className="text-sm text-gray-600">Liên hệ với chúng tôi qua chat để được hướng dẫn chi tiết về cách nạp tiền vào ví.</p>
+              </div>
+              <div className="border-l-4 border-green-500 pl-4 py-2">
+                <h4 className="font-semibold text-gray-800 mb-1">Thời gian xử lý giao dịch?</h4>
+                <p className="text-sm text-gray-600">Giao dịch nạp tiền thường được xử lý trong vòng 5-10 phút trong giờ làm việc.</p>
+              </div>
+              <div className="border-l-4 border-purple-500 pl-4 py-2">
+                <h4 className="font-semibold text-gray-800 mb-1">Có phí giao dịch không?</h4>
+                <p className="text-sm text-gray-600">Chúng tôi không thu phí giao dịch nạp tiền. Số tiền bạn nạp sẽ được cộng đầy đủ vào ví.</p>
               </div>
             </div>
           </div>

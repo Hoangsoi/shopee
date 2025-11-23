@@ -51,31 +51,54 @@ const generateProducts = (category: string, baseIndex: number) => {
       'Kem dưỡng da', 'Son môi', 'Serum vitamin C', 'Mặt nạ dưỡng ẩm', 'Kem chống nắng',
       'Toner cân bằng da', 'Essence tái tạo', 'Kem mắt chống lão hóa', 'Sữa rửa mặt', 'Tẩy tế bào chết',
       'Kem dưỡng ban đêm', 'Xịt khoáng', 'Kem dưỡng tay', 'Dầu dưỡng tóc', 'Mặt nạ đất sét',
-      'Kem dưỡng body', 'Nước hoa hồng', 'Kem chống nắng dạng xịt', 'Serum retinol', 'Kem dưỡng collagen'
+      'Kem dưỡng body', 'Nước hoa hồng', 'Kem chống nắng dạng xịt', 'Serum retinol', 'Kem dưỡng collagen',
+      'Kem dưỡng trắng da', 'Tinh chất hyaluronic', 'Kem dưỡng chống lão hóa', 'Mặt nạ giấy', 'Kem dưỡng môi',
+      'Serum niacinamide', 'Kem dưỡng ban ngày', 'Toner se khít lỗ chân lông', 'Kem dưỡng chống nắng', 'Mặt nạ than hoạt tính',
+      'Kem dưỡng tế bào gốc', 'Serum peptide', 'Kem dưỡng vitamin E', 'Mặt nạ collagen', 'Kem dưỡng chống thâm',
+      'Toner làm sáng da', 'Kem dưỡng chống nhăn', 'Serum AHA/BHA', 'Mặt nạ dưỡng ẩm sâu', 'Kem dưỡng chống nám'
     ],
     'Điện tử': [
       'Điện thoại thông minh', 'Tai nghe không dây', 'Loa Bluetooth', 'Sạc dự phòng', 'Ốp lưng điện thoại',
       'Pin sạc nhanh', 'Cáp sạc USB-C', 'Bàn phím cơ', 'Chuột không dây', 'Webcam HD',
       'Microphone USB', 'Ổ cứng di động', 'USB flash drive', 'Thẻ nhớ SD', 'Adapter HDMI',
-      'Hub USB-C', 'Bộ sạc đa năng', 'Giá đỡ điện thoại', 'Bao da máy tính', 'Bàn phím số'
+      'Hub USB-C', 'Bộ sạc đa năng', 'Giá đỡ điện thoại', 'Bao da máy tính', 'Bàn phím số',
+      'Màn hình máy tính', 'Bàn phím gaming', 'Chuột gaming', 'Tay cầm chơi game', 'Bộ phát WiFi',
+      'Router không dây', 'Switch mạng', 'Camera an ninh', 'Ổ cứng SSD', 'RAM máy tính',
+      'Card đồ họa', 'Bộ tản nhiệt CPU', 'Quạt case', 'Nguồn máy tính', 'Case máy tính',
+      'Bàn phím không dây', 'Chuột trackball', 'Bàn di chuột', 'Giá đỡ laptop', 'Bộ chia HDMI',
+      'Converter USB-C', 'Hub đa cổng', 'Bộ sạc từ tính', 'Pin thay thế', 'Màn hình phụ'
     ],
     'Điện lạnh': [
       'Tủ lạnh mini', 'Máy lạnh 1HP', 'Quạt điều hòa', 'Máy lọc không khí', 'Bình nước nóng lạnh',
       'Máy sưởi điện', 'Quạt đứng', 'Quạt trần', 'Máy hút ẩm', 'Máy tạo ẩm',
       'Tủ đông mini', 'Máy làm đá', 'Quạt cây', 'Máy lọc nước', 'Bình giữ nhiệt',
-      'Máy sấy tóc', 'Máy uốn tóc', 'Máy ép tóc', 'Máy massage', 'Đèn sưởi nhà tắm'
+      'Máy sấy tóc', 'Máy uốn tóc', 'Máy ép tóc', 'Máy massage', 'Đèn sưởi nhà tắm',
+      'Máy lạnh 1.5HP', 'Máy lạnh 2HP', 'Tủ lạnh side-by-side', 'Tủ lạnh ngăn đá trên', 'Máy giặt cửa trước',
+      'Máy giặt cửa trên', 'Máy sấy quần áo', 'Máy rửa bát', 'Lò vi sóng', 'Lò nướng điện',
+      'Bếp từ', 'Bếp hồng ngoại', 'Máy hút bụi', 'Máy hút bụi cầm tay', 'Máy lau sàn',
+      'Quạt hơi nước', 'Quạt treo tường', 'Máy lọc nước RO', 'Máy nước nóng năng lượng mặt trời', 'Bình nóng lạnh',
+      'Máy lọc không khí mini', 'Máy tạo ẩm phun sương', 'Máy hút ẩm công nghiệp', 'Quạt thông gió', 'Máy điều hòa di động'
     ],
     'Cao cấp': [
       'Đồng hồ cao cấp', 'Túi xách da thật', 'Giày thể thao cao cấp', 'Kính mát thương hiệu', 'Ví da cao cấp',
       'Áo khoác da', 'Balo cao cấp', 'Thắt lưng da', 'Vòng tay vàng', 'Nhẫn kim cương',
       'Dây chuyền bạc', 'Bông tai vàng', 'Đồng hồ thông minh', 'Máy ảnh DSLR', 'Ống kính camera',
-      'Máy quay phim', 'Máy nghe nhạc cao cấp', 'Loa hi-end', 'Ampli công suất', 'Đàn piano điện'
+      'Máy quay phim', 'Máy nghe nhạc cao cấp', 'Loa hi-end', 'Ampli công suất', 'Đàn piano điện',
+      'Đồng hồ cơ tự động', 'Túi xách hàng hiệu', 'Giày da Italy', 'Kính mát Ray-Ban', 'Ví da bò',
+      'Áo khoác lông thú', 'Balo da thật', 'Thắt lưng da cá sấu', 'Vòng cổ vàng 18K', 'Nhẫn đính hôn',
+      'Dây chuyền vàng trắng', 'Bông tai kim cương', 'Đồng hồ Thụy Sĩ', 'Máy ảnh mirrorless', 'Ống kính zoom',
+      'Máy quay 4K', 'Tai nghe cao cấp', 'Loa không dây', 'Ampli tube', 'Đàn guitar điện',
+      'Đồng hồ tourbillon', 'Túi xách Hermes', 'Giày sneaker cao cấp', 'Kính mát Gucci', 'Ví da cá sấu'
     ],
     'VIP': [
       'Gói VIP Premium', 'Dịch vụ VIP 1 năm', 'Thẻ thành viên VIP', 'Gói VIP Gold', 'Gói VIP Platinum',
       'Dịch vụ chăm sóc VIP', 'Ưu đãi độc quyền VIP', 'Gói tích điểm VIP', 'Chương trình khách hàng thân thiết', 'Thẻ tín dụng VIP',
       'Bảo hiểm VIP', 'Dịch vụ tư vấn VIP', 'Gói hỗ trợ 24/7', 'Ưu tiên giao hàng VIP', 'Giảm giá đặc biệt VIP',
-      'Sự kiện độc quyền VIP', 'Quà tặng sinh nhật VIP', 'Chương trình tri ân VIP', 'Dịch vụ đổi trả VIP', 'Hỗ trợ kỹ thuật VIP'
+      'Sự kiện độc quyền VIP', 'Quà tặng sinh nhật VIP', 'Chương trình tri ân VIP', 'Dịch vụ đổi trả VIP', 'Hỗ trợ kỹ thuật VIP',
+      'Gói VIP Diamond', 'Dịch vụ VIP trọn đời', 'Thẻ VIP đặc biệt', 'Gói VIP Executive', 'Gói VIP Corporate',
+      'Dịch vụ tư vấn cá nhân VIP', 'Ưu đãi mua sắm VIP', 'Gói tích lũy điểm VIP', 'Chương trình khách hàng vàng', 'Thẻ VIP hạng cao',
+      'Bảo hiểm sức khỏe VIP', 'Dịch vụ chăm sóc khách hàng VIP', 'Gói hỗ trợ chuyên nghiệp', 'Giao hàng siêu tốc VIP', 'Giảm giá cực sốc VIP',
+      'Sự kiện riêng tư VIP', 'Quà tặng đặc biệt VIP', 'Chương trình khuyến mãi VIP', 'Dịch vụ bảo hành VIP', 'Hỗ trợ tận tâm VIP'
     ],
   };
 
@@ -90,7 +113,7 @@ const generateProducts = (category: string, baseIndex: number) => {
 
   const priceRange = basePrices[category] || { min: 100000, max: 1000000 };
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 30; i++) {
     const name = names[i] || `${category} Sản phẩm ${i + 1}`;
     const slug = `${category.toLowerCase().replace(/\s+/g, '-')}-${i + 1}-${Date.now()}-${baseIndex + i}`;
     const price = Math.floor(Math.random() * (priceRange.max - priceRange.min) + priceRange.min);
@@ -111,7 +134,7 @@ const generateProducts = (category: string, baseIndex: number) => {
 };
 
 async function addSampleProducts() {
-  console.log('🚀 Bắt đầu thêm sản phẩm mẫu (20 sản phẩm mỗi danh mục)...\n');
+  console.log('🚀 Bắt đầu thêm sản phẩm mẫu (30 sản phẩm mỗi danh mục)...\n');
 
   try {
     // Lấy danh sách categories
@@ -133,7 +156,7 @@ async function addSampleProducts() {
     let totalAdded = 0;
     let totalSkipped = 0;
 
-    // Thêm 20 sản phẩm cho mỗi danh mục
+    // Thêm 30 sản phẩm cho mỗi danh mục
     for (const category of categories) {
       const categoryName = category.name;
       console.log(`\n📦 Đang thêm sản phẩm cho danh mục: ${categoryName}`);

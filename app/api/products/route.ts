@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         slug: product.slug,
         description: product.description,
         price: parseFloat(product.price.toString()),
-        original_price: product.original_price ? parseFloat(product.original_price.toString()) : null,
+        original_price: product.original_price ? parseFloat(product.original_price.toString()) : undefined,
         image_url: product.image_url,
         category_id: product.category_id,
         category_name: product.category_name,

@@ -265,6 +265,45 @@ export default function AdminProductsPage() {
     }
   }
 
+  const handleAddSampleProducts = async () => {
+    if (!confirm('Bạn có chắc muốn thêm 50 sản phẩm mẫu cho mỗi danh mục? (Tổng cộng có thể lên đến 250 sản phẩm nếu có 5 danh mục)')) {
+      return
+    }
+
+    setLoading(true)
+    setMessage(null)
+
+    try {
+      const response = await fetch('/api/admin/products/add-sample', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productsPerCategory: 50,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage({
+          type: 'success',
+          text: `Thành công! Đã thêm ${data.summary.totalAdded} sản phẩm mới. Tổng số sản phẩm: ${data.summary.totalProducts}`,
+        })
+        // Reload products
+        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Lỗi khi thêm sản phẩm mẫu' })
+      }
+    } catch (error) {
+      console.error('Error adding sample products:', error)
+      setMessage({ type: 'error', text: 'Lỗi kết nối khi thêm sản phẩm mẫu.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -286,12 +325,21 @@ export default function AdminProductsPage() {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-[#ee4d2d]">Quản lý sản phẩm</h1>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="px-4 py-2 bg-[#ee4d2d] text-white rounded-sm hover:bg-[#f05d40] transition-colors text-sm"
-            >
-              {showAddForm ? 'Hủy' : '+ Thêm sản phẩm'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleAddSampleProducts}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm disabled:opacity-50"
+              >
+                {loading ? 'Đang thêm...' : '+ Thêm 50 SP/Danh mục'}
+              </button>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-4 py-2 bg-[#ee4d2d] text-white rounded-sm hover:bg-[#f05d40] transition-colors text-sm"
+              >
+                {showAddForm ? 'Hủy' : '+ Thêm sản phẩm'}
+              </button>
+            </div>
           </div>
 
           {/* Filters */}

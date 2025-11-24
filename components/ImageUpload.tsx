@@ -322,55 +322,44 @@ export default function ImageUpload({
             }
           }}
           onPaste={async (e) => {
-            e.preventDefault() // Ngăn paste mặc định
             const pastedText = e.clipboardData.getData('text')
-            if (pastedText) {
-              // Nếu là base64, tự động upload lên Vercel Blob
-              if (pastedText.startsWith('data:image/')) {
-                setUploading(true)
-                try {
-                  const response = await fetch('/api/upload/image', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      image: pastedText,
-                      folder: folder,
-                    }),
-                  })
+            if (pastedText && pastedText.startsWith('data:image/')) {
+              // Chỉ can thiệp nếu là base64, ngăn paste mặc định và upload
+              e.preventDefault()
+              setUploading(true)
+              try {
+                const response = await fetch('/api/upload/image', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    image: pastedText,
+                    folder: folder,
+                  }),
+                })
 
-                  const data = await response.json()
-                  if (response.ok && data.url) {
-                    onChange(data.url)
-                    setPreview(data.url)
-                    console.log('✅ Uploaded pasted image to Vercel Blob:', data.url)
-                  } else {
-                    // Fallback: dùng base64 trực tiếp
-                    onChange(pastedText)
-                    setPreview(pastedText)
-                    console.warn('⚠️ Upload failed, using base64 directly')
-                  }
-                } catch (error) {
+                const data = await response.json()
+                if (response.ok && data.url) {
+                  onChange(data.url)
+                  setPreview(data.url)
+                  console.log('✅ Uploaded pasted image to Vercel Blob:', data.url)
+                } else {
                   // Fallback: dùng base64 trực tiếp
                   onChange(pastedText)
                   setPreview(pastedText)
-                  console.warn('⚠️ Upload error, using base64 directly:', error)
-                } finally {
-                  setUploading(false)
+                  console.warn('⚠️ Upload failed, using base64 directly')
                 }
-              } else {
-                // Nếu là URL, set value ngay lập tức
+              } catch (error) {
+                // Fallback: dùng base64 trực tiếp
                 onChange(pastedText)
-                if (pastedText.startsWith('http://') || pastedText.startsWith('https://')) {
-                  setPreview(pastedText)
-                  setUrlError(null)
-                } else {
-                  // Nếu không phải URL hợp lệ, vẫn set value để người dùng có thể chỉnh sửa
-                  onChange(pastedText)
-                }
+                setPreview(pastedText)
+                console.warn('⚠️ Upload error, using base64 directly:', error)
+              } finally {
+                setUploading(false)
               }
             }
+            // Nếu là URL, để browser xử lý paste mặc định (onChange sẽ được gọi tự động)
           }}
           disabled={uploading}
           className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm disabled:opacity-50"

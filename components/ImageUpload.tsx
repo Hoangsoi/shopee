@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 
 interface ImageUploadProps {
@@ -20,7 +20,90 @@ export default function ImageUpload({
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(value || null)
+  const [validating, setValidating] = useState(false)
+  const [urlError, setUrlError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Validate URL và hiển thị preview tự động
+  const validateAndPreviewUrl = useCallback(async (url: string) => {
+    if (!url || url.trim() === '') {
+      setPreview(null)
+      setUrlError(null)
+      return
+    }
+
+    // Kiểm tra format URL cơ bản
+    const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i
+    if (!urlPattern.test(url) && !url.startsWith('data:image/')) {
+      // Nếu không phải URL ảnh, thử kiểm tra xem có phải URL hợp lệ không
+      try {
+        new URL(url)
+        // URL hợp lệ nhưng không rõ có phải ảnh không, vẫn hiển thị preview
+        setPreview(url)
+        setUrlError(null)
+      } catch {
+        setUrlError('URL không hợp lệ')
+        setPreview(null)
+      }
+      return
+    }
+
+    setValidating(true)
+    setUrlError(null)
+
+    // Kiểm tra ảnh có load được không
+    const img = new window.Image()
+    img.onload = () => {
+      setPreview(url)
+      setUrlError(null)
+      setValidating(false)
+    }
+    img.onerror = () => {
+      setUrlError('Không thể tải ảnh từ URL này')
+      setPreview(null)
+      setValidating(false)
+    }
+    img.src = url
+  }, [])
+
+  // Debounce validation khi người dùng nhập
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      if (value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:image/'))) {
+        validateAndPreviewUrl(value)
+      } else if (value) {
+        // Nếu có giá trị nhưng không phải URL, vẫn hiển thị
+        setPreview(value)
+        setUrlError(null)
+      } else {
+        setPreview(null)
+        setUrlError(null)
+      }
+    }, 500) // Đợi 500ms sau khi người dùng ngừng gõ
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [value, validateAndPreviewUrl])
+
+  // Cập nhật preview khi value thay đổi từ bên ngoài
+  useEffect(() => {
+    if (value && value !== preview) {
+      setPreview(value)
+      setUrlError(null)
+    } else if (!value) {
+      setPreview(null)
+      setUrlError(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -100,15 +183,19 @@ export default function ImageUpload({
       )}
       
       {/* Preview */}
-      {preview && (
+      {preview && !urlError && (
         <div className="mb-2 relative inline-block">
-          <div className="relative w-32 h-32 border border-gray-300 rounded-lg overflow-hidden">
+          <div className="relative w-32 h-32 border border-gray-300 rounded-lg overflow-hidden bg-gray-100">
             <Image
               src={preview}
               alt="Preview"
               fill
               className="object-cover"
               sizes="128px"
+              onError={() => {
+                setUrlError('Không thể hiển thị ảnh')
+                setPreview(null)
+              }}
             />
           </div>
           <button
@@ -118,6 +205,20 @@ export default function ImageUpload({
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* Loading indicator */}
+      {validating && (
+        <div className="mb-2 text-xs text-blue-600">
+          ⏳ Đang kiểm tra URL...
+        </div>
+      )}
+
+      {/* Error message */}
+      {urlError && value && (
+        <div className="mb-2 text-xs text-red-600">
+          ⚠️ {urlError}
         </div>
       )}
 
@@ -144,17 +245,29 @@ export default function ImageUpload({
       <div className="mt-2">
         <input
           type="url"
-          placeholder="Hoặc nhập URL ảnh"
+          placeholder="Dán URL ảnh hoặc nhập link (sẽ tự động kiểm tra)"
           value={value}
           onChange={(e) => {
             onChange(e.target.value)
-            setPreview(e.target.value || null)
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm"
+          onPaste={(e) => {
+            // Xử lý paste ngay lập tức
+            const pastedText = e.clipboardData.getData('text')
+            if (pastedText && (pastedText.startsWith('http://') || pastedText.startsWith('https://'))) {
+              onChange(pastedText)
+            }
+          }}
+          className={`w-full px-3 py-2 border rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm ${
+            urlError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+          }`}
           style={{ fontSize: '16px' }}
         />
         <p className="text-xs text-gray-500 mt-1">
-          Có thể upload ảnh từ máy tính hoặc nhập URL ảnh
+          {validating 
+            ? 'Đang kiểm tra URL...' 
+            : urlError 
+            ? 'Vui lòng kiểm tra lại URL ảnh' 
+            : 'Dán URL ảnh sẽ tự động hiển thị preview'}
         </p>
       </div>
     </div>

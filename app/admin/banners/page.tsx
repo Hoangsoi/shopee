@@ -142,7 +142,12 @@ export default function AdminBannersPage() {
         setEditFormData({})
         fetchBanners()
       } else {
-        setMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
+        // Hiển thị lỗi chi tiết nếu có
+        const errorMessage = data.details && Array.isArray(data.details) 
+          ? data.details.map((d: any) => `${d.field}: ${d.message}`).join(', ')
+          : data.error || 'Cập nhật thất bại'
+        setMessage({ type: 'error', text: errorMessage })
+        console.error('Banner update error:', data)
       }
     } catch (error) {
       console.error('Error saving banner:', error)

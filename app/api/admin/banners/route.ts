@@ -4,12 +4,21 @@ import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 // Helper để validate image_url (có thể là URL hoặc base64)
-const imageUrlSchema = z.union([
-  z.string().url('URL ảnh không hợp lệ'),
-  z.string().startsWith('data:image/', 'Base64 ảnh không hợp lệ'),
-]).refine((val) => val && val.length > 0, {
-  message: 'URL ảnh không được để trống',
-});
+const imageUrlSchema = z.string().min(1, 'URL ảnh không được để trống').refine(
+  (val) => {
+    // Chấp nhận URL hợp lệ
+    try {
+      new URL(val);
+      return true;
+    } catch {
+      // Nếu không phải URL, kiểm tra xem có phải base64 không
+      return val.startsWith('data:image/');
+    }
+  },
+  {
+    message: 'URL ảnh phải là URL hợp lệ hoặc base64 string (data:image/...)',
+  }
+);
 
 const bannerSchema = z.object({
   image_url: imageUrlSchema,
@@ -178,8 +187,17 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Validation error:', error.errors);
+      }
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { 
+          error: 'Invalid input',
+          details: error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        },
         { status: 400 }
       );
     }

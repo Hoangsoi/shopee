@@ -11,24 +11,38 @@ export async function GET(request: NextRequest) {
 
     // Tạo ReadableStream cho SSE
     const encoder = new TextEncoder();
+    let isClosed = false;
+    
     const stream = new ReadableStream({
       async start(controller) {
         const send = (data: string) => {
+          // Kiểm tra xem controller đã đóng chưa
+          if (isClosed) {
+            return;
+          }
+          
           try {
             controller.enqueue(encoder.encode(data));
-          } catch (error) {
-            // Client đã disconnect
-            controller.close();
+          } catch (error: any) {
+            // Controller đã đóng hoặc lỗi
+            if (error?.code === 'ERR_INVALID_STATE' || error?.message?.includes('closed')) {
+              isClosed = true;
+              cleanup();
+            }
           }
         };
 
         // Gửi keep-alive mỗi 30 giây
-        const keepAliveInterval = setInterval(() => {
-          send(': keep-alive\n\n');
-        }, 30000);
+        let keepAliveInterval: NodeJS.Timeout | null = null;
+        let updateInterval: NodeJS.Timeout | null = null;
 
         // Hàm lấy và gửi notifications
         const fetchAndSendNotifications = async () => {
+          // Không gửi nếu đã đóng
+          if (isClosed) {
+            return;
+          }
+
           try {
             // Đếm đơn hàng pending
             let pendingOrders = 0;
@@ -69,15 +83,17 @@ export async function GET(request: NextRequest) {
               // Ignore
             }
 
-            // Gửi data qua SSE
-            const data = JSON.stringify({
-              pendingOrders,
-              pendingWithdrawals,
-              newUsers,
-              timestamp: Date.now(),
-            });
+            // Gửi data qua SSE (chỉ nếu chưa đóng)
+            if (!isClosed) {
+              const data = JSON.stringify({
+                pendingOrders,
+                pendingWithdrawals,
+                newUsers,
+                timestamp: Date.now(),
+              });
 
-            send(`data: ${data}\n\n`);
+              send(`data: ${data}\n\n`);
+            }
           } catch (error) {
             if (process.env.NODE_ENV === 'development') {
               console.error('Error fetching notifications:', error);
@@ -85,32 +101,56 @@ export async function GET(request: NextRequest) {
           }
         };
 
+        // Cleanup function
+        const cleanup = () => {
+          isClosed = true;
+          if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+          }
+          if (updateInterval) {
+            clearInterval(updateInterval);
+            updateInterval = null;
+          }
+          try {
+            if (!isClosed) {
+              controller.close();
+            }
+          } catch (error) {
+            // Ignore - controller có thể đã đóng
+          }
+        };
+
         // Gửi notifications ngay lập tức
         await fetchAndSendNotifications();
 
         // Cập nhật mỗi 5 giây
-        const updateInterval = setInterval(() => {
-          fetchAndSendNotifications();
+        updateInterval = setInterval(() => {
+          if (!isClosed) {
+            fetchAndSendNotifications();
+          } else {
+            cleanup();
+          }
         }, 5000);
 
-        // Cleanup khi client disconnect
-        const cleanup = () => {
-          clearInterval(keepAliveInterval);
-          clearInterval(updateInterval);
-          try {
-            controller.close();
-          } catch (error) {
-            // Ignore
+        // Keep-alive mỗi 30 giây
+        keepAliveInterval = setInterval(() => {
+          if (!isClosed) {
+            send(': keep-alive\n\n');
+          } else {
+            cleanup();
           }
-        };
+        }, 30000);
 
         // Listen for abort signal
         if (request.signal) {
           request.signal.addEventListener('abort', cleanup);
         }
 
-        // Also cleanup on stream close
-        return cleanup;
+        // Cleanup khi stream bị đóng
+        return () => {
+          cleanup();
+        };
       },
     });
 

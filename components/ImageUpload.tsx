@@ -94,11 +94,6 @@ export default function ImageUpload({
 
   // Debounce validation khi người dùng nhập (chỉ khi không phải paste)
   useEffect(() => {
-    // Skip nếu đang validating (đã được trigger bởi paste hoặc Enter)
-    if (validating) {
-      return
-    }
-
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
@@ -106,6 +101,7 @@ export default function ImageUpload({
     if (!value || value.trim() === '') {
       setPreview(null)
       setUrlError(null)
+      setValidating(false)
       return
     }
 
@@ -113,13 +109,17 @@ export default function ImageUpload({
     
     // Chỉ validate nếu là URL
     if (trimmedValue.startsWith('http://') || trimmedValue.startsWith('https://') || trimmedValue.startsWith('data:image/')) {
-      debounceTimerRef.current = setTimeout(() => {
-        validateAndPreviewUrl(trimmedValue)
-      }, 800) // Đợi 800ms sau khi người dùng ngừng gõ
+      // Debounce validation (trừ khi đang validating - đã được trigger bởi paste/Enter)
+      if (!validating) {
+        debounceTimerRef.current = setTimeout(() => {
+          validateAndPreviewUrl(trimmedValue)
+        }, 1000) // Đợi 1 giây sau khi người dùng ngừng gõ
+      }
     } else if (trimmedValue) {
       // Nếu có giá trị nhưng không phải URL, clear preview
       setPreview(null)
       setUrlError('Vui lòng nhập URL ảnh hợp lệ (bắt đầu bằng http:// hoặc https://)')
+      setValidating(false)
     }
 
     return () => {
@@ -185,7 +185,13 @@ export default function ImageUpload({
           onChange(data.url)
           setPreview(data.url)
         } else {
-          alert(data.error || 'Upload ảnh thất bại')
+          // Nếu có fallback_url, sử dụng nó
+          if (data.fallback_url) {
+            onChange(data.fallback_url)
+            setPreview(data.fallback_url)
+          } else {
+            alert(data.error || 'Upload ảnh thất bại')
+          }
         }
       }
 
@@ -289,24 +295,25 @@ export default function ImageUpload({
             onChange(newValue)
           }}
           onPaste={(e) => {
-            // Cho phép paste bình thường, sau đó xử lý
+            // Lấy text đã paste
             const pastedText = e.clipboardData.getData('text').trim()
             
             if (pastedText) {
-              // Set giá trị ngay (không trim trong onChange để giữ nguyên paste)
+              // Clear debounce timer trước
+              if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current)
+                debounceTimerRef.current = null
+              }
+              
+              // Set giá trị ngay
               onChange(pastedText)
               
-              // Nếu là URL, trigger validation ngay lập tức
+              // Nếu là URL, validate ngay lập tức (không đợi debounce)
               if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
-                // Clear debounce timer
-                if (debounceTimerRef.current) {
-                  clearTimeout(debounceTimerRef.current)
-                  debounceTimerRef.current = null
-                }
-                // Validate ngay lập tức sau khi paste
-                setTimeout(() => {
+                // Validate ngay sau khi state update
+                requestAnimationFrame(() => {
                   validateAndPreviewUrl(pastedText)
-                }, 50)
+                })
               }
             }
           }}

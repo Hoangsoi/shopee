@@ -96,23 +96,19 @@ export async function POST(request: NextRequest) {
         }
 
         // Kiểm tra xem có phải lỗi do thiếu token không
-        if (blobError?.message?.includes('BLOB_READ_WRITE_TOKEN')) {
-          return NextResponse.json(
-            { 
-              error: 'Vercel Blob chưa được cấu hình. Vui lòng thêm BLOB_READ_WRITE_TOKEN vào environment variables.',
-              fallback_url: image, // Trả về base64 tạm thời
-            },
-            { status: 500 }
-          );
-        }
+        const isMissingToken = blobError?.message?.includes('BLOB_READ_WRITE_TOKEN') || 
+                              blobError?.message?.includes('token') ||
+                              !process.env.BLOB_READ_WRITE_TOKEN;
 
-        // Fallback về base64 trong development
-        if (process.env.NODE_ENV === 'development') {
+        // Fallback về base64 trong development hoặc khi thiếu token
+        if (process.env.NODE_ENV === 'development' || isMissingToken) {
           return NextResponse.json({
             success: true,
             url: image,
-            message: 'Upload thành công (base64 fallback - development mode)',
-            note: 'Vercel Blob không khả dụng, đang dùng base64. Thêm BLOB_READ_WRITE_TOKEN để sử dụng Vercel Blob.',
+            message: 'Upload thành công (base64 fallback)',
+            note: process.env.NODE_ENV === 'development' 
+              ? 'Development mode: đang dùng base64. Thêm BLOB_READ_WRITE_TOKEN để sử dụng Vercel Blob trong production.'
+              : 'Vercel Blob không khả dụng, đang dùng base64.',
           });
         }
 

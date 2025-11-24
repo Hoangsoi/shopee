@@ -121,12 +121,17 @@ export default function ImageUpload({
       )}
 
       {/* Upload button */}
-      <div>
+      <div className="mt-2">
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            if (fileInputRef.current) {
+              fileInputRef.current.click()
+            }
+          }}
           disabled={uploading}
-          className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          style={{ display: 'inline-block' }}
         >
           {uploading ? 'Đang tải...' : preview ? 'Thay đổi ảnh' : 'Chọn ảnh'}
         </button>
@@ -135,7 +140,8 @@ export default function ImageUpload({
           type="file"
           accept="image/*"
           onChange={handleFileSelect}
-          className="hidden"
+          style={{ display: 'none' }}
+          aria-label="Chọn file ảnh"
         />
         <p className="text-xs text-gray-500 mt-1">
           {uploading

@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
           u.name as user_name,
           u.email as user_email,
           ba.bank_name,
-          ba.account_number
+          ba.account_number,
+          ba.account_holder_name
         FROM transactions t
         JOIN users u ON t.user_id = u.id
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
@@ -86,7 +87,8 @@ export async function GET(request: NextRequest) {
           u.name as user_name,
           u.email as user_email,
           ba.bank_name,
-          ba.account_number
+          ba.account_number,
+          ba.account_holder_name
         FROM transactions t
         JOIN users u ON t.user_id = u.id
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
@@ -108,7 +110,8 @@ export async function GET(request: NextRequest) {
           u.name as user_name,
           u.email as user_email,
           ba.bank_name,
-          ba.account_number
+          ba.account_number,
+          ba.account_holder_name
         FROM transactions t
         JOIN users u ON t.user_id = u.id
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
@@ -130,7 +133,8 @@ export async function GET(request: NextRequest) {
           u.name as user_name,
           u.email as user_email,
           ba.bank_name,
-          ba.account_number
+          ba.account_number,
+          ba.account_holder_name
         FROM transactions t
         JOIN users u ON t.user_id = u.id
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
@@ -153,6 +157,7 @@ export async function GET(request: NextRequest) {
         description: t.description,
         bank_name: t.bank_name,
         account_number: t.account_number,
+        account_holder_name: t.account_holder_name,
         created_at: t.created_at,
         updated_at: t.updated_at,
       })),

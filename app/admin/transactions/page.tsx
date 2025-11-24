@@ -13,6 +13,7 @@ interface Transaction {
   description?: string
   bank_name?: string
   account_number?: string
+  account_holder_name?: string
   created_at: string
 }
 
@@ -274,7 +275,7 @@ export default function AdminTransactionsPage() {
                         {transaction.bank_name ? (
                           <div>
                             <p className="text-xs font-semibold text-gray-900 mb-1">
-                              {transaction.user_name}
+                              {transaction.account_holder_name || transaction.user_name}
                             </p>
                             <p className="text-xs font-medium text-gray-700">
                               {transaction.bank_name}

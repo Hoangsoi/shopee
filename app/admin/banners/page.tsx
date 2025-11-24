@@ -198,12 +198,47 @@ export default function AdminBannersPage() {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-[#ee4d2d]">Quản lý banner</h1>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="px-4 py-2 bg-[#ee4d2d] text-white rounded-sm hover:bg-[#f05d40] transition-colors text-sm"
-            >
-              {showAddForm ? 'Hủy' : '+ Thêm banner'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (!confirm('Bạn có chắc muốn migrate tất cả ảnh base64 lên Vercel Blob? (Chỉ migrate ảnh base64, không ảnh hưởng ảnh URL)')) {
+                    return
+                  }
+                  setLoading(true)
+                  setMessage(null)
+                  try {
+                    const response = await fetch('/api/admin/migrate-images-to-blob', {
+                      method: 'POST',
+                    })
+                    const data = await response.json()
+                    if (response.ok) {
+                      setMessage({
+                        type: 'success',
+                        text: data.message || 'Migration thành công!',
+                      })
+                      fetchBanners()
+                    } else {
+                      setMessage({ type: 'error', text: data.error || 'Migration thất bại' })
+                    }
+                  } catch (error) {
+                    console.error('Migration error:', error)
+                    setMessage({ type: 'error', text: 'Lỗi kết nối khi migrate' })
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm disabled:opacity-50"
+              >
+                {loading ? 'Đang migrate...' : '🔄 Migrate ảnh lên Blob'}
+              </button>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-4 py-2 bg-[#ee4d2d] text-white rounded-sm hover:bg-[#f05d40] transition-colors text-sm"
+              >
+                {showAddForm ? 'Hủy' : '+ Thêm banner'}
+              </button>
+            </div>
           </div>
 
           {showAddForm && (

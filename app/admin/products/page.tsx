@@ -96,7 +96,8 @@ export default function AdminProductsPage() {
   useEffect(() => {
     fetchCategories()
     fetchProducts(undefined, undefined, 1, 100)
-  }, [fetchCategories])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     // Reset về trang 1 khi search hoặc filter thay đổi
@@ -105,6 +106,7 @@ export default function AdminProductsPage() {
       fetchProducts(searchTerm || undefined, selectedCategory || undefined, 1, pagination.limit)
     }, searchTerm || selectedCategory ? 500 : 0)
     return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, selectedCategory, pagination.limit])
   
   // Fetch khi page thay đổi (chỉ khi page > 1 để tránh conflict với useEffect trên)
@@ -112,6 +114,7 @@ export default function AdminProductsPage() {
     if (pagination.page > 1) {
       fetchProducts(searchTerm || undefined, selectedCategory || undefined, pagination.page, pagination.limit)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page])
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -292,7 +295,7 @@ export default function AdminProductsPage() {
           text: `Thành công! Đã thêm ${data.summary.totalAdded} sản phẩm mới. Tổng số sản phẩm: ${data.summary.totalProducts}`,
         })
         // Reload products
-        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
+        fetchProducts(searchTerm || undefined, selectedCategory || undefined, pagination.page, pagination.limit)
       } else {
         setMessage({ type: 'error', text: data.error || 'Lỗi khi thêm sản phẩm mẫu' })
       }

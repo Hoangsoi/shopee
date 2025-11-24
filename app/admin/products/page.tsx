@@ -476,15 +476,14 @@ export default function AdminProductsPage() {
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="py-2 px-4 border-b">
                         {editingId === product.id ? (
-                          <input
-                            type="url"
-                            name="image_url"
-                            value={editFormData.image_url || ''}
-                            onChange={handleChange}
-                            className="w-32 px-2 py-1 border rounded-sm text-xs text-gray-900"
-                            style={{ fontSize: '16px' }}
-                            placeholder="URL hình ảnh"
-                          />
+                          <div className="w-64">
+                            <ImageUpload
+                              value={editFormData.image_url || ''}
+                              onChange={(url) => setEditFormData({ ...editFormData, image_url: url })}
+                              folder="products"
+                              label=""
+                            />
+                          </div>
                         ) : (
                           <div className="relative w-16 h-16 rounded overflow-hidden">
                             <Image

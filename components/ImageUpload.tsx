@@ -92,31 +92,43 @@ export default function ImageUpload({
     img.src = trimmedUrl
   }, [])
 
-  // Debounce validation khi người dùng nhập
+  // Debounce validation khi người dùng nhập (chỉ khi không phải paste)
   useEffect(() => {
+    // Skip nếu đang validating (đã được trigger bởi paste hoặc Enter)
+    if (validating) {
+      return
+    }
+
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
 
-    debounceTimerRef.current = setTimeout(() => {
-      if (value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:image/'))) {
-        validateAndPreviewUrl(value)
-      } else if (value) {
-        // Nếu có giá trị nhưng không phải URL, vẫn hiển thị
-        setPreview(value)
-        setUrlError(null)
-      } else {
-        setPreview(null)
-        setUrlError(null)
-      }
-    }, 500) // Đợi 500ms sau khi người dùng ngừng gõ
+    if (!value || value.trim() === '') {
+      setPreview(null)
+      setUrlError(null)
+      return
+    }
+
+    const trimmedValue = value.trim()
+    
+    // Chỉ validate nếu là URL
+    if (trimmedValue.startsWith('http://') || trimmedValue.startsWith('https://') || trimmedValue.startsWith('data:image/')) {
+      debounceTimerRef.current = setTimeout(() => {
+        validateAndPreviewUrl(trimmedValue)
+      }, 800) // Đợi 800ms sau khi người dùng ngừng gõ
+    } else if (trimmedValue) {
+      // Nếu có giá trị nhưng không phải URL, clear preview
+      setPreview(null)
+      setUrlError('Vui lòng nhập URL ảnh hợp lệ (bắt đầu bằng http:// hoặc https://)')
+    }
 
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
+        debounceTimerRef.current = null
       }
     }
-  }, [value, validateAndPreviewUrl])
+  }, [value, validateAndPreviewUrl, validating])
 
   // Cập nhật preview khi value thay đổi từ bên ngoài
   useEffect(() => {
@@ -273,38 +285,52 @@ export default function ImageUpload({
           placeholder="Dán URL ảnh hoặc nhập link (sẽ tự động kiểm tra)"
           value={value}
           onChange={(e) => {
-            const newValue = e.target.value.trim()
+            const newValue = e.target.value
             onChange(newValue)
           }}
-          onPaste={async (e) => {
-            // Xử lý paste ngay lập tức - không preventDefault để cho phép paste bình thường
+          onPaste={(e) => {
+            // Cho phép paste bình thường, sau đó xử lý
             const pastedText = e.clipboardData.getData('text').trim()
             
             if (pastedText) {
-              // Set giá trị ngay
+              // Set giá trị ngay (không trim trong onChange để giữ nguyên paste)
               onChange(pastedText)
               
-              // Nếu là URL, trigger validation ngay lập tức (không đợi debounce)
+              // Nếu là URL, trigger validation ngay lập tức
               if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
                 // Clear debounce timer
                 if (debounceTimerRef.current) {
                   clearTimeout(debounceTimerRef.current)
+                  debounceTimerRef.current = null
                 }
-                // Validate ngay lập tức
+                // Validate ngay lập tức sau khi paste
                 setTimeout(() => {
                   validateAndPreviewUrl(pastedText)
-                }, 100) // Delay nhỏ để đảm bảo state đã update
+                }, 50)
               }
             }
           }}
           onKeyDown={(e) => {
-            // Cho phép Ctrl+V, Ctrl+A, Delete, Backspace, Arrow keys
+            // Trigger validation khi nhấn Enter
             if (e.key === 'Enter') {
               e.preventDefault()
-              // Trigger validation khi nhấn Enter
-              if (value) {
-                validateAndPreviewUrl(value)
+              if (value && value.trim()) {
+                const trimmedValue = value.trim()
+                onChange(trimmedValue)
+                // Clear debounce timer
+                if (debounceTimerRef.current) {
+                  clearTimeout(debounceTimerRef.current)
+                  debounceTimerRef.current = null
+                }
+                validateAndPreviewUrl(trimmedValue)
               }
+            }
+          }}
+          onBlur={() => {
+            // Trim khi blur
+            if (value && value !== value.trim()) {
+              const trimmedValue = value.trim()
+              onChange(trimmedValue)
             }
           }}
           className={`w-full px-3 py-2 border rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm ${
@@ -317,9 +343,11 @@ export default function ImageUpload({
             ? '⏳ Đang kiểm tra URL...' 
             : urlError 
             ? `⚠️ ${urlError}` 
-            : value && preview
+            : value && preview && !urlError
             ? '✅ URL hợp lệ - Preview đã hiển thị'
-            : '💡 Dán URL ảnh sẽ tự động hiển thị preview (hoặc nhấn Enter để kiểm tra)'}
+            : value
+            ? '💡 Đang chờ kiểm tra... (hoặc nhấn Enter để kiểm tra ngay)'
+            : '💡 Dán URL ảnh sẽ tự động hiển thị preview'}
         </p>
       </div>
     </div>

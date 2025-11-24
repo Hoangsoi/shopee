@@ -105,12 +105,28 @@ LIMIT 10;
 
 ## 7. Test Upload
 
-Để test xem upload có hoạt động không:
+### Test nhanh với endpoint test:
+1. Truy cập `/api/test-blob` (phải đăng nhập admin)
+2. Endpoint này sẽ:
+   - Kiểm tra xem `BLOB_READ_WRITE_TOKEN` có được set không
+   - Thử upload một file test nhỏ lên Vercel Blob
+   - Trả về kết quả và URL của file test
 
+### Test upload ảnh thực tế:
 1. Vào trang `/admin/banners` hoặc `/admin/products`
 2. Chọn ảnh mới hoặc paste base64
 3. Lưu
 4. Kiểm tra console logs trong browser
-5. Kiểm tra Vercel logs
-6. Kiểm tra Vercel Blob storage
+5. Kiểm tra Vercel logs (Deployments → Functions → `/api/upload/image` hoặc `/api/admin/banners`)
+6. Kiểm tra Vercel Blob storage (Storage → Browser)
+
+## 8. Quan trọng: Redeploy sau khi thêm token
+
+**Nếu bạn vừa thêm `BLOB_READ_WRITE_TOKEN` vào Vercel:**
+1. **Phải redeploy** ứng dụng để token có hiệu lực
+2. Vào Vercel Dashboard → Deployments
+3. Click "Redeploy" hoặc push code mới lên GitHub
+4. Sau khi deploy xong, thử upload ảnh lại
+
+**Lưu ý:** Token chỉ có hiệu lực sau khi redeploy, không tự động apply cho các deployment cũ.
 

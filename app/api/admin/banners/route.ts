@@ -3,8 +3,16 @@ import sql from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
+// Helper để validate image_url (có thể là URL hoặc base64)
+const imageUrlSchema = z.union([
+  z.string().url('URL ảnh không hợp lệ'),
+  z.string().startsWith('data:image/', 'Base64 ảnh không hợp lệ'),
+]).refine((val) => val && val.length > 0, {
+  message: 'URL ảnh không được để trống',
+});
+
 const bannerSchema = z.object({
-  image_url: z.string().url('URL ảnh không hợp lệ').min(1, 'URL ảnh không được để trống'),
+  image_url: imageUrlSchema,
   title: z.string().optional(),
   link_url: z.string().url('URL liên kết không hợp lệ').optional().or(z.literal('')),
   is_active: z.boolean().optional(),
@@ -13,7 +21,7 @@ const bannerSchema = z.object({
 
 const updateBannerSchema = z.object({
   banner_id: z.number().int().positive('ID banner không hợp lệ'),
-  image_url: z.string().url('URL ảnh không hợp lệ').optional(),
+  image_url: imageUrlSchema.optional(),
   title: z.string().optional(),
   link_url: z.string().url('URL liên kết không hợp lệ').optional().or(z.literal('')),
   is_active: z.boolean().optional(),
@@ -124,7 +132,10 @@ export async function PUT(request: NextRequest) {
 
     // Cập nhật từng trường
     if (updateData.image_url !== undefined) {
-      await sql`UPDATE banners SET image_url = ${updateData.image_url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
+      // Nếu là base64, giữ nguyên (có thể upload lên Vercel Blob sau)
+      // Hoặc có thể xử lý upload ở đây nếu cần
+      const imageUrl = updateData.image_url.trim() || null;
+      await sql`UPDATE banners SET image_url = ${imageUrl}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
     }
     if (updateData.title !== undefined) {
       await sql`UPDATE banners SET title = ${updateData.title || null}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;

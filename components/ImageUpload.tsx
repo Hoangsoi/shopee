@@ -19,7 +19,8 @@ export default function ImageUpload({
   required = false,
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(value || null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Cập nhật preview khi value thay đổi
   useEffect(() => {
@@ -30,42 +31,58 @@ export default function ImageUpload({
     }
   }, [value])
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn file ảnh')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Kích thước ảnh quá lớn. Tối đa 5MB')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    setUploading(true)
+
+    // Convert to base64
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64String = reader.result as string
+      onChange(base64String)
+      setPreview(base64String)
+      setUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+
+    reader.onerror = () => {
+      alert('Lỗi khi đọc file')
+      setUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+
+    reader.readAsDataURL(file)
+  }
+
   const handleRemove = () => {
     onChange('')
     setPreview(null)
-  }
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault()
-    const pastedText = e.clipboardData.getData('text/plain') || e.clipboardData.getData('text')
-    
-    if (pastedText && pastedText.trim()) {
-      const trimmedText = pastedText.trim()
-      // Set value ngay lập tức
-      onChange(trimmedText)
-      
-      // Cập nhật preview nếu là URL hoặc base64
-      if (trimmedText.startsWith('http://') || trimmedText.startsWith('https://') || trimmedText.startsWith('data:image/')) {
-        setPreview(trimmedText)
-      } else {
-        setPreview(null)
-      }
-      
-      // Đảm bảo input hiển thị giá trị đúng
-      if (inputRef.current) {
-        inputRef.current.value = trimmedText
-      }
-    }
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
-    onChange(newValue)
-    // Hiển thị preview ngay nếu là URL hoặc base64
-    if (newValue && (newValue.startsWith('http://') || newValue.startsWith('https://') || newValue.startsWith('data:image/'))) {
-      setPreview(newValue)
-    } else if (!newValue) {
-      setPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -103,24 +120,29 @@ export default function ImageUpload({
         </div>
       )}
 
-      {/* URL input - Chỉ cần dán link */}
+      {/* Upload button */}
       <div>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {uploading ? 'Đang tải...' : preview ? 'Thay đổi ảnh' : 'Chọn ảnh'}
+        </button>
         <input
-          ref={inputRef}
-          type="text"
-          placeholder="Dán URL ảnh vào đây (ví dụ: https://images.unsplash.com/photo-xxx.jpg)"
-          value={value}
-          onChange={handleChange}
-          onPaste={handlePaste}
-          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm"
-          style={{ fontSize: '16px' }}
-          autoComplete="off"
-          spellCheck="false"
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
         />
         <p className="text-xs text-gray-500 mt-1">
-          {value && preview
-            ? '✅ URL đã được nhập - Preview hiển thị bên trên'
-            : '💡 Copy URL ảnh và dán vào đây (Ctrl+V hoặc Right-click → Paste)'}
+          {uploading
+            ? '⏳ Đang xử lý ảnh...'
+            : preview
+            ? '✅ Ảnh đã được tải lên'
+            : '💡 Chọn file ảnh từ máy tính (JPG, PNG, GIF - tối đa 5MB)'}
         </p>
       </div>
     </div>

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
-import { put } from '@vercel/blob';
 
 // Helper để validate image_url (có thể là URL hoặc base64)
 const imageUrlSchema = z.string().min(1, 'URL ảnh không được để trống').refine(
@@ -100,49 +99,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = bannerSchema.parse(body);
 
-    // Xử lý base64 nếu có
-    let imageUrl = validatedData.image_url;
-    if (imageUrl && imageUrl.startsWith('data:image/')) {
-      try {
-        const base64Match = imageUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-        if (base64Match) {
-          const [, imageType, base64Data] = base64Match;
-          const buffer = Buffer.from(base64Data, 'base64');
-          const timestamp = Date.now();
-          const randomStr = Math.random().toString(36).substring(2, 8);
-          const filename = `banners/${timestamp}-${randomStr}.${imageType}`;
-          
-          // Upload lên Vercel Blob nếu có token
-          if (process.env.BLOB_READ_WRITE_TOKEN) {
-            try {
-              const blob = await put(filename, buffer, {
-                access: 'public',
-                contentType: `image/${imageType}`,
-              });
-              imageUrl = blob.url;
-              console.log(`✅ Uploaded banner image to Vercel Blob: ${blob.url}`);
-            } catch (blobError: any) {
-              // Log lỗi chi tiết
-              console.error('❌ Vercel Blob upload failed:', {
-                error: blobError?.message || blobError,
-                hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-                filename,
-                imageType,
-              });
-              // Nếu upload fail, giữ nguyên base64 (fallback)
-              console.warn('⚠️ Using base64 fallback for banner image');
-            }
-          } else {
-            console.warn('⚠️ BLOB_READ_WRITE_TOKEN not set, using base64 for banner image');
-          }
-        }
-      } catch (error) {
-        // Nếu có lỗi, giữ nguyên base64
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('Error processing base64 image:', error);
-        }
-      }
-    }
+    // Lưu trực tiếp URL hoặc base64 vào database
+    const imageUrl = validatedData.image_url;
 
     const result = await sql`
       INSERT INTO banners (image_url, title, link_url, is_active, sort_order)
@@ -193,50 +151,7 @@ export async function PUT(request: NextRequest) {
 
     // Cập nhật từng trường
     if (updateData.image_url !== undefined) {
-      let imageUrl = updateData.image_url.trim() || null;
-      
-      // Nếu là base64, tự động upload lên Vercel Blob
-      if (imageUrl && imageUrl.startsWith('data:image/')) {
-        try {
-          const base64Match = imageUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-          if (base64Match) {
-            const [, imageType, base64Data] = base64Match;
-            const buffer = Buffer.from(base64Data, 'base64');
-            const timestamp = Date.now();
-            const randomStr = Math.random().toString(36).substring(2, 8);
-            const filename = `banners/${timestamp}-${randomStr}.${imageType}`;
-            
-            // Upload lên Vercel Blob nếu có token
-            if (process.env.BLOB_READ_WRITE_TOKEN) {
-              try {
-                const blob = await put(filename, buffer, {
-                  access: 'public',
-                  contentType: `image/${imageType}`,
-                });
-                imageUrl = blob.url;
-                console.log(`✅ Uploaded banner image to Vercel Blob: ${blob.url}`);
-              } catch (blobError: any) {
-                // Log lỗi chi tiết
-                console.error('❌ Vercel Blob upload failed:', {
-                  error: blobError?.message || blobError,
-                  hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-                  filename,
-                  imageType,
-                });
-                // Nếu upload fail, giữ nguyên base64 (fallback)
-                console.warn('⚠️ Using base64 fallback for banner image');
-              }
-            } else {
-              console.warn('⚠️ BLOB_READ_WRITE_TOKEN not set, using base64 for banner image');
-            }
-          }
-        } catch (error) {
-          // Nếu có lỗi, giữ nguyên base64
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Error processing base64 image:', error);
-          }
-        }
-      }
+      const imageUrl = updateData.image_url.trim() || null;
       
       await sql`UPDATE banners SET image_url = ${imageUrl}, updated_at = CURRENT_TIMESTAMP WHERE id = ${banner_id}`;
     }

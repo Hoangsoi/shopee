@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 
 interface ImageUploadProps {
@@ -18,112 +18,19 @@ export default function ImageUpload({
   label = 'Hình ảnh',
   required = false,
 }: ImageUploadProps) {
-  const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(value || null)
-  const [validating, setValidating] = useState(false)
-  const [urlError, setUrlError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Validate URL và hiển thị preview tự động
-  const validateAndPreviewUrl = useCallback(async (url: string) => {
-    if (!url || url.trim() === '') {
-      setPreview(null)
-      setUrlError(null)
-      setValidating(false)
-      return
-    }
-
-    const trimmedUrl = url.trim()
-
-    // Nếu là data URL, hiển thị ngay
-    if (trimmedUrl.startsWith('data:image/')) {
-      setPreview(trimmedUrl)
-      setUrlError(null)
-      setValidating(false)
-      return
-    }
-
-    // Kiểm tra xem có phải URL hợp lệ không
-    let isValidUrl = false
-    try {
-      new URL(trimmedUrl)
-      isValidUrl = true
-    } catch {
-      setUrlError('URL không hợp lệ')
-      setPreview(null)
-      setValidating(false)
-      return
-    }
-
-    // Nếu là URL hợp lệ, kiểm tra xem có phải ảnh không
-    const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i
-    const isImageUrl = imageExtensions.test(trimmedUrl) || trimmedUrl.includes('image') || trimmedUrl.includes('photo')
-
-    setValidating(true)
-    setUrlError(null)
-
-    // Kiểm tra ảnh có load được không
-    const img = new window.Image()
-    const timeout = setTimeout(() => {
-      setUrlError('Timeout: Không thể tải ảnh (có thể do CORS hoặc URL không đúng)')
-      setPreview(null)
-      setValidating(false)
-    }, 10000) // 10 giây timeout
-
-    img.onload = () => {
-      clearTimeout(timeout)
-      setPreview(trimmedUrl)
-      setUrlError(null)
-      setValidating(false)
-    }
-    img.onerror = () => {
-      clearTimeout(timeout)
-      // Nếu URL hợp lệ nhưng không load được, vẫn hiển thị (có thể do CORS)
-      if (isImageUrl) {
-        setPreview(trimmedUrl)
-        setUrlError('⚠️ Không thể verify ảnh (có thể do CORS), nhưng URL có vẻ hợp lệ')
-      } else {
-        setUrlError('Không thể tải ảnh từ URL này')
-        setPreview(null)
-      }
-      setValidating(false)
-    }
-    img.src = trimmedUrl
-  }, [])
-
-  // Đơn giản hóa: chỉ cập nhật preview khi value thay đổi
+  // Cập nhật preview khi value thay đổi
   useEffect(() => {
-    if (!value || value.trim() === '') {
-      setPreview(null)
-      setUrlError(null)
-      return
-    }
-
-    const trimmedValue = value.trim()
-    
-    // Nếu là URL hoặc data URL, hiển thị preview ngay
-    if (trimmedValue.startsWith('http://') || trimmedValue.startsWith('https://') || trimmedValue.startsWith('data:image/')) {
-      setPreview(trimmedValue)
-      setUrlError(null)
-    } else {
-      setPreview(null)
-    }
-  }, [value])
-
-  // Cập nhật preview khi value thay đổi từ bên ngoài
-  useEffect(() => {
-    if (value && value !== preview) {
+    if (value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:image/'))) {
       setPreview(value)
-      setUrlError(null)
     } else if (!value) {
       setPreview(null)
-      setUrlError(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -145,86 +52,22 @@ export default function ImageUpload({
       return
     }
 
-    setUploading(true)
-    setUrlError(null)
+    // Convert to base64 và lưu trực tiếp vào database (không upload lên server)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64String = reader.result as string
+      onChange(base64String)
+      setPreview(base64String)
+    }
 
-    try {
-      // Convert to base64
-      const reader = new FileReader()
-      reader.onloadend = async () => {
-        const base64String = reader.result as string
-
-        // Upload to server với timeout
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 giây timeout
-
-        try {
-          const response = await fetch('/api/upload/image', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              image: base64String,
-              folder: folder,
-              filename: file.name,
-            }),
-            signal: controller.signal,
-          })
-
-          clearTimeout(timeoutId)
-          const data = await response.json()
-
-          if (response.ok && data.url) {
-            onChange(data.url)
-            setPreview(data.url)
-            setUploading(false)
-          } else {
-            // Nếu có fallback_url, sử dụng nó
-            if (data.fallback_url || data.url) {
-              const finalUrl = data.fallback_url || data.url
-              onChange(finalUrl)
-              setPreview(finalUrl)
-            } else {
-              // Fallback: dùng base64 trực tiếp
-              onChange(base64String)
-              setPreview(base64String)
-              console.warn('Upload failed, using base64 directly:', data.error)
-            }
-            setUploading(false)
-          }
-        } catch (error: any) {
-          clearTimeout(timeoutId)
-          if (error.name === 'AbortError') {
-            alert('Upload ảnh quá lâu. Vui lòng thử lại hoặc dùng URL ảnh thay vì upload file.')
-            setUploading(false)
-          } else {
-            // Fallback: dùng base64 trực tiếp nếu upload fail
-            onChange(base64String)
-            setPreview(base64String)
-            console.warn('Upload failed, using base64 directly:', error)
-            setUploading(false)
-          }
-        }
-      }
-
-      reader.onerror = () => {
-        alert('Lỗi khi đọc file')
-        setUploading(false)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ''
-        }
-      }
-
-      reader.readAsDataURL(file)
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      alert('Lỗi khi upload ảnh')
-      setUploading(false)
+    reader.onerror = () => {
+      alert('Lỗi khi đọc file')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     }
+
+    reader.readAsDataURL(file)
   }
 
   const handleRemove = () => {
@@ -244,7 +87,7 @@ export default function ImageUpload({
       )}
       
       {/* Preview */}
-      {preview && !urlError && (
+      {preview && (
         <div className="mb-2 relative inline-block">
           <div className="relative w-32 h-32 border border-gray-300 rounded-lg overflow-hidden bg-gray-100">
             <Image
@@ -253,8 +96,8 @@ export default function ImageUpload({
               fill
               className="object-cover"
               sizes="128px"
+              unoptimized={preview.startsWith('data:image/')}
               onError={() => {
-                setUrlError('Không thể hiển thị ảnh')
                 setPreview(null)
               }}
             />
@@ -269,29 +112,14 @@ export default function ImageUpload({
         </div>
       )}
 
-      {/* Loading indicator */}
-      {validating && (
-        <div className="mb-2 text-xs text-blue-600">
-          ⏳ Đang kiểm tra URL...
-        </div>
-      )}
-
-      {/* Error message */}
-      {urlError && value && (
-        <div className="mb-2 text-xs text-red-600">
-          ⚠️ {urlError}
-        </div>
-      )}
-
       {/* Upload button */}
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors disabled:opacity-50 text-sm"
+          className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm"
         >
-          {uploading ? 'Đang upload...' : preview ? 'Thay đổi ảnh' : 'Chọn ảnh'}
+          {preview ? 'Thay đổi ảnh' : 'Chọn ảnh'}
         </button>
         <input
           ref={fileInputRef}
@@ -302,7 +130,7 @@ export default function ImageUpload({
         />
       </div>
 
-      {/* URL input - Đơn giản hóa: chỉ cần nhập URL */}
+      {/* URL input */}
       <div className="mt-2">
         <input
           type="text"
@@ -310,65 +138,19 @@ export default function ImageUpload({
           value={value}
           onChange={(e) => {
             const newValue = e.target.value
-            // Luôn cập nhật value ngay lập tức
             onChange(newValue)
             // Hiển thị preview ngay nếu là URL hoặc base64
             if (newValue && (newValue.startsWith('http://') || newValue.startsWith('https://') || newValue.startsWith('data:image/'))) {
               setPreview(newValue)
-              setUrlError(null)
-            } else if (newValue.trim() === '') {
+            } else if (!newValue) {
               setPreview(null)
-              setUrlError(null)
             }
           }}
-          onPaste={async (e) => {
-            const pastedText = e.clipboardData.getData('text')
-            if (pastedText && pastedText.startsWith('data:image/')) {
-              // Chỉ can thiệp nếu là base64, ngăn paste mặc định và upload
-              e.preventDefault()
-              setUploading(true)
-              try {
-                const response = await fetch('/api/upload/image', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    image: pastedText,
-                    folder: folder,
-                  }),
-                })
-
-                const data = await response.json()
-                if (response.ok && data.url) {
-                  onChange(data.url)
-                  setPreview(data.url)
-                  console.log('✅ Uploaded pasted image to Vercel Blob:', data.url)
-                } else {
-                  // Fallback: dùng base64 trực tiếp
-                  onChange(pastedText)
-                  setPreview(pastedText)
-                  console.warn('⚠️ Upload failed, using base64 directly')
-                }
-              } catch (error) {
-                // Fallback: dùng base64 trực tiếp
-                onChange(pastedText)
-                setPreview(pastedText)
-                console.warn('⚠️ Upload error, using base64 directly:', error)
-              } finally {
-                setUploading(false)
-              }
-            }
-            // Nếu là URL, để browser xử lý paste mặc định (onChange sẽ được gọi tự động)
-          }}
-          disabled={uploading}
-          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm disabled:opacity-50"
+          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm"
           style={{ fontSize: '16px' }}
         />
         <p className="text-xs text-gray-500 mt-1">
-          {uploading 
-            ? '⏳ Đang xử lý...'
-            : value && preview
+          {value && preview
             ? '✅ URL đã được nhập - Preview hiển thị bên trên'
             : '💡 Dán URL ảnh hoặc nhập link trực tiếp'}
         </p>
@@ -376,4 +158,3 @@ export default function ImageUpload({
     </div>
   )
 }
-

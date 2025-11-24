@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
-import { put } from '@vercel/blob';
 
 const uploadSchema = z.object({
   image: z.string().min(1, 'Image data is required'),
@@ -9,8 +8,7 @@ const uploadSchema = z.object({
   folder: z.enum(['products', 'banners', 'categories']).optional(),
 });
 
-// POST: Upload image sử dụng Vercel Blob Storage
-// Hỗ trợ base64, URL, và file upload
+// POST: Chấp nhận URL hoặc base64, trả về trực tiếp (không upload lên Vercel)
 export async function POST(request: NextRequest) {
   try {
     // Chỉ admin mới có thể upload
@@ -24,9 +22,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = uploadSchema.parse(body);
 
-    const { image, filename, folder } = validatedData;
+    const { image } = validatedData;
 
-    // Nếu là URL, trả về luôn (không cần xử lý)
+    // Nếu là URL, trả về luôn
     if (image.startsWith('http://') || image.startsWith('https://')) {
       return NextResponse.json({
         success: true,
@@ -35,7 +33,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Nếu là base64, upload lên Vercel Blob
+    // Nếu là base64, validate và trả về trực tiếp
     if (image.startsWith('data:image/')) {
       // Validate base64 image
       const base64Match = image.match(/^data:image\/(\w+);base64,(.+)$/);
@@ -67,71 +65,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Convert base64 to Buffer
-      const buffer = Buffer.from(base64Data, 'base64');
-
-      // Tạo filename
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 8);
-      const finalFilename = filename 
-        ? `${folder || 'uploads'}/${timestamp}-${randomStr}-${filename}`
-        : `${folder || 'uploads'}/${timestamp}-${randomStr}.${imageType}`;
-
-      try {
-        // Kiểm tra token trước khi upload
-        if (!process.env.BLOB_READ_WRITE_TOKEN) {
-          console.warn('⚠️ BLOB_READ_WRITE_TOKEN not set, using base64 fallback');
-          return NextResponse.json({
-            success: true,
-            url: image,
-            message: 'Upload thành công (base64 fallback)',
-            note: 'BLOB_READ_WRITE_TOKEN chưa được cấu hình. Vui lòng thêm token trong Vercel để sử dụng Vercel Blob.',
-          });
-        }
-
-        // Upload lên Vercel Blob
-        const blob = await put(finalFilename, buffer, {
-          access: 'public',
-          contentType: `image/${imageType}`,
-        });
-
-        console.log(`✅ Uploaded image to Vercel Blob: ${blob.url} (${folder}/${finalFilename})`);
-
-        return NextResponse.json({
-          success: true,
-          url: blob.url,
-          message: 'Upload thành công lên Vercel Blob',
-        });
-      } catch (blobError: any) {
-        // Log lỗi chi tiết
-        console.error('❌ Vercel Blob upload failed:', {
-          error: blobError?.message || blobError,
-          hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-          filename: finalFilename,
-          imageType,
-          folder,
-        });
-
-        // Kiểm tra xem có phải lỗi do thiếu token không
-        const isMissingToken = blobError?.message?.includes('BLOB_READ_WRITE_TOKEN') || 
-                              blobError?.message?.includes('token') ||
-                              !process.env.BLOB_READ_WRITE_TOKEN;
-
-        // Fallback về base64 trong development hoặc khi thiếu token
-        if (process.env.NODE_ENV === 'development' || isMissingToken) {
-          console.warn('⚠️ Using base64 fallback');
-          return NextResponse.json({
-            success: true,
-            url: image,
-            message: 'Upload thành công (base64 fallback)',
-            note: process.env.NODE_ENV === 'development' 
-              ? 'Development mode: đang dùng base64. Thêm BLOB_READ_WRITE_TOKEN để sử dụng Vercel Blob trong production.'
-              : 'Vercel Blob không khả dụng, đang dùng base64.',
-          });
-        }
-
-        throw blobError;
-      }
+      // Trả về base64 trực tiếp (lưu vào Neon database)
+      return NextResponse.json({
+        success: true,
+        url: image,
+        message: 'Base64 image được chấp nhận',
+      });
     }
 
     return NextResponse.json(
@@ -150,9 +89,8 @@ export async function POST(request: NextRequest) {
       console.error('Upload image error:', error);
     }
     return NextResponse.json(
-      { error: 'Lỗi khi upload ảnh' },
+      { error: 'Lỗi khi xử lý ảnh' },
       { status: 500 }
     );
   }
 }
-

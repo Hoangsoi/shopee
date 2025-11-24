@@ -437,11 +437,15 @@ export default function AdminSettingsPage() {
                     <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-sm font-semibold text-gray-700">Mức {index + 1}:</span>
-                        {index > 0 && (
-                          <span className="text-xs text-gray-500">
-                            Từ {investmentRates[index - 1].max_days ? `${investmentRates[index - 1].max_days + 1}` : `${investmentRates[index - 1].min_days + 1}`} ngày
-                          </span>
-                        )}
+                        {index > 0 && (() => {
+                          const prevRate = investmentRates[index - 1];
+                          if (!prevRate) return null;
+                          return (
+                            <span className="text-xs text-gray-500">
+                              Từ {prevRate.max_days ? `${prevRate.max_days + 1}` : `${prevRate.min_days + 1}`} ngày
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>

@@ -1,29 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-
-// Helper function để lấy rate dựa trên số ngày
-function getInvestmentRateByDays(days: number, rates: Array<{ min_days: number; max_days?: number; rate: number }>): number {
-  // Sắp xếp rates theo min_days tăng dần
-  const sortedRates = [...rates].sort((a, b) => a.min_days - b.min_days);
-  
-  // Tìm rate phù hợp
-  for (const rateConfig of sortedRates) {
-    if (days >= rateConfig.min_days) {
-      // Nếu không có max_days hoặc days <= max_days
-      if (!rateConfig.max_days || days <= rateConfig.max_days) {
-        return rateConfig.rate;
-      }
-    }
-  }
-  
-  // Nếu không tìm thấy, trả về rate của mức cao nhất
-  if (sortedRates.length > 0) {
-    return sortedRates[sortedRates.length - 1].rate;
-  }
-  
-  // Mặc định 1%
-  return 1.00;
-}
+import { getInvestmentRateByDays } from '@/lib/investment-utils';
 
 // GET: Lấy tỷ lệ lợi nhuận đầu tư (public, không cần admin)
 // Có thể truyền query param ?days=X để lấy rate cho số ngày cụ thể

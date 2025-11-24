@@ -180,14 +180,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Lấy tỷ lệ lợi nhuận từ settings
+    // Lấy tỷ lệ lợi nhuận từ settings dựa trên số ngày
     let dailyProfitRate = 1.00; // Mặc định 1%
     try {
       const setting = await sql`
-        SELECT value FROM settings WHERE key = 'investment_daily_profit_rate'
+        SELECT value FROM settings WHERE key = 'investment_rates_by_days'
+        ORDER BY updated_at DESC LIMIT 1
       `;
+      
       if (setting.length > 0) {
-        dailyProfitRate = parseFloat(setting[0].value) || 1.00;
+        try {
+          const rates = JSON.parse(setting[0].value);
+          if (Array.isArray(rates) && rates.length > 0) {
+            // Sắp xếp rates theo min_days tăng dần
+            const sortedRates = [...rates].sort((a: any, b: any) => a.min_days - b.min_days);
+            
+            // Tìm rate phù hợp với số ngày
+            for (const rateConfig of sortedRates) {
+              if (days >= rateConfig.min_days) {
+                // Nếu không có max_days hoặc days <= max_days
+                if (!rateConfig.max_days || days <= rateConfig.max_days) {
+                  dailyProfitRate = rateConfig.rate;
+                  break;
+                }
+              }
+            }
+            
+            // Nếu không tìm thấy, lấy rate của mức cao nhất
+            if (dailyProfitRate === 1.00 && sortedRates.length > 0) {
+              const highestRate = sortedRates[sortedRates.length - 1];
+              if (days >= highestRate.min_days) {
+                dailyProfitRate = highestRate.rate;
+              }
+            }
+          }
+        } catch (parseError) {
+          // Nếu parse lỗi, thử lấy rate cũ (backward compatibility)
+          const oldSetting = await sql`
+            SELECT value FROM settings WHERE key = 'investment_daily_profit_rate'
+            ORDER BY updated_at DESC LIMIT 1
+          `;
+          if (oldSetting.length > 0) {
+            dailyProfitRate = parseFloat(oldSetting[0].value) || 1.00;
+          }
+        }
+      } else {
+        // Thử lấy rate cũ (backward compatibility)
+        const oldSetting = await sql`
+          SELECT value FROM settings WHERE key = 'investment_daily_profit_rate'
+          ORDER BY updated_at DESC LIMIT 1
+        `;
+        if (oldSetting.length > 0) {
+          dailyProfitRate = parseFloat(oldSetting[0].value) || 1.00;
+        }
       }
     } catch (error) {
       // Sử dụng giá trị mặc định
@@ -200,16 +245,12 @@ export async function POST(request: NextRequest) {
       WHERE id = ${decoded.userId}
     `;
 
-    // Tính ngày đáo hạn: 24h kể từ thời điểm đầu tư theo múi giờ Việt Nam (giữ nguyên giờ phút giây)
-    // Lấy thời gian hiện tại (UTC)
-    const nowUTC = new Date();
-    // Convert sang múi giờ Việt Nam (UTC+7): cộng 7 giờ
-    const nowVietnam = new Date(nowUTC.getTime() + (7 * 60 * 60 * 1000));
-    // Tính maturity_date theo giờ Việt Nam: thêm đúng số ngày * 24 giờ
-    const maturityDateVietnam = new Date(nowVietnam);
-    maturityDateVietnam.setTime(maturityDateVietnam.getTime() + (days * 24 * 60 * 60 * 1000));
-    // Convert lại về UTC để lưu vào database: trừ 7 giờ
-    const maturityDate = new Date(maturityDateVietnam.getTime() - (7 * 60 * 60 * 1000));
+    // Tính ngày đáo hạn: thêm đúng số ngày từ thời điểm hiện tại
+    // Lấy thời gian hiện tại (server time, UTC)
+    const now = new Date();
+    // Tính maturity_date: thêm đúng số ngày * 24 giờ
+    const maturityDate = new Date(now);
+    maturityDate.setTime(maturityDate.getTime() + (days * 24 * 60 * 60 * 1000));
 
     // Tạo đầu tư mới
     // Lưu maturity_date vào database (database sẽ lưu dưới dạng timestamp)

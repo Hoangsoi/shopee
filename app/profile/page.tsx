@@ -41,7 +41,12 @@ export default function ProfilePage() {
   const [bankAccount, setBankAccount] = useState<BankAccount | null>(null)
   const [investments, setInvestments] = useState<any[]>([])
   const [investmentSummary, setInvestmentSummary] = useState({ total_invested: 0, total_profit: 0, active_count: 0 })
-  const [dailyProfitRate, setDailyProfitRate] = useState(1.00)
+  const [investmentRates, setInvestmentRates] = useState<Array<{ min_days: number; max_days?: number; rate: number }>>([
+    { min_days: 1, max_days: 6, rate: 1.00 },
+    { min_days: 7, max_days: 14, rate: 2.00 },
+    { min_days: 15, max_days: 29, rate: 3.00 },
+    { min_days: 30, rate: 5.00 },
+  ])
 
   useEffect(() => {
     fetchUser()
@@ -156,11 +161,12 @@ export default function ProfilePage() {
       const response = await fetch('/api/settings/investment-rate')
       if (response.ok) {
         const data = await response.json()
-        setDailyProfitRate(data.daily_profit_rate || 1.00)
+        if (data.rates && Array.isArray(data.rates) && data.rates.length > 0) {
+          setInvestmentRates(data.rates)
+        }
       }
     } catch (error) {
       // Sử dụng giá trị mặc định nếu có lỗi
-      setDailyProfitRate(1.00)
     }
   }
 
@@ -464,7 +470,7 @@ export default function ProfilePage() {
         onClose={() => setShowInvestmentModal(false)}
         onSuccess={handleInvestmentSuccess}
         walletBalance={user.wallet_balance || 0}
-        dailyProfitRate={dailyProfitRate}
+        investmentRates={investmentRates}
       />
 
       {/* Modal lịch sử đầu tư */}

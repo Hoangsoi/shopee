@@ -7,7 +7,7 @@ interface InvestmentModalProps {
   onClose: () => void
   onSuccess: () => void
   walletBalance: number
-  dailyProfitRate: number
+  investmentRates?: Array<{ min_days: number; max_days?: number; rate: number }>
 }
 
 export default function InvestmentModal({
@@ -15,12 +15,42 @@ export default function InvestmentModal({
   onClose,
   onSuccess,
   walletBalance,
-  dailyProfitRate,
+  investmentRates = [
+    { min_days: 1, max_days: 6, rate: 1.00 },
+    { min_days: 7, max_days: 14, rate: 2.00 },
+    { min_days: 15, max_days: 29, rate: 3.00 },
+    { min_days: 30, rate: 5.00 },
+  ],
 }: InvestmentModalProps) {
   const [amount, setAmount] = useState('')
   const [investmentDays, setInvestmentDays] = useState('1')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  
+  // Helper function để lấy rate dựa trên số ngày
+  const getRateByDays = (days: number): number => {
+    const sortedRates = [...investmentRates].sort((a, b) => a.min_days - b.min_days);
+    for (const rateConfig of sortedRates) {
+      if (days >= rateConfig.min_days) {
+        if (!rateConfig.max_days || days <= rateConfig.max_days) {
+          return rateConfig.rate;
+        }
+      }
+    }
+    // Nếu không tìm thấy, trả về rate của mức cao nhất
+    if (sortedRates.length > 0) {
+      return sortedRates[sortedRates.length - 1].rate;
+    }
+    return 1.00;
+  }
+  
+  // Tính maturity date để hiển thị
+  const getMaturityDate = (days: number): Date => {
+    const now = new Date();
+    const maturityDate = new Date(now);
+    maturityDate.setTime(maturityDate.getTime() + (days * 24 * 60 * 60 * 1000));
+    return maturityDate;
+  }
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('vi-VN').format(value)
@@ -95,9 +125,11 @@ export default function InvestmentModal({
 
   const amountNum = parseFloat(amount.replace(/[^0-9]/g, '')) || 0
   const daysNum = parseInt(investmentDays) || 1
+  const dailyProfitRate = getRateByDays(daysNum)
   const dailyProfit = amountNum * (dailyProfitRate / 100)
   const totalProfit = dailyProfit * daysNum
   const totalReturn = amountNum + totalProfit
+  const maturityDate = getMaturityDate(daysNum)
 
   if (!isOpen) return null
 
@@ -211,7 +243,18 @@ export default function InvestmentModal({
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-blue-200">
-                    ⏰ Tiền gốc và lãi sẽ được hoàn lại vào ví sau {daysNum} ngày (10:00 sáng)
+                    ⏰ Tiền gốc và lãi sẽ được hoàn lại vào ví vào{' '}
+                    <span className="font-semibold">
+                      {maturityDate.toLocaleString('vi-VN', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        timeZone: 'Asia/Ho_Chi_Minh',
+                      })}
+                    </span>
+                    {' '}(sau {daysNum} ngày)
                   </p>
                 </div>
               </div>

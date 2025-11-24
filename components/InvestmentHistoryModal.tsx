@@ -55,11 +55,10 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
   }
 
   const formatDate = (dateString: string) => {
-    // Date from database is in UTC
-    const dateUTC = new Date(dateString)
-    // Convert to Vietnam timezone (UTC+7)
-    const vietnamTime = new Date(dateUTC.getTime() + (7 * 60 * 60 * 1000))
-    return vietnamTime.toLocaleString('vi-VN', {
+    // Date from database
+    const date = new Date(dateString)
+    // Format với timezone Việt Nam
+    return date.toLocaleString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

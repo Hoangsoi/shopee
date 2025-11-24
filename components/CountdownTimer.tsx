@@ -18,16 +18,13 @@ export default function CountdownTimer({ targetDate, onComplete }: CountdownTime
   useEffect(() => {
     const calculateTimeLeft = () => {
       // Parse target date (from database, stored as UTC)
-      const targetUTC = typeof targetDate === 'string' ? new Date(targetDate) : targetDate
-      // Convert target to Vietnam timezone (UTC+7) for display
-      const targetVietnam = new Date(targetUTC.getTime() + (7 * 60 * 60 * 1000))
+      const target = typeof targetDate === 'string' ? new Date(targetDate) : targetDate
       
-      // Get current time and convert to Vietnam timezone (UTC+7)
-      const nowUTC = new Date()
-      const nowVietnam = new Date(nowUTC.getTime() + (7 * 60 * 60 * 1000))
+      // Get current time (server/client time)
+      const now = new Date()
       
-      // Calculate difference in Vietnam timezone
-      const difference = targetVietnam.getTime() - nowVietnam.getTime()
+      // Calculate difference (both are in same timezone context)
+      const difference = target.getTime() - now.getTime()
 
       if (difference <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 })

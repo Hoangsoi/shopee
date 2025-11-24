@@ -4,10 +4,38 @@ import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 
 const investmentRateSchema = z.object({
-  daily_profit_rate: z.number().min(0).max(100, 'Tỷ lệ lợi nhuận không được vượt quá 100%'),
+  rates: z.array(z.object({
+    min_days: z.number().int().min(1),
+    max_days: z.number().int().min(1).optional(),
+    rate: z.number().min(0).max(100, 'Tỷ lệ lợi nhuận không được vượt quá 100%'),
+  })).min(1, 'Phải có ít nhất một mức tỷ lệ'),
 });
 
-// GET: Lấy tỷ lệ lợi nhuận đầu tư
+// Helper function để lấy rate dựa trên số ngày
+export function getInvestmentRateByDays(days: number, rates: Array<{ min_days: number; max_days?: number; rate: number }>): number {
+  // Sắp xếp rates theo min_days tăng dần
+  const sortedRates = [...rates].sort((a, b) => a.min_days - b.min_days);
+  
+  // Tìm rate phù hợp
+  for (const rateConfig of sortedRates) {
+    if (days >= rateConfig.min_days) {
+      // Nếu không có max_days hoặc days <= max_days
+      if (!rateConfig.max_days || days <= rateConfig.max_days) {
+        return rateConfig.rate;
+      }
+    }
+  }
+  
+  // Nếu không tìm thấy, trả về rate của mức cao nhất
+  if (sortedRates.length > 0) {
+    return sortedRates[sortedRates.length - 1].rate;
+  }
+  
+  // Mặc định 1%
+  return 1.00;
+}
+
+// GET: Lấy cấu hình tỷ lệ lợi nhuận đầu tư theo số ngày
 export async function GET(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
@@ -28,29 +56,42 @@ export async function GET(request: NextRequest) {
     const result = await sql`
       SELECT value, description, updated_at 
       FROM settings 
-      WHERE key = 'investment_daily_profit_rate'
+      WHERE key = 'investment_rates_by_days'
       ORDER BY updated_at DESC
       LIMIT 1
     `;
 
-    let dailyProfitRate = 1.00; // Mặc định 1%
+    let rates = [
+      { min_days: 1, max_days: 6, rate: 1.00 },
+      { min_days: 7, max_days: 14, rate: 2.00 },
+      { min_days: 15, max_days: 29, rate: 3.00 },
+      { min_days: 30, rate: 5.00 },
+    ];
+
     if (result.length > 0) {
-      dailyProfitRate = parseFloat(result[0].value) || 1.00;
+      try {
+        const parsed = JSON.parse(result[0].value);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          rates = parsed;
+        }
+      } catch (e) {
+        // Sử dụng giá trị mặc định nếu parse lỗi
+      }
     } else {
       // Tạo giá trị mặc định nếu chưa có
       await sql`
         INSERT INTO settings (key, value, description)
-        VALUES ('investment_daily_profit_rate', '1.00', 'Tỷ lệ lợi nhuận qua đêm (%) cho đầu tư')
+        VALUES ('investment_rates_by_days', ${JSON.stringify(rates)}, 'Tỷ lệ lợi nhuận đầu tư theo số ngày (JSON array)')
         ON CONFLICT (key) DO NOTHING
       `;
     }
 
     return NextResponse.json({
-      daily_profit_rate: dailyProfitRate,
+      rates: rates,
     });
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.error('Get investment rate error:', error);
+      console.error('Get investment rates error:', error);
     }
     return NextResponse.json(
       { error: 'Lỗi khi lấy cài đặt đầu tư' },
@@ -59,7 +100,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT: Cập nhật tỷ lệ lợi nhuận đầu tư
+// PUT: Cập nhật tỷ lệ lợi nhuận đầu tư theo số ngày
 export async function PUT(request: NextRequest) {
   try {
     if (!(await isAdmin(request))) {
@@ -68,6 +109,31 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = investmentRateSchema.parse(body);
+
+    // Validate: các mức phải không trùng nhau và hợp lý
+    const sortedRates = [...validatedData.rates].sort((a, b) => a.min_days - b.min_days);
+    
+    // Kiểm tra không có khoảng trống và không trùng nhau
+    for (let i = 0; i < sortedRates.length; i++) {
+      const current = sortedRates[i];
+      if (current.max_days && current.max_days < current.min_days) {
+        return NextResponse.json(
+          { error: `Mức ${i + 1}: max_days phải >= min_days` },
+          { status: 400 }
+        );
+      }
+      
+      if (i > 0) {
+        const prev = sortedRates[i - 1];
+        const prevMax = prev.max_days || Infinity;
+        if (current.min_days <= prevMax) {
+          return NextResponse.json(
+            { error: 'Các mức tỷ lệ không được trùng nhau hoặc chồng chéo' },
+            { status: 400 }
+          );
+        }
+      }
+    }
 
     // Đảm bảo bảng settings tồn tại
     await sql`
@@ -83,20 +149,17 @@ export async function PUT(request: NextRequest) {
     // Cập nhật hoặc tạo mới setting
     await sql`
       INSERT INTO settings (key, value, description)
-      VALUES ('investment_daily_profit_rate', ${validatedData.daily_profit_rate.toString()}, 'Tỷ lệ lợi nhuận qua đêm (%) cho đầu tư')
+      VALUES ('investment_rates_by_days', ${JSON.stringify(sortedRates)}, 'Tỷ lệ lợi nhuận đầu tư theo số ngày (JSON array)')
       ON CONFLICT (key) 
       DO UPDATE SET 
-        value = ${validatedData.daily_profit_rate.toString()},
-        description = 'Tỷ lệ lợi nhuận qua đêm (%) cho đầu tư',
+        value = ${JSON.stringify(sortedRates)},
+        description = 'Tỷ lệ lợi nhuận đầu tư theo số ngày (JSON array)',
         updated_at = CURRENT_TIMESTAMP
     `;
 
-    // Cập nhật tỷ lệ cho các đầu tư mới (không ảnh hưởng đến đầu tư đã tạo)
-    // Chỉ cập nhật cho các đầu tư chưa có last_profit_calculated_at (đầu tư mới)
-
     return NextResponse.json({
       message: 'Cập nhật tỷ lệ lợi nhuận đầu tư thành công',
-      daily_profit_rate: validatedData.daily_profit_rate,
+      rates: sortedRates,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -107,7 +170,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.error('Update investment rate error:', error);
+      console.error('Update investment rates error:', error);
     }
     return NextResponse.json(
       { error: 'Lỗi khi cập nhật cài đặt đầu tư' },

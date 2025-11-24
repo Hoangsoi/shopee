@@ -16,7 +16,12 @@ export default function AdminSettingsPage() {
   const [zaloMessage, setZaloMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [vipMessage, setVipMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [investmentMessage, setInvestmentMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [investmentRate, setInvestmentRate] = useState('1.00')
+  const [investmentRates, setInvestmentRates] = useState<Array<{ min_days: number; max_days?: number; rate: number }>>([
+    { min_days: 1, max_days: 6, rate: 1.00 },
+    { min_days: 7, max_days: 14, rate: 2.00 },
+    { min_days: 15, max_days: 29, rate: 3.00 },
+    { min_days: 30, rate: 5.00 },
+  ])
   const [showClearDataModal, setShowClearDataModal] = useState(false)
   const [clearingData, setClearingData] = useState(false)
   const [clearDataMessage, setClearDataMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -53,7 +58,9 @@ export default function AdminSettingsPage() {
       const response = await fetch('/api/admin/settings/investment')
       if (response.ok) {
         const data = await response.json()
-        setInvestmentRate(data.daily_profit_rate?.toString() || '1.00')
+        if (data.rates && Array.isArray(data.rates) && data.rates.length > 0) {
+          setInvestmentRates(data.rates)
+        }
       }
     } catch (error) {
       console.error('Error fetching investment settings:', error)
@@ -160,17 +167,56 @@ export default function AdminSettingsPage() {
     setVipThresholds(newThresholds)
   }
 
+  const handleAddInvestmentRate = () => {
+    if (investmentRates.length < 10) {
+      const lastRate = investmentRates[investmentRates.length - 1]
+      const newMinDays = lastRate.max_days ? lastRate.max_days + 1 : lastRate.min_days + 1
+      setInvestmentRates([...investmentRates, { min_days: newMinDays, rate: 1.00 }])
+    }
+  }
+
+  const handleRemoveInvestmentRate = (index: number) => {
+    if (investmentRates.length > 1) {
+      setInvestmentRates(investmentRates.filter((_, i) => i !== index))
+    }
+  }
+
+  const handleInvestmentRateChange = (index: number, field: 'min_days' | 'max_days' | 'rate', value: string) => {
+    const newRates = [...investmentRates]
+    if (field === 'rate') {
+      newRates[index] = { ...newRates[index], rate: parseFloat(value) || 0 }
+    } else if (field === 'min_days') {
+      newRates[index] = { ...newRates[index], min_days: parseInt(value) || 1 }
+    } else if (field === 'max_days') {
+      newRates[index] = { ...newRates[index], max_days: value === '' ? undefined : parseInt(value) || undefined }
+    }
+    setInvestmentRates(newRates)
+  }
+
   const handleUpdateInvestment = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoadingInvestment(true)
     setInvestmentMessage(null)
 
     try {
-      const rate = parseFloat(investmentRate)
-      if (isNaN(rate) || rate < 0 || rate > 100) {
-        setInvestmentMessage({ type: 'error', text: 'Tỷ lệ lợi nhuận phải từ 0 đến 100%' })
-        setLoadingInvestment(false)
-        return
+      // Validate rates
+      for (let i = 0; i < investmentRates.length; i++) {
+        const rate = investmentRates[i]
+        if (rate.min_days < 1) {
+          setInvestmentMessage({ type: 'error', text: `Mức ${i + 1}: Số ngày tối thiểu phải >= 1` })
+          setLoadingInvestment(false)
+          return
+        }
+        if (rate.rate < 0 || rate.rate > 100) {
+          setInvestmentMessage({ type: 'error', text: `Mức ${i + 1}: Tỷ lệ lợi nhuận phải từ 0 đến 100%` })
+          setLoadingInvestment(false)
+          return
+        }
+        if (rate.max_days && rate.max_days < rate.min_days) {
+          setInvestmentMessage({ type: 'error', text: `Mức ${i + 1}: Số ngày tối đa phải >= số ngày tối thiểu` })
+          setLoadingInvestment(false)
+          return
+        }
       }
 
       const response = await fetch('/api/admin/settings/investment', {
@@ -178,7 +224,7 @@ export default function AdminSettingsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ daily_profit_rate: rate }),
+        body: JSON.stringify({ rates: investmentRates }),
       })
 
       const data = await response.json()
@@ -378,26 +424,88 @@ export default function AdminSettingsPage() {
             <h2 className="text-xl font-bold text-gray-800 mb-4">Quản lý đầu tư</h2>
             <form onSubmit={handleUpdateInvestment} className="space-y-4">
               <div>
-                <label htmlFor="investment-rate" className="block text-sm font-medium text-gray-700 mb-2">
-                  Tỷ lệ lợi nhuận qua đêm (%)
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tỷ lệ lợi nhuận theo số ngày đầu tư (%)
                 </label>
-                <input
-                  id="investment-rate"
-                  type="number"
-                  value={investmentRate}
-                  onChange={(e) => setInvestmentRate(e.target.value)}
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  required
-                  className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
-                  style={{ fontSize: '16px' }}
-                  placeholder="Nhập tỷ lệ lợi nhuận (ví dụ: 1.00 cho 1%)"
-                />
-                <p className="mt-2 text-sm text-gray-500">
-                  Tỷ lệ lợi nhuận hàng ngày cho các khoản đầu tư. Ví dụ: 1.00 = 1% mỗi ngày.
+                <p className="text-xs text-gray-500 mb-3">
+                  Cấu hình tỷ lệ lợi nhuận khác nhau cho các khoảng thời gian đầu tư khác nhau.
                   <br />
-                  <strong>Lưu ý:</strong> Tỷ lệ này sẽ áp dụng cho các đầu tư mới. Các đầu tư đã tạo sẽ giữ nguyên tỷ lệ ban đầu.
+                  <strong>Lưu ý:</strong> Các mức phải không trùng nhau và tăng dần. Mức cuối cùng có thể không có max_days (áp dụng cho tất cả số ngày lớn hơn).
+                </p>
+                <div className="space-y-3">
+                  {investmentRates.map((rate, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm font-semibold text-gray-700">Mức {index + 1}:</span>
+                        {index > 0 && (
+                          <span className="text-xs text-gray-500">
+                            Từ {investmentRates[index - 1].max_days ? `${investmentRates[index - 1].max_days + 1}` : `${investmentRates[index - 1].min_days + 1}`} ngày
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Số ngày tối thiểu</label>
+                          <input
+                            type="number"
+                            value={rate.min_days}
+                            onChange={(e) => handleInvestmentRateChange(index, 'min_days', e.target.value)}
+                            min="1"
+                            required
+                            className="w-full h-10 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Số ngày tối đa (tùy chọn)</label>
+                          <input
+                            type="number"
+                            value={rate.max_days || ''}
+                            onChange={(e) => handleInvestmentRateChange(index, 'max_days', e.target.value)}
+                            min={rate.min_days}
+                            placeholder="Không giới hạn"
+                            className="w-full h-10 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Tỷ lệ lợi nhuận (%)</label>
+                          <input
+                            type="number"
+                            value={rate.rate}
+                            onChange={(e) => handleInvestmentRateChange(index, 'rate', e.target.value)}
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            required
+                            className="w-full h-10 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                            style={{ fontSize: '16px' }}
+                          />
+                        </div>
+                      </div>
+                      {investmentRates.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveInvestmentRate(index)}
+                          className="mt-2 px-3 py-1 text-red-600 hover:bg-red-50 rounded-sm text-xs font-medium transition-colors"
+                        >
+                          Xóa mức này
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {investmentRates.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={handleAddInvestmentRate}
+                    className="mt-3 px-4 py-2 text-[#ee4d2d] border border-[#ee4d2d] rounded-sm text-sm font-medium hover:bg-[#ee4d2d] hover:text-white transition-colors"
+                  >
+                    + Thêm mức tỷ lệ
+                  </button>
+                )}
+                <p className="mt-3 text-sm text-gray-500">
+                  <strong>Ví dụ:</strong> Dưới 7 ngày: 1%, Từ 7-14 ngày: 2%, Từ 15-29 ngày: 3%, Từ 30 ngày trở lên: 5%
                 </p>
               </div>
 

@@ -21,10 +21,17 @@ const imageUrlSchema = z.string().min(1, 'URL ảnh không được để trốn
   }
 );
 
+// Helper để validate link_url (có thể là URL, chuỗi rỗng, hoặc null)
+const linkUrlSchema = z.union([
+  z.string().url('URL liên kết không hợp lệ'),
+  z.literal(''),
+  z.null(),
+]).optional();
+
 const bannerSchema = z.object({
   image_url: imageUrlSchema,
   title: z.string().optional(),
-  link_url: z.string().url('URL liên kết không hợp lệ').optional().or(z.literal('')),
+  link_url: linkUrlSchema,
   is_active: z.boolean().optional(),
   sort_order: z.number().int().optional(),
 });
@@ -33,7 +40,7 @@ const updateBannerSchema = z.object({
   banner_id: z.number().int().positive('ID banner không hợp lệ'),
   image_url: imageUrlSchema.optional(),
   title: z.string().optional(),
-  link_url: z.string().url('URL liên kết không hợp lệ').optional().or(z.literal('')),
+  link_url: linkUrlSchema,
   is_active: z.boolean().optional(),
   sort_order: z.number().int().optional(),
 });

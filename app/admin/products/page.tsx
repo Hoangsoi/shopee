@@ -47,6 +47,12 @@ export default function AdminProductsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 100,
+    total: 0,
+    totalPages: 0,
+  })
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -60,19 +66,22 @@ export default function AdminProductsPage() {
     }
   }, [])
 
-  const fetchProducts = useCallback(async (search?: string, categoryId?: string) => {
+  const fetchProducts = useCallback(async (search?: string, categoryId?: string, page: number = 1, limit: number = 100) => {
     setLoading(true)
     try {
-      let url = '/api/admin/products'
+      let url = `/api/admin/products?page=${page}&limit=${limit}`
       if (categoryId) {
-        url += `?category_id=${categoryId}`
+        url += `&category_id=${categoryId}`
       } else if (search) {
-        url += `?search=${encodeURIComponent(search)}`
+        url += `&search=${encodeURIComponent(search)}`
       }
       const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setProducts(data.products || [])
+        if (data.pagination) {
+          setPagination(data.pagination)
+        }
       } else {
         setMessage({ type: 'error', text: 'Lỗi khi tải danh sách sản phẩm' })
       }
@@ -86,19 +95,24 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     fetchCategories()
-    fetchProducts()
-  }, [fetchCategories, fetchProducts])
+    fetchProducts(undefined, undefined, 1, 100)
+  }, [fetchCategories])
 
   useEffect(() => {
-    if (searchTerm || selectedCategory) {
-      const timeoutId = setTimeout(() => {
-        fetchProducts(searchTerm, selectedCategory)
-      }, 500)
-      return () => clearTimeout(timeoutId)
-    } else {
-      fetchProducts()
+    // Reset về trang 1 khi search hoặc filter thay đổi
+    setPagination(prev => ({ ...prev, page: 1 }))
+    const timeoutId = setTimeout(() => {
+      fetchProducts(searchTerm || undefined, selectedCategory || undefined, 1, pagination.limit)
+    }, searchTerm || selectedCategory ? 500 : 0)
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, selectedCategory, pagination.limit])
+  
+  // Fetch khi page thay đổi (chỉ khi page > 1 để tránh conflict với useEffect trên)
+  useEffect(() => {
+    if (pagination.page > 1) {
+      fetchProducts(searchTerm || undefined, selectedCategory || undefined, pagination.page, pagination.limit)
     }
-  }, [searchTerm, selectedCategory, fetchProducts])
+  }, [pagination.page])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -136,7 +150,7 @@ export default function AdminProductsPage() {
           is_active: true,
           stock: 0,
         })
-        fetchProducts(searchTerm, selectedCategory)
+        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
       } else {
         setMessage({ type: 'error', text: data.error || 'Thêm sản phẩm thất bại' })
       }
@@ -208,7 +222,7 @@ export default function AdminProductsPage() {
         setMessage({ type: 'success', text: 'Cập nhật thành công!' })
         setEditingId(null)
         setEditFormData({})
-        fetchProducts(searchTerm, selectedCategory)
+        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
       } else {
         // Hiển thị lỗi chi tiết nếu có
         const errorMessage = data.details && Array.isArray(data.details) 
@@ -239,7 +253,7 @@ export default function AdminProductsPage() {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Xóa sản phẩm thành công!' })
-        fetchProducts(searchTerm, selectedCategory)
+        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
       } else {
         setMessage({ type: 'error', text: data.error || 'Xóa thất bại' })
       }
@@ -453,13 +467,21 @@ export default function AdminProductsPage() {
             </div>
           )}
 
+          {/* Pagination Info */}
+          {pagination.total > 0 && (
+            <div className="mb-4 text-sm text-gray-600">
+              Hiển thị {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} / {pagination.total} sản phẩm
+            </div>
+          )}
+
           {products.length === 0 ? (
             <div className="text-center py-8 text-gray-600">
               {searchTerm || selectedCategory ? 'Không tìm thấy sản phẩm nào.' : 'Chưa có sản phẩm nào.'}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white border border-gray-200">
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white border border-gray-200">
                 <thead>
                   <tr>
                     <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Hình ảnh</th>
@@ -667,6 +689,50 @@ export default function AdminProductsPage() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination Controls */}
+            {pagination.totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    Trước
+                  </button>
+                  <span className="px-3 py-1 text-sm text-gray-700">
+                    Trang {pagination.page} / {pagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
+                    disabled={pagination.page === pagination.totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    Sau
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <span>Hiển thị:</span>
+                  <select
+                    value={pagination.limit}
+                    onChange={(e) => {
+                      const newLimit = parseInt(e.target.value)
+                      setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }))
+                      fetchProducts(searchTerm, selectedCategory, 1, newLimit)
+                    }}
+                    className="px-2 py-1 border border-gray-300 rounded-sm"
+                  >
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="250">250</option>
+                    <option value="500">500</option>
+                  </select>
+                  <span>sản phẩm/trang</span>
+                </div>
+              </div>
+            )}
+          </>
           )}
         </div>
       </div>

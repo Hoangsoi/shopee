@@ -130,16 +130,23 @@ export default function ImageUpload({
     // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Vui lòng chọn file ảnh')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('Kích thước ảnh quá lớn. Tối đa 5MB')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
 
     setUploading(true)
+    setUrlError(null)
 
     try {
       // Convert to base64
@@ -171,41 +178,52 @@ export default function ImageUpload({
           if (response.ok && data.url) {
             onChange(data.url)
             setPreview(data.url)
+            setUploading(false)
           } else {
             // Nếu có fallback_url, sử dụng nó
-            if (data.fallback_url) {
-              onChange(data.fallback_url)
-              setPreview(data.fallback_url)
+            if (data.fallback_url || data.url) {
+              const finalUrl = data.fallback_url || data.url
+              onChange(finalUrl)
+              setPreview(finalUrl)
             } else {
-              alert(data.error || 'Upload ảnh thất bại')
-              setUploading(false)
+              // Fallback: dùng base64 trực tiếp
+              onChange(base64String)
+              setPreview(base64String)
+              console.warn('Upload failed, using base64 directly:', data.error)
             }
+            setUploading(false)
           }
         } catch (error: any) {
           clearTimeout(timeoutId)
           if (error.name === 'AbortError') {
             alert('Upload ảnh quá lâu. Vui lòng thử lại hoặc dùng URL ảnh thay vì upload file.')
+            setUploading(false)
           } else {
             // Fallback: dùng base64 trực tiếp nếu upload fail
             onChange(base64String)
             setPreview(base64String)
             console.warn('Upload failed, using base64 directly:', error)
+            setUploading(false)
           }
-          setUploading(false)
         }
       }
 
       reader.onerror = () => {
         alert('Lỗi khi đọc file')
         setUploading(false)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
       }
 
       reader.readAsDataURL(file)
     } catch (error) {
       console.error('Error uploading image:', error)
       alert('Lỗi khi upload ảnh')
-    } finally {
       setUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -292,20 +310,19 @@ export default function ImageUpload({
           value={value}
           onChange={(e) => {
             const newValue = e.target.value
+            // Luôn cập nhật value ngay lập tức
             onChange(newValue)
-            // Hiển thị preview ngay nếu là URL hợp lệ
+            // Hiển thị preview ngay nếu là URL hoặc base64
             if (newValue && (newValue.startsWith('http://') || newValue.startsWith('https://') || newValue.startsWith('data:image/'))) {
               setPreview(newValue)
               setUrlError(null)
-            } else if (newValue) {
-              setPreview(null)
-            } else {
+            } else if (newValue.trim() === '') {
               setPreview(null)
               setUrlError(null)
             }
           }}
           onPaste={async (e) => {
-            // Lấy text đã paste
+            e.preventDefault() // Ngăn paste mặc định
             const pastedText = e.clipboardData.getData('text')
             if (pastedText) {
               // Nếu là base64, tự động upload lên Vercel Blob
@@ -343,20 +360,26 @@ export default function ImageUpload({
                   setUploading(false)
                 }
               } else {
-                // Nếu là URL, chỉ cần set value
+                // Nếu là URL, set value ngay lập tức
                 onChange(pastedText)
                 if (pastedText.startsWith('http://') || pastedText.startsWith('https://')) {
                   setPreview(pastedText)
                   setUrlError(null)
+                } else {
+                  // Nếu không phải URL hợp lệ, vẫn set value để người dùng có thể chỉnh sửa
+                  onChange(pastedText)
                 }
               }
             }
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm"
+          disabled={uploading}
+          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm disabled:opacity-50"
           style={{ fontSize: '16px' }}
         />
         <p className="text-xs text-gray-500 mt-1">
-          {value && preview
+          {uploading 
+            ? '⏳ Đang xử lý...'
+            : value && preview
             ? '✅ URL đã được nhập - Preview hiển thị bên trên'
             : '💡 Dán URL ảnh hoặc nhập link trực tiếp'}
         </p>

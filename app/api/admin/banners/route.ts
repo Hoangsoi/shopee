@@ -206,12 +206,20 @@ export async function PUT(request: NextRequest) {
                   contentType: `image/${imageType}`,
                 });
                 imageUrl = blob.url;
-              } catch (blobError) {
+                console.log(`✅ Uploaded banner image to Vercel Blob: ${blob.url}`);
+              } catch (blobError: any) {
+                // Log lỗi chi tiết
+                console.error('❌ Vercel Blob upload failed:', {
+                  error: blobError?.message || blobError,
+                  hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
+                  filename,
+                  imageType,
+                });
                 // Nếu upload fail, giữ nguyên base64 (fallback)
-                if (process.env.NODE_ENV === 'development') {
-                  console.warn('Vercel Blob upload failed, using base64:', blobError);
-                }
+                console.warn('⚠️ Using base64 fallback for banner image');
               }
+            } else {
+              console.warn('⚠️ BLOB_READ_WRITE_TOKEN not set, using base64 for banner image');
             }
           }
         } catch (error) {

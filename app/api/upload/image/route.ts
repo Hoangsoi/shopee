@@ -78,11 +78,24 @@ export async function POST(request: NextRequest) {
         : `${folder || 'uploads'}/${timestamp}-${randomStr}.${imageType}`;
 
       try {
+        // Kiểm tra token trước khi upload
+        if (!process.env.BLOB_READ_WRITE_TOKEN) {
+          console.warn('⚠️ BLOB_READ_WRITE_TOKEN not set, using base64 fallback');
+          return NextResponse.json({
+            success: true,
+            url: image,
+            message: 'Upload thành công (base64 fallback)',
+            note: 'BLOB_READ_WRITE_TOKEN chưa được cấu hình. Vui lòng thêm token trong Vercel để sử dụng Vercel Blob.',
+          });
+        }
+
         // Upload lên Vercel Blob
         const blob = await put(finalFilename, buffer, {
           access: 'public',
           contentType: `image/${imageType}`,
         });
+
+        console.log(`✅ Uploaded image to Vercel Blob: ${blob.url} (${folder}/${finalFilename})`);
 
         return NextResponse.json({
           success: true,
@@ -90,10 +103,14 @@ export async function POST(request: NextRequest) {
           message: 'Upload thành công lên Vercel Blob',
         });
       } catch (blobError: any) {
-        // Fallback: Nếu Vercel Blob không khả dụng, trả về base64 tạm thời
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('Vercel Blob upload failed, using base64 fallback:', blobError);
-        }
+        // Log lỗi chi tiết
+        console.error('❌ Vercel Blob upload failed:', {
+          error: blobError?.message || blobError,
+          hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
+          filename: finalFilename,
+          imageType,
+          folder,
+        });
 
         // Kiểm tra xem có phải lỗi do thiếu token không
         const isMissingToken = blobError?.message?.includes('BLOB_READ_WRITE_TOKEN') || 
@@ -102,6 +119,7 @@ export async function POST(request: NextRequest) {
 
         // Fallback về base64 trong development hoặc khi thiếu token
         if (process.env.NODE_ENV === 'development' || isMissingToken) {
+          console.warn('⚠️ Using base64 fallback');
           return NextResponse.json({
             success: true,
             url: image,

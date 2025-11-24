@@ -304,15 +304,51 @@ export default function ImageUpload({
               setUrlError(null)
             }
           }}
-          onPaste={(e) => {
-            // Đơn giản: chỉ cần lấy text và set vào value
+          onPaste={async (e) => {
+            // Lấy text đã paste
             const pastedText = e.clipboardData.getData('text')
             if (pastedText) {
-              onChange(pastedText)
-              // Hiển thị preview ngay nếu là URL
-              if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
-                setPreview(pastedText)
-                setUrlError(null)
+              // Nếu là base64, tự động upload lên Vercel Blob
+              if (pastedText.startsWith('data:image/')) {
+                setUploading(true)
+                try {
+                  const response = await fetch('/api/upload/image', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      image: pastedText,
+                      folder: folder,
+                    }),
+                  })
+
+                  const data = await response.json()
+                  if (response.ok && data.url) {
+                    onChange(data.url)
+                    setPreview(data.url)
+                    console.log('✅ Uploaded pasted image to Vercel Blob:', data.url)
+                  } else {
+                    // Fallback: dùng base64 trực tiếp
+                    onChange(pastedText)
+                    setPreview(pastedText)
+                    console.warn('⚠️ Upload failed, using base64 directly')
+                  }
+                } catch (error) {
+                  // Fallback: dùng base64 trực tiếp
+                  onChange(pastedText)
+                  setPreview(pastedText)
+                  console.warn('⚠️ Upload error, using base64 directly:', error)
+                } finally {
+                  setUploading(false)
+                }
+              } else {
+                // Nếu là URL, chỉ cần set value
+                onChange(pastedText)
+                if (pastedText.startsWith('http://') || pastedText.startsWith('https://')) {
+                  setPreview(pastedText)
+                  setUrlError(null)
+                }
               }
             }
           }}

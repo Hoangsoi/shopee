@@ -30,41 +30,66 @@ export default function ImageUpload({
     if (!url || url.trim() === '') {
       setPreview(null)
       setUrlError(null)
+      setValidating(false)
       return
     }
 
-    // Kiểm tra format URL cơ bản
-    const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i
-    if (!urlPattern.test(url) && !url.startsWith('data:image/')) {
-      // Nếu không phải URL ảnh, thử kiểm tra xem có phải URL hợp lệ không
-      try {
-        new URL(url)
-        // URL hợp lệ nhưng không rõ có phải ảnh không, vẫn hiển thị preview
-        setPreview(url)
-        setUrlError(null)
-      } catch {
-        setUrlError('URL không hợp lệ')
-        setPreview(null)
-      }
+    const trimmedUrl = url.trim()
+
+    // Nếu là data URL, hiển thị ngay
+    if (trimmedUrl.startsWith('data:image/')) {
+      setPreview(trimmedUrl)
+      setUrlError(null)
+      setValidating(false)
       return
     }
+
+    // Kiểm tra xem có phải URL hợp lệ không
+    let isValidUrl = false
+    try {
+      new URL(trimmedUrl)
+      isValidUrl = true
+    } catch {
+      setUrlError('URL không hợp lệ')
+      setPreview(null)
+      setValidating(false)
+      return
+    }
+
+    // Nếu là URL hợp lệ, kiểm tra xem có phải ảnh không
+    const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i
+    const isImageUrl = imageExtensions.test(trimmedUrl) || trimmedUrl.includes('image') || trimmedUrl.includes('photo')
 
     setValidating(true)
     setUrlError(null)
 
     // Kiểm tra ảnh có load được không
     const img = new window.Image()
+    const timeout = setTimeout(() => {
+      setUrlError('Timeout: Không thể tải ảnh (có thể do CORS hoặc URL không đúng)')
+      setPreview(null)
+      setValidating(false)
+    }, 10000) // 10 giây timeout
+
     img.onload = () => {
-      setPreview(url)
+      clearTimeout(timeout)
+      setPreview(trimmedUrl)
       setUrlError(null)
       setValidating(false)
     }
     img.onerror = () => {
-      setUrlError('Không thể tải ảnh từ URL này')
-      setPreview(null)
+      clearTimeout(timeout)
+      // Nếu URL hợp lệ nhưng không load được, vẫn hiển thị (có thể do CORS)
+      if (isImageUrl) {
+        setPreview(trimmedUrl)
+        setUrlError('⚠️ Không thể verify ảnh (có thể do CORS), nhưng URL có vẻ hợp lệ')
+      } else {
+        setUrlError('Không thể tải ảnh từ URL này')
+        setPreview(null)
+      }
       setValidating(false)
     }
-    img.src = url
+    img.src = trimmedUrl
   }, [])
 
   // Debounce validation khi người dùng nhập
@@ -244,17 +269,42 @@ export default function ImageUpload({
       {/* URL input (fallback) */}
       <div className="mt-2">
         <input
-          type="url"
+          type="text"
           placeholder="Dán URL ảnh hoặc nhập link (sẽ tự động kiểm tra)"
           value={value}
           onChange={(e) => {
-            onChange(e.target.value)
+            const newValue = e.target.value.trim()
+            onChange(newValue)
           }}
-          onPaste={(e) => {
-            // Xử lý paste ngay lập tức
-            const pastedText = e.clipboardData.getData('text')
-            if (pastedText && (pastedText.startsWith('http://') || pastedText.startsWith('https://'))) {
+          onPaste={async (e) => {
+            // Xử lý paste ngay lập tức - không preventDefault để cho phép paste bình thường
+            const pastedText = e.clipboardData.getData('text').trim()
+            
+            if (pastedText) {
+              // Set giá trị ngay
               onChange(pastedText)
+              
+              // Nếu là URL, trigger validation ngay lập tức (không đợi debounce)
+              if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
+                // Clear debounce timer
+                if (debounceTimerRef.current) {
+                  clearTimeout(debounceTimerRef.current)
+                }
+                // Validate ngay lập tức
+                setTimeout(() => {
+                  validateAndPreviewUrl(pastedText)
+                }, 100) // Delay nhỏ để đảm bảo state đã update
+              }
+            }
+          }}
+          onKeyDown={(e) => {
+            // Cho phép Ctrl+V, Ctrl+A, Delete, Backspace, Arrow keys
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              // Trigger validation khi nhấn Enter
+              if (value) {
+                validateAndPreviewUrl(value)
+              }
             }
           }}
           className={`w-full px-3 py-2 border rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm ${
@@ -264,10 +314,12 @@ export default function ImageUpload({
         />
         <p className="text-xs text-gray-500 mt-1">
           {validating 
-            ? 'Đang kiểm tra URL...' 
+            ? '⏳ Đang kiểm tra URL...' 
             : urlError 
-            ? 'Vui lòng kiểm tra lại URL ảnh' 
-            : 'Dán URL ảnh sẽ tự động hiển thị preview'}
+            ? `⚠️ ${urlError}` 
+            : value && preview
+            ? '✅ URL hợp lệ - Preview đã hiển thị'
+            : '💡 Dán URL ảnh sẽ tự động hiển thị preview (hoặc nhấn Enter để kiểm tra)'}
         </p>
       </div>
     </div>

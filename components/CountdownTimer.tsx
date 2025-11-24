@@ -5,9 +5,10 @@ import { useState, useEffect } from 'react'
 interface CountdownTimerProps {
   targetDate: string | Date
   onComplete?: () => void
+  variant?: 'light' | 'dark' // 'light' = text trắng (cho background tối), 'dark' = text tối (cho background sáng)
 }
 
-export default function CountdownTimer({ targetDate, onComplete }: CountdownTimerProps) {
+export default function CountdownTimer({ targetDate, onComplete, variant = 'dark' }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState<{
     days: number
     hours: number
@@ -48,16 +49,19 @@ export default function CountdownTimer({ targetDate, onComplete }: CountdownTime
     return () => clearInterval(interval)
   }, [targetDate, onComplete])
 
+  const textColorClass = variant === 'light' ? 'text-white/90' : 'text-gray-700'
+  const textColorSecondaryClass = variant === 'light' ? 'text-white/80' : 'text-gray-600'
+
   if (!timeLeft) {
-    return <span className="text-xs text-white/80">Đang tính...</span>
+    return <span className={`text-xs ${textColorSecondaryClass}`}>Đang tính...</span>
   }
 
   if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
-    return <span className="text-xs text-white/80">Đã đến hạn</span>
+    return <span className={`text-xs ${textColorSecondaryClass}`}>Đã đến hạn</span>
   }
 
   return (
-    <div className="flex items-center gap-1 text-xs text-white/90">
+    <div className={`flex items-center gap-1 text-xs ${textColorClass}`}>
       <span className="font-semibold">⏰</span>
       {timeLeft.days > 0 && (
         <span>

@@ -357,7 +357,7 @@ export default function ProfilePage() {
                     return (
                       <div className="mt-2 pt-2 border-t border-white/20">
                         <p className="text-xs opacity-75 mb-1">Thời gian hoàn trả sớm nhất:</p>
-                        <CountdownTimer targetDate={earliestInvestment.maturity_date} />
+                        <CountdownTimer targetDate={earliestInvestment.maturity_date} variant="light" />
                       </div>
                     )
                   }

@@ -146,6 +146,18 @@ export default function ImageUpload({
               setPreview(null)
             }
           }}
+          onPaste={(e) => {
+            // Để browser xử lý paste mặc định, onChange sẽ tự động được gọi
+            // Không cần preventDefault, chỉ cần đảm bảo paste hoạt động
+            const pastedText = e.clipboardData.getData('text')
+            if (pastedText) {
+              // Set value ngay lập tức để đảm bảo paste hoạt động
+              onChange(pastedText)
+              if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
+                setPreview(pastedText)
+              }
+            }
+          }}
           className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm"
           style={{ fontSize: '16px' }}
         />

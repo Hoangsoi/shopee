@@ -87,17 +87,17 @@ export default function ImageUpload({
   }
 
   return (
-    <div>
+    <div className="w-full">
       {label && (
-        <label className="block text-sm text-gray-700 mb-1">
+        <label className="block text-sm text-gray-700 mb-2 font-medium">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
       
       {/* Preview */}
       {preview && (
-        <div className="mb-2 relative inline-block">
-          <div className="relative w-32 h-32 border border-gray-300 rounded-lg overflow-hidden bg-gray-100">
+        <div className="mb-3 relative inline-block">
+          <div className="relative w-32 h-32 border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-100 shadow-sm">
             <Image
               src={preview}
               alt="Preview"
@@ -113,15 +113,16 @@ export default function ImageUpload({
           <button
             type="button"
             onClick={handleRemove}
-            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 shadow-md z-10"
+            aria-label="Xóa ảnh"
           >
             ×
           </button>
         </div>
       )}
 
-      {/* Upload button */}
-      <div className="mt-2">
+      {/* Upload Section - CHỈ CÓ BUTTON UPLOAD, KHÔNG CÓ INPUT TEXT */}
+      <div className="space-y-2">
         <button
           type="button"
           onClick={() => {
@@ -130,25 +131,56 @@ export default function ImageUpload({
             }
           }}
           disabled={uploading}
-          className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          style={{ display: 'inline-block' }}
+          className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 active:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+          style={{ 
+            display: 'inline-block',
+            minWidth: '120px',
+            textAlign: 'center'
+          }}
         >
-          {uploading ? 'Đang tải...' : preview ? 'Thay đổi ảnh' : 'Chọn ảnh'}
+          {uploading ? (
+            <>
+              <span className="mr-2">⏳</span>
+              <span>Đang tải...</span>
+            </>
+          ) : preview ? (
+            <>
+              <span className="mr-2">🔄</span>
+              <span>Thay đổi ảnh</span>
+            </>
+          ) : (
+            <>
+              <span className="mr-2">📁</span>
+              <span>Chọn ảnh</span>
+            </>
+          )}
         </button>
+        
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
           onChange={handleFileSelect}
-          style={{ display: 'none' }}
+          style={{ 
+            position: 'absolute',
+            width: '1px',
+            height: '1px',
+            padding: 0,
+            margin: '-1px',
+            overflow: 'hidden',
+            clip: 'rect(0, 0, 0, 0)',
+            whiteSpace: 'nowrap',
+            border: 0
+          }}
           aria-label="Chọn file ảnh"
         />
-        <p className="text-xs text-gray-500 mt-1">
+        
+        <p className="text-xs text-gray-500 mt-2">
           {uploading
             ? '⏳ Đang xử lý ảnh...'
             : preview
-            ? '✅ Ảnh đã được tải lên'
-            : '💡 Chọn file ảnh từ máy tính (JPG, PNG, GIF - tối đa 5MB)'}
+            ? '✅ Ảnh đã được tải lên thành công'
+            : '💡 Click "Chọn ảnh" để upload file từ máy tính (JPG, PNG, GIF - tối đa 5MB)'}
         </p>
       </div>
     </div>

@@ -95,75 +95,143 @@ export default function AdminLayout({
     fetchNotificationCounts()
   }, [checkAuth, fetchNotificationCounts])
 
-  // Real-time notifications với Server-Sent Events
+  // Real-time notifications với Server-Sent Events và fallback polling
   useEffect(() => {
     if (!user) return
 
     let eventSource: EventSource | null = null
     let pollingInterval: NodeJS.Timeout | null = null
+    let reconnectTimeout: NodeJS.Timeout | null = null
+    let reconnectAttempts = 0
+    const maxReconnectAttempts = 5
+    const reconnectDelay = 3000 // 3 giây
 
     // Hàm fallback về polling
     const startPolling = () => {
       if (pollingInterval) clearInterval(pollingInterval)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Using polling fallback for notifications')
+      }
       pollingInterval = setInterval(fetchNotificationCounts, 5000)
     }
 
-    try {
-      // Sử dụng SSE cho real-time updates
-      eventSource = new EventSource('/api/admin/notifications-stream')
+    // Hàm tạo SSE connection với retry logic
+    const connectSSE = () => {
+      // Nếu đã có polling, không cần retry SSE
+      if (pollingInterval) return
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          setNotificationCounts({
-            pendingOrders: data.pendingOrders || 0,
-            pendingWithdrawals: data.pendingWithdrawals || 0,
-            newUsers: data.newUsers || 0,
-          })
-        } catch (error) {
+      try {
+        // Kiểm tra xem EventSource có được hỗ trợ không
+        if (typeof EventSource === 'undefined') {
           if (process.env.NODE_ENV === 'development') {
-            console.error('Error parsing SSE data:', error)
+            console.warn('EventSource not supported, using polling')
           }
+          startPolling()
+          return
         }
-      }
 
-      eventSource.onerror = () => {
-        // Fallback to polling nếu SSE fail
+        // Đóng connection cũ nếu có
         if (eventSource) {
           eventSource.close()
           eventSource = null
+        }
+
+        // Sử dụng SSE cho real-time updates
+        eventSource = new EventSource('/api/admin/notifications-stream')
+
+        eventSource.onopen = () => {
+          // Reset reconnect attempts khi kết nối thành công
+          reconnectAttempts = 0
+          if (process.env.NODE_ENV === 'development') {
+            console.log('SSE connection established')
+          }
+        }
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            setNotificationCounts({
+              pendingOrders: data.pendingOrders || 0,
+              pendingWithdrawals: data.pendingWithdrawals || 0,
+              newUsers: data.newUsers || 0,
+            })
+          } catch (error) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Error parsing SSE data:', error)
+            }
+          }
+        }
+
+        eventSource.onerror = (error) => {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('SSE error:', error)
+          }
+
+          // Đóng connection hiện tại
+          if (eventSource) {
+            eventSource.close()
+            eventSource = null
+          }
+
+          // Retry với exponential backoff
+          reconnectAttempts++
+          if (reconnectAttempts < maxReconnectAttempts) {
+            const delay = reconnectDelay * Math.pow(2, reconnectAttempts - 1)
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Retrying SSE connection in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`)
+            }
+            reconnectTimeout = setTimeout(() => {
+              connectSSE()
+            }, delay)
+          } else {
+            // Sau nhiều lần retry thất bại, chuyển sang polling
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Max reconnect attempts reached, falling back to polling')
+            }
+            startPolling()
+          }
+        }
+
+        // Timeout nếu không nhận được data trong 15 giây
+        const connectionTimeout = setTimeout(() => {
+          if (eventSource && eventSource.readyState === EventSource.CONNECTING) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('SSE connection timeout, falling back to polling')
+            }
+            eventSource.close()
+            eventSource = null
+            startPolling()
+          }
+        }, 15000)
+
+        // Clear timeout khi nhận được message đầu tiên
+        const firstMessageHandler = () => {
+          clearTimeout(connectionTimeout)
+          eventSource?.removeEventListener('message', firstMessageHandler)
+        }
+        eventSource.addEventListener('message', firstMessageHandler, { once: true })
+      } catch (error) {
+        // Fallback to polling nếu SSE không support hoặc lỗi
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('SSE initialization failed, using polling:', error)
         }
         startPolling()
       }
+    }
 
-      // Fallback sau 10 giây nếu không nhận được data
-      const timeout = setTimeout(() => {
-        if (eventSource && eventSource.readyState === EventSource.CONNECTING) {
-          eventSource.close()
-          eventSource = null
-          startPolling()
-        }
-      }, 10000)
+    // Bắt đầu kết nối SSE
+    connectSSE()
 
-      return () => {
-        clearTimeout(timeout)
-        if (eventSource) {
-          eventSource.close()
-        }
-        if (pollingInterval) {
-          clearInterval(pollingInterval)
-        }
+    // Cleanup
+    return () => {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout)
       }
-    } catch (error) {
-      // Fallback to polling nếu SSE không support
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('SSE not supported, falling back to polling')
+      if (eventSource) {
+        eventSource.close()
       }
-      startPolling()
-      return () => {
-        if (pollingInterval) {
-          clearInterval(pollingInterval)
-        }
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
       }
     }
   }, [user, fetchNotificationCounts])

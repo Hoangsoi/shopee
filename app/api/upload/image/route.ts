@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
+import { put } from '@vercel/blob';
 
 const uploadSchema = z.object({
   image: z.string().min(1, 'Image data is required'),
@@ -8,8 +9,8 @@ const uploadSchema = z.object({
   folder: z.enum(['products', 'banners', 'categories']).optional(),
 });
 
-// POST: Upload image (base64 hoặc URL)
-// Hỗ trợ cả base64 và URL để có thể mở rộng với cloud storage sau
+// POST: Upload image sử dụng Vercel Blob Storage
+// Hỗ trợ base64, URL, và file upload
 export async function POST(request: NextRequest) {
   try {
     // Chỉ admin mới có thể upload
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Nếu là base64, xử lý
+    // Nếu là base64, upload lên Vercel Blob
     if (image.startsWith('data:image/')) {
       // Validate base64 image
       const base64Match = image.match(/^data:image\/(\w+);base64,(.+)$/);
@@ -66,6 +67,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Convert base64 to Buffer
+      const buffer = Buffer.from(base64Data, 'base64');
+
       // Tạo filename
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
@@ -73,18 +77,47 @@ export async function POST(request: NextRequest) {
         ? `${folder || 'uploads'}/${timestamp}-${randomStr}-${filename}`
         : `${folder || 'uploads'}/${timestamp}-${randomStr}.${imageType}`;
 
-      // Lưu vào database (tạm thời lưu base64, có thể mở rộng với cloud storage)
-      // Hoặc có thể lưu vào public folder (không khuyến nghị cho production)
-      // Tốt nhất là tích hợp với Cloudinary, AWS S3, hoặc Vercel Blob
+      try {
+        // Upload lên Vercel Blob
+        const blob = await put(finalFilename, buffer, {
+          access: 'public',
+          contentType: `image/${imageType}`,
+        });
 
-      // Tạm thời: Trả về data URL để frontend có thể sử dụng
-      // Trong production, nên upload lên cloud storage và trả về URL
-      return NextResponse.json({
-        success: true,
-        url: image, // Trả về base64 data URL tạm thời
-        message: 'Upload thành công (base64)',
-        note: 'Trong production, nên tích hợp với cloud storage (Cloudinary, AWS S3, Vercel Blob)',
-      });
+        return NextResponse.json({
+          success: true,
+          url: blob.url,
+          message: 'Upload thành công lên Vercel Blob',
+        });
+      } catch (blobError: any) {
+        // Fallback: Nếu Vercel Blob không khả dụng, trả về base64 tạm thời
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Vercel Blob upload failed, using base64 fallback:', blobError);
+        }
+
+        // Kiểm tra xem có phải lỗi do thiếu token không
+        if (blobError?.message?.includes('BLOB_READ_WRITE_TOKEN')) {
+          return NextResponse.json(
+            { 
+              error: 'Vercel Blob chưa được cấu hình. Vui lòng thêm BLOB_READ_WRITE_TOKEN vào environment variables.',
+              fallback_url: image, // Trả về base64 tạm thời
+            },
+            { status: 500 }
+          );
+        }
+
+        // Fallback về base64 trong development
+        if (process.env.NODE_ENV === 'development') {
+          return NextResponse.json({
+            success: true,
+            url: image,
+            message: 'Upload thành công (base64 fallback - development mode)',
+            note: 'Vercel Blob không khả dụng, đang dùng base64. Thêm BLOB_READ_WRITE_TOKEN để sử dụng Vercel Blob.',
+          });
+        }
+
+        throw blobError;
+      }
     }
 
     return NextResponse.json(

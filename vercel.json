@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/cron/process-investments",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

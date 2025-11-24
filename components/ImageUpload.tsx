@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 
 interface ImageUploadProps {
@@ -19,7 +19,6 @@ export default function ImageUpload({
   required = false,
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(value || null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Cập nhật preview khi value thay đổi
   useEffect(() => {
@@ -30,52 +29,9 @@ export default function ImageUpload({
     }
   }, [value])
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Vui lòng chọn file ảnh')
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-      return
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Kích thước ảnh quá lớn. Tối đa 5MB')
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-      return
-    }
-
-    // Convert to base64 và lưu trực tiếp vào database (không upload lên server)
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const base64String = reader.result as string
-      onChange(base64String)
-      setPreview(base64String)
-    }
-
-    reader.onerror = () => {
-      alert('Lỗi khi đọc file')
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-
-    reader.readAsDataURL(file)
-  }
-
   const handleRemove = () => {
     onChange('')
     setPreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
   }
 
   return (
@@ -112,29 +68,11 @@ export default function ImageUpload({
         </div>
       )}
 
-      {/* Upload button */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm"
-        >
-          {preview ? 'Thay đổi ảnh' : 'Chọn ảnh'}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-      </div>
-
-      {/* URL input */}
-      <div className="mt-2">
+      {/* URL input - Chỉ cần dán link */}
+      <div>
         <input
           type="text"
-          placeholder="Dán URL ảnh hoặc nhập link (ví dụ: https://example.com/image.jpg)"
+          placeholder="Dán URL ảnh vào đây (ví dụ: https://images.unsplash.com/photo-xxx.jpg)"
           value={value}
           onChange={(e) => {
             const newValue = e.target.value
@@ -147,11 +85,9 @@ export default function ImageUpload({
             }
           }}
           onPaste={(e) => {
-            // Để browser xử lý paste mặc định, onChange sẽ tự động được gọi
-            // Không cần preventDefault, chỉ cần đảm bảo paste hoạt động
+            // Lấy text từ clipboard và set ngay lập tức
             const pastedText = e.clipboardData.getData('text')
             if (pastedText) {
-              // Set value ngay lập tức để đảm bảo paste hoạt động
               onChange(pastedText)
               if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
                 setPreview(pastedText)
@@ -164,7 +100,7 @@ export default function ImageUpload({
         <p className="text-xs text-gray-500 mt-1">
           {value && preview
             ? '✅ URL đã được nhập - Preview hiển thị bên trên'
-            : '💡 Dán URL ảnh hoặc nhập link trực tiếp'}
+            : '💡 Copy URL ảnh và dán vào đây (Ctrl+V hoặc Right-click → Paste)'}
         </p>
       </div>
     </div>

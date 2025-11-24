@@ -50,9 +50,16 @@ export async function DELETE(
     // Xóa tất cả transactions của user
     await sql`DELETE FROM transactions WHERE user_id = ${userId}`;
 
+    // Reset số dư và hoa hồng về 0 như lúc mới đăng ký
+    await sql`
+      UPDATE users 
+      SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ${userId}
+    `;
+
     return NextResponse.json({
       success: true,
-      message: `Đã xóa ${ordersCount} đơn hàng và ${transactionsCount} giao dịch của người dùng thành công`,
+      message: `Đã xóa ${ordersCount} đơn hàng và ${transactionsCount} giao dịch của người dùng thành công. Số dư và hoa hồng đã được reset về 0.`,
       deleted: {
         orders: ordersCount,
         transactions: transactionsCount,

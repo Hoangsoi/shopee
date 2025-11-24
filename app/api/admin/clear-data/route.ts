@@ -12,6 +12,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Đếm số bản ghi trước khi xóa
+    const ordersCountBefore = await sql`SELECT COUNT(*)::int as count FROM orders`;
+    const transactionsCountBefore = await sql`SELECT COUNT(*)::int as count FROM transactions`;
+    const usersCountBefore = await sql`SELECT COUNT(*)::int as count FROM users WHERE role != 'admin'`;
+
+    const ordersCount = ordersCountBefore[0]?.count || 0;
+    const transactionsCount = transactionsCountBefore[0]?.count || 0;
+    const usersCount = usersCountBefore[0]?.count || 0;
+
     // Xóa tất cả order_items trước (do foreign key constraint)
     try {
       await sql`DELETE FROM order_items`;
@@ -25,16 +34,20 @@ export async function DELETE(request: NextRequest) {
     // Xóa tất cả transactions
     await sql`DELETE FROM transactions`;
 
-    // Đếm số bản ghi đã xóa
-    const transactionsCount = await sql`SELECT COUNT(*)::int as count FROM transactions`;
-    const ordersCount = await sql`SELECT COUNT(*)::int as count FROM orders`;
+    // Reset số dư và hoa hồng về 0 cho tất cả users (trừ admin)
+    await sql`
+      UPDATE users 
+      SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE role != 'admin'
+    `;
 
     return NextResponse.json({
       success: true,
-      message: 'Đã xóa tất cả giao dịch và đơn hàng thành công',
+      message: `Đã xóa tất cả giao dịch và đơn hàng thành công. Đã reset số dư và hoa hồng về 0 cho ${usersCount} người dùng.`,
       deleted: {
-        transactions: transactionsCount[0]?.count || 0,
-        orders: ordersCount[0]?.count || 0,
+        transactions: transactionsCount,
+        orders: ordersCount,
+        users_reset: usersCount,
       },
     });
   } catch (error) {

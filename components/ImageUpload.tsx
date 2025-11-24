@@ -92,43 +92,24 @@ export default function ImageUpload({
     img.src = trimmedUrl
   }, [])
 
-  // Debounce validation khi người dùng nhập (chỉ khi không phải paste)
+  // Đơn giản hóa: chỉ cập nhật preview khi value thay đổi
   useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-
     if (!value || value.trim() === '') {
       setPreview(null)
       setUrlError(null)
-      setValidating(false)
       return
     }
 
     const trimmedValue = value.trim()
     
-    // Chỉ validate nếu là URL
+    // Nếu là URL hoặc data URL, hiển thị preview ngay
     if (trimmedValue.startsWith('http://') || trimmedValue.startsWith('https://') || trimmedValue.startsWith('data:image/')) {
-      // Debounce validation (trừ khi đang validating - đã được trigger bởi paste/Enter)
-      if (!validating) {
-        debounceTimerRef.current = setTimeout(() => {
-          validateAndPreviewUrl(trimmedValue)
-        }, 1000) // Đợi 1 giây sau khi người dùng ngừng gõ
-      }
-    } else if (trimmedValue) {
-      // Nếu có giá trị nhưng không phải URL, clear preview
+      setPreview(trimmedValue)
+      setUrlError(null)
+    } else {
       setPreview(null)
-      setUrlError('Vui lòng nhập URL ảnh hợp lệ (bắt đầu bằng http:// hoặc https://)')
-      setValidating(false)
     }
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-        debounceTimerRef.current = null
-      }
-    }
-  }, [value, validateAndPreviewUrl, validating])
+  }, [value])
 
   // Cập nhật preview khi value thay đổi từ bên ngoài
   useEffect(() => {
@@ -166,32 +147,51 @@ export default function ImageUpload({
       reader.onloadend = async () => {
         const base64String = reader.result as string
 
-        // Upload to server
-        const response = await fetch('/api/upload/image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            image: base64String,
-            folder: folder,
-            filename: file.name,
-          }),
-        })
+        // Upload to server với timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 giây timeout
 
-        const data = await response.json()
+        try {
+          const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              image: base64String,
+              folder: folder,
+              filename: file.name,
+            }),
+            signal: controller.signal,
+          })
 
-        if (response.ok && data.url) {
-          onChange(data.url)
-          setPreview(data.url)
-        } else {
-          // Nếu có fallback_url, sử dụng nó
-          if (data.fallback_url) {
-            onChange(data.fallback_url)
-            setPreview(data.fallback_url)
+          clearTimeout(timeoutId)
+          const data = await response.json()
+
+          if (response.ok && data.url) {
+            onChange(data.url)
+            setPreview(data.url)
           } else {
-            alert(data.error || 'Upload ảnh thất bại')
+            // Nếu có fallback_url, sử dụng nó
+            if (data.fallback_url) {
+              onChange(data.fallback_url)
+              setPreview(data.fallback_url)
+            } else {
+              alert(data.error || 'Upload ảnh thất bại')
+              setUploading(false)
+            }
           }
+        } catch (error: any) {
+          clearTimeout(timeoutId)
+          if (error.name === 'AbortError') {
+            alert('Upload ảnh quá lâu. Vui lòng thử lại hoặc dùng URL ảnh thay vì upload file.')
+          } else {
+            // Fallback: dùng base64 trực tiếp nếu upload fail
+            onChange(base64String)
+            setPreview(base64String)
+            console.warn('Upload failed, using base64 directly:', error)
+          }
+          setUploading(false)
         }
       }
 
@@ -284,77 +284,45 @@ export default function ImageUpload({
         />
       </div>
 
-      {/* URL input (fallback) */}
+      {/* URL input - Đơn giản hóa: chỉ cần nhập URL */}
       <div className="mt-2">
         <input
           type="text"
-          placeholder="Dán URL ảnh hoặc nhập link (sẽ tự động kiểm tra)"
+          placeholder="Dán URL ảnh hoặc nhập link (ví dụ: https://example.com/image.jpg)"
           value={value}
           onChange={(e) => {
             const newValue = e.target.value
             onChange(newValue)
+            // Hiển thị preview ngay nếu là URL hợp lệ
+            if (newValue && (newValue.startsWith('http://') || newValue.startsWith('https://') || newValue.startsWith('data:image/'))) {
+              setPreview(newValue)
+              setUrlError(null)
+            } else if (newValue) {
+              setPreview(null)
+            } else {
+              setPreview(null)
+              setUrlError(null)
+            }
           }}
           onPaste={(e) => {
-            // Lấy text đã paste
-            const pastedText = e.clipboardData.getData('text').trim()
-            
+            // Đơn giản: chỉ cần lấy text và set vào value
+            const pastedText = e.clipboardData.getData('text')
             if (pastedText) {
-              // Clear debounce timer trước
-              if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current)
-                debounceTimerRef.current = null
-              }
-              
-              // Set giá trị ngay
               onChange(pastedText)
-              
-              // Nếu là URL, validate ngay lập tức (không đợi debounce)
+              // Hiển thị preview ngay nếu là URL
               if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
-                // Validate ngay sau khi state update
-                requestAnimationFrame(() => {
-                  validateAndPreviewUrl(pastedText)
-                })
+                setPreview(pastedText)
+                setUrlError(null)
               }
             }
           }}
-          onKeyDown={(e) => {
-            // Trigger validation khi nhấn Enter
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              if (value && value.trim()) {
-                const trimmedValue = value.trim()
-                onChange(trimmedValue)
-                // Clear debounce timer
-                if (debounceTimerRef.current) {
-                  clearTimeout(debounceTimerRef.current)
-                  debounceTimerRef.current = null
-                }
-                validateAndPreviewUrl(trimmedValue)
-              }
-            }
-          }}
-          onBlur={() => {
-            // Trim khi blur
-            if (value && value !== value.trim()) {
-              const trimmedValue = value.trim()
-              onChange(trimmedValue)
-            }
-          }}
-          className={`w-full px-3 py-2 border rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm ${
-            urlError ? 'border-red-300 bg-red-50' : 'border-gray-300'
-          }`}
+          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900 text-sm"
           style={{ fontSize: '16px' }}
         />
         <p className="text-xs text-gray-500 mt-1">
-          {validating 
-            ? '⏳ Đang kiểm tra URL...' 
-            : urlError 
-            ? `⚠️ ${urlError}` 
-            : value && preview && !urlError
-            ? '✅ URL hợp lệ - Preview đã hiển thị'
-            : value
-            ? '💡 Đang chờ kiểm tra... (hoặc nhấn Enter để kiểm tra ngay)'
-            : '💡 Dán URL ảnh sẽ tự động hiển thị preview'}
+          {value && preview
+            ? '✅ URL đã được nhập - Preview hiển thị bên trên'
+            : '💡 Dán URL ảnh hoặc nhập link trực tiếp'}
         </p>
       </div>
     </div>

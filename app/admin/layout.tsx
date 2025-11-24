@@ -84,18 +84,89 @@ export default function AdminLayout({
       }
     } catch (error) {
       // Ignore errors (silent fail)
-      console.error('Error fetching notification counts:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching notification counts:', error)
+      }
     }
   }, [])
 
   useEffect(() => {
     checkAuth()
     fetchNotificationCounts()
-    
-    // Cập nhật real-time mỗi 5 giây
-    const interval = setInterval(fetchNotificationCounts, 5000)
-    return () => clearInterval(interval)
   }, [checkAuth, fetchNotificationCounts])
+
+  // Real-time notifications với Server-Sent Events
+  useEffect(() => {
+    if (!user) return
+
+    let eventSource: EventSource | null = null
+    let pollingInterval: NodeJS.Timeout | null = null
+
+    // Hàm fallback về polling
+    const startPolling = () => {
+      if (pollingInterval) clearInterval(pollingInterval)
+      pollingInterval = setInterval(fetchNotificationCounts, 5000)
+    }
+
+    try {
+      // Sử dụng SSE cho real-time updates
+      eventSource = new EventSource('/api/admin/notifications-stream')
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          setNotificationCounts({
+            pendingOrders: data.pendingOrders || 0,
+            pendingWithdrawals: data.pendingWithdrawals || 0,
+            newUsers: data.newUsers || 0,
+          })
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error parsing SSE data:', error)
+          }
+        }
+      }
+
+      eventSource.onerror = () => {
+        // Fallback to polling nếu SSE fail
+        if (eventSource) {
+          eventSource.close()
+          eventSource = null
+        }
+        startPolling()
+      }
+
+      // Fallback sau 10 giây nếu không nhận được data
+      const timeout = setTimeout(() => {
+        if (eventSource && eventSource.readyState === EventSource.CONNECTING) {
+          eventSource.close()
+          eventSource = null
+          startPolling()
+        }
+      }, 10000)
+
+      return () => {
+        clearTimeout(timeout)
+        if (eventSource) {
+          eventSource.close()
+        }
+        if (pollingInterval) {
+          clearInterval(pollingInterval)
+        }
+      }
+    } catch (error) {
+      // Fallback to polling nếu SSE không support
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('SSE not supported, falling back to polling')
+      }
+      startPolling()
+      return () => {
+        if (pollingInterval) {
+          clearInterval(pollingInterval)
+        }
+      }
+    }
+  }, [user, fetchNotificationCounts])
 
   const handleLogout = async () => {
     try {

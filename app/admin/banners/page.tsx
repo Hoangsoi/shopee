@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
+import ImageUpload from '@/components/ImageUpload'
 
 interface Banner {
   id: number
@@ -205,16 +206,12 @@ export default function AdminBannersPage() {
               <h3 className="font-semibold mb-4">Thêm banner mới</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">URL ảnh *</label>
-                  <input
-                    type="url"
-                    name="image_url"
-                    required
+                  <ImageUpload
                     value={addFormData.image_url}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
-                    placeholder="https://example.com/image.jpg"
+                    onChange={(url) => setAddFormData({ ...addFormData, image_url: url })}
+                    folder="banners"
+                    label="Hình ảnh banner"
+                    required
                   />
                 </div>
                 <div>
@@ -332,30 +329,13 @@ export default function AdminBannersPage() {
                       <td className="py-2 px-4 border-b text-sm text-gray-800">{banner.id}</td>
                       <td className="py-2 px-4 border-b text-sm">
                         {editingId === banner.id ? (
-                          <div className="space-y-2">
-                            <input
-                              type="url"
-                              name="image_url"
+                          <div className="w-48">
+                            <ImageUpload
                               value={editFormData.image_url || ''}
-                              onChange={handleChange}
-                              className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
-                              style={{ fontSize: '16px' }}
-                              placeholder="URL ảnh"
+                              onChange={(url) => setEditFormData({ ...editFormData, image_url: url })}
+                              folder="banners"
+                              label=""
                             />
-                            {editFormData.image_url && (
-                              <div className="relative w-32 h-20 rounded border overflow-hidden">
-                                <Image
-                                  src={editFormData.image_url}
-                                  alt="Preview"
-                                  fill
-                                  className="object-cover"
-                                  unoptimized
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x100?text=Error'
-                                  }}
-                                />
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <div className="relative w-32 h-20 rounded border overflow-hidden">

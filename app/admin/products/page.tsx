@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
+import ImageUpload from '@/components/ImageUpload'
 
 interface Product {
   id: number
@@ -370,14 +371,11 @@ export default function AdminProductsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">URL hình ảnh</label>
-                  <input
-                    type="url"
-                    name="image_url"
+                  <ImageUpload
                     value={addFormData.image_url}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
+                    onChange={(url) => setAddFormData({ ...addFormData, image_url: url })}
+                    folder="products"
+                    label="Hình ảnh sản phẩm"
                   />
                 </div>
                 <div>

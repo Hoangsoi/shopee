@@ -87,7 +87,7 @@ export default function ImageUpload({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full" style={{ position: 'relative' }}>
       {label && (
         <label className="block text-sm text-gray-700 mb-2 font-medium">
           {label} {required && <span className="text-red-500">*</span>}
@@ -121,59 +121,60 @@ export default function ImageUpload({
         </div>
       )}
 
-      {/* Upload Section - CHỈ CÓ BUTTON UPLOAD, KHÔNG CÓ INPUT TEXT */}
+      {/* Upload Section - CHỈ CÓ BUTTON UPLOAD */}
       <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => {
-            if (fileInputRef.current) {
-              fileInputRef.current.click()
-            }
-          }}
-          disabled={uploading}
-          className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 active:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
-          style={{ 
-            display: 'inline-block',
-            minWidth: '120px',
-            textAlign: 'center'
-          }}
-        >
-          {uploading ? (
-            <>
-              <span className="mr-2">⏳</span>
-              <span>Đang tải...</span>
-            </>
-          ) : preview ? (
-            <>
-              <span className="mr-2">🔄</span>
-              <span>Thay đổi ảnh</span>
-            </>
-          ) : (
-            <>
-              <span className="mr-2">📁</span>
-              <span>Chọn ảnh</span>
-            </>
-          )}
-        </button>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileSelect}
-          style={{ 
-            position: 'absolute',
-            width: '1px',
-            height: '1px',
-            padding: 0,
-            margin: '-1px',
-            overflow: 'hidden',
-            clip: 'rect(0, 0, 0, 0)',
-            whiteSpace: 'nowrap',
-            border: 0
-          }}
-          aria-label="Chọn file ảnh"
-        />
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (fileInputRef.current) {
+                fileInputRef.current.click()
+              }
+            }}
+            disabled={uploading}
+            className="inline-flex items-center justify-center px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 active:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+            style={{ 
+              display: 'inline-block',
+              minWidth: '140px',
+              minHeight: '38px'
+            }}
+          >
+            {uploading ? (
+              <>
+                <span style={{ marginRight: '8px' }}>⏳</span>
+                <span>Đang tải...</span>
+              </>
+            ) : preview ? (
+              <>
+                <span style={{ marginRight: '8px' }}>🔄</span>
+                <span>Thay đổi ảnh</span>
+              </>
+            ) : (
+              <>
+                <span style={{ marginRight: '8px' }}>📁</span>
+                <span>Chọn ảnh</span>
+              </>
+            )}
+          </button>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            style={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              opacity: 0,
+              cursor: 'pointer',
+              zIndex: 1
+            }}
+            aria-label="Chọn file ảnh"
+          />
+        </div>
         
         <p className="text-xs text-gray-500 mt-2">
           {uploading

@@ -89,7 +89,7 @@ export default function BannerCarousel() {
   }
 
   return (
-    <div className="relative w-full h-48 md:h-64 overflow-hidden bg-gray-200 rounded-lg">
+    <div className="relative w-full h-64 md:h-80 lg:h-96 overflow-hidden bg-gray-200 rounded-lg">
       <div
         className="flex transition-transform duration-500 ease-in-out h-full"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}

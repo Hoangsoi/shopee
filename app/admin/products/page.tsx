@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import ImageUpload from '@/components/ImageUpload'
 
@@ -17,7 +17,6 @@ interface Product {
   is_featured: boolean
   is_active: boolean
   stock: number
-  created_at: string
 }
 
 interface Category {
@@ -28,11 +27,11 @@ interface Category {
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editFormData, setEditFormData] = useState<Partial<Product>>({})
   const [showAddForm, setShowAddForm] = useState(false)
-  const [addFormData, setAddFormData] = useState({
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [formData, setFormData] = useState({
     name: '',
     slug: '',
     description: '',
@@ -44,122 +43,85 @@ export default function AdminProductsPage() {
     is_active: true,
     stock: 0,
   })
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string>('')
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 100,
-    total: 0,
-    totalPages: 0,
-  })
 
-  const fetchCategories = useCallback(async () => {
+  useEffect(() => {
+    loadCategories()
+    loadProducts()
+  }, [])
+
+  const loadCategories = async () => {
     try {
-      const response = await fetch('/api/categories')
-      if (response.ok) {
-        const data = await response.json()
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      if (res.ok) {
         setCategories(data.categories || [])
       }
     } catch (error) {
-      console.error('Error fetching categories:', error)
+      console.error('Error:', error)
     }
-  }, [])
+  }
 
-  const fetchProducts = useCallback(async (search?: string, categoryId?: string, page: number = 1, limit: number = 100) => {
+  const loadProducts = async () => {
     setLoading(true)
     try {
-      let url = `/api/admin/products?page=${page}&limit=${limit}`
-      if (categoryId) {
-        url += `&category_id=${categoryId}`
-      } else if (search) {
-        url += `&search=${encodeURIComponent(search)}`
-      }
-      const response = await fetch(url)
-      if (response.ok) {
-        const data = await response.json()
+      const res = await fetch('/api/admin/products?page=1&limit=100')
+      const data = await res.json()
+      if (res.ok) {
         setProducts(data.products || [])
-        if (data.pagination) {
-          setPagination(data.pagination)
-        }
-      } else {
-        setMessage({ type: 'error', text: 'Lỗi khi tải danh sách sản phẩm' })
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
-      setMessage({ type: 'error', text: 'Lỗi kết nối khi tải danh sách sản phẩm' })
+      console.error('Error:', error)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }
 
-  useEffect(() => {
-    fetchCategories()
-    fetchProducts(undefined, undefined, 1, 100)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    // Reset về trang 1 khi search hoặc filter thay đổi
-    setPagination(prev => ({ ...prev, page: 1 }))
-    const timeoutId = setTimeout(() => {
-      fetchProducts(searchTerm || undefined, selectedCategory || undefined, 1, pagination.limit)
-    }, searchTerm || selectedCategory ? 500 : 0)
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, selectedCategory, pagination.limit])
-  
-  // Fetch khi page thay đổi (chỉ khi page > 1 để tránh conflict với useEffect trên)
-  useEffect(() => {
-    if (pagination.page > 1) {
-      fetchProducts(searchTerm || undefined, selectedCategory || undefined, pagination.page, pagination.limit)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page])
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      slug: '',
+      description: '',
+      price: 0,
+      original_price: 0,
+      image_url: '',
+      category_id: 0,
+      is_featured: false,
+      is_active: true,
+      stock: 0,
+    })
+    setEditingId(null)
+    setShowAddForm(false)
+    setMessage(null)
+  }
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.name.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập tên sản phẩm' })
+      return
+    }
     setLoading(true)
-    setMessage(null)
-
     try {
-      const response = await fetch('/api/admin/products', {
+      const res = await fetch('/api/admin/products', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...addFormData,
-          category_id: addFormData.category_id || null,
-          original_price: addFormData.original_price || null,
-          image_url: addFormData.image_url || null,
+          ...formData,
+          category_id: formData.category_id || null,
+          original_price: formData.original_price || null,
+          image_url: formData.image_url || null,
         }),
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      const data = await res.json()
+      if (res.ok) {
         setMessage({ type: 'success', text: 'Thêm sản phẩm thành công!' })
-        setShowAddForm(false)
-        setAddFormData({
-          name: '',
-          slug: '',
-          description: '',
-          price: 0,
-          original_price: 0,
-          image_url: '',
-          category_id: 0,
-          is_featured: false,
-          is_active: true,
-          stock: 0,
-        })
-        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
+        resetForm()
+        loadProducts()
       } else {
-        setMessage({ type: 'error', text: data.error || 'Thêm sản phẩm thất bại' })
+        setMessage({ type: 'error', text: data.error || 'Thêm thất bại' })
       }
     } catch (error) {
-      console.error('Error adding product:', error)
-      setMessage({ type: 'error', text: 'Lỗi kết nối khi thêm sản phẩm.' })
+      setMessage({ type: 'error', text: 'Lỗi kết nối' })
     } finally {
       setLoading(false)
     }
@@ -167,7 +129,7 @@ export default function AdminProductsPage() {
 
   const handleEdit = (product: Product) => {
     setEditingId(product.id)
-    setEditFormData({
+    setFormData({
       name: product.name,
       slug: product.slug,
       description: product.description || '',
@@ -179,277 +141,160 @@ export default function AdminProductsPage() {
       is_active: product.is_active,
       stock: product.stock,
     })
-    setMessage(null)
+    setShowAddForm(false)
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    const checked = (e.target as HTMLInputElement).checked
-    setEditFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) || 0 : value,
-    }))
-  }
-
-  const handleAddChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    const checked = (e.target as HTMLInputElement).checked
-    setAddFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) || 0 : value,
-    }))
-  }
-
-  const handleSave = async () => {
-    if (!editingId) return
-
+  const handleUpdate = async () => {
+    if (!editingId || !formData.name.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập tên sản phẩm' })
+      return
+    }
     setLoading(true)
     try {
-      const response = await fetch('/api/admin/products', {
+      const res = await fetch('/api/admin/products', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           product_id: editingId,
-          ...editFormData,
-          category_id: editFormData.category_id || null,
-          original_price: editFormData.original_price || null,
-          image_url: editFormData.image_url && editFormData.image_url.trim() !== '' ? editFormData.image_url : null,
+          ...formData,
+          category_id: formData.category_id || null,
+          original_price: formData.original_price || null,
+          image_url: formData.image_url || null,
         }),
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      const data = await res.json()
+      if (res.ok) {
         setMessage({ type: 'success', text: 'Cập nhật thành công!' })
-        setEditingId(null)
-        setEditFormData({})
-        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
+        resetForm()
+        loadProducts()
       } else {
-        // Hiển thị lỗi chi tiết nếu có
-        const errorMessage = data.details && Array.isArray(data.details) 
-          ? data.details.map((d: any) => `${d.field}: ${d.message}`).join(', ')
-          : data.error || 'Cập nhật thất bại'
-        setMessage({ type: 'error', text: errorMessage })
+        setMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
       }
     } catch (error) {
-      console.error('Error saving product:', error)
-      setMessage({ type: 'error', text: 'Lỗi kết nối khi cập nhật.' })
+      setMessage({ type: 'error', text: 'Lỗi kết nối' })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleDelete = async (productId: number) => {
-    if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
-      return
-    }
-
+  const handleDelete = async (id: number) => {
+    if (!confirm('Xóa sản phẩm này?')) return
     setLoading(true)
     try {
-      const response = await fetch(`/api/admin/products?id=${productId}`, {
-        method: 'DELETE',
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Xóa sản phẩm thành công!' })
-        fetchProducts(searchTerm, selectedCategory, pagination.page, pagination.limit)
+      const res = await fetch(`/api/admin/products?id=${id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Xóa thành công!' })
+        loadProducts()
       } else {
         setMessage({ type: 'error', text: data.error || 'Xóa thất bại' })
       }
     } catch (error) {
-      console.error('Error deleting product:', error)
-      setMessage({ type: 'error', text: 'Lỗi kết nối khi xóa.' })
+      setMessage({ type: 'error', text: 'Lỗi kết nối' })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddSampleProducts = async () => {
-    if (!confirm('Bạn có chắc muốn thêm 50 sản phẩm mẫu cho mỗi danh mục? (Tổng cộng có thể lên đến 250 sản phẩm nếu có 5 danh mục)')) {
-      return
-    }
-
-    setLoading(true)
-    setMessage(null)
-
-    try {
-      const response = await fetch('/api/admin/products/add-sample', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          productsPerCategory: 50,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setMessage({
-          type: 'success',
-          text: `Thành công! Đã thêm ${data.summary.totalAdded} sản phẩm mới. Tổng số sản phẩm: ${data.summary.totalProducts}`,
-        })
-        // Reload products
-        fetchProducts(searchTerm || undefined, selectedCategory || undefined, pagination.page, pagination.limit)
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Lỗi khi thêm sản phẩm mẫu' })
-      }
-    } catch (error) {
-      console.error('Error adding sample products:', error)
-      setMessage({ type: 'error', text: 'Lỗi kết nối khi thêm sản phẩm mẫu.' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(amount)
-  }
-
-  if (loading && products.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="text-xl">Đang tải...</div>
-      </div>
-    )
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
-      <div className="p-6">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-[#ee4d2d]">Quản lý sản phẩm</h1>
-            <div className="flex gap-2">
-              <button
-                onClick={handleAddSampleProducts}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-sm disabled:opacity-50"
-              >
-                {loading ? 'Đang thêm...' : '+ Thêm 50 SP/Danh mục'}
-              </button>
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="px-4 py-2 bg-[#ee4d2d] text-white rounded-sm hover:bg-[#f05d40] transition-colors text-sm"
-              >
-                {showAddForm ? 'Hủy' : '+ Thêm sản phẩm'}
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#f5f5f5] p-6">
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-[#ee4d2d]">Quản lý sản phẩm</h1>
+          <button
+            onClick={() => {
+              resetForm()
+              setShowAddForm(true)
+            }}
+            className="px-4 py-2 bg-[#ee4d2d] text-white rounded-sm hover:bg-[#f05d40]"
+          >
+            + Thêm sản phẩm
+          </button>
+        </div>
 
-          {/* Filters */}
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên sản phẩm..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-              style={{ fontSize: '16px' }}
-            />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
-            >
-              <option value="">Tất cả danh mục</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id.toString()}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+        {message && (
+          <div
+            className={`mb-4 py-3 px-4 rounded-sm ${
+              message.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+            }`}
+          >
+            {message.text}
           </div>
+        )}
 
-          {showAddForm && (
-            <form onSubmit={handleAdd} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <h3 className="font-semibold mb-4">Thêm sản phẩm mới</h3>
+        {(showAddForm || editingId) && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+            <h3 className="font-semibold mb-4">{editingId ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới'}</h3>
+            <form onSubmit={editingId ? (e) => { e.preventDefault(); handleUpdate() } : handleAdd}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm text-gray-700 mb-1">Tên sản phẩm *</label>
                   <input
                     type="text"
-                    name="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-sm"
                     required
-                    value={addFormData.name}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Slug *</label>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-700 mb-1">Slug</label>
                   <input
                     type="text"
-                    name="slug"
-                    required
-                    value={addFormData.slug}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-sm"
+                    placeholder="auto-generate"
                   />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm text-gray-700 mb-1">Mô tả</label>
                   <textarea
-                    name="description"
-                    value={addFormData.description}
-                    onChange={handleAddChange}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
+                    className="w-full px-3 py-2 border rounded-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">Giá *</label>
                   <input
                     type="number"
-                    name="price"
-                    required
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border rounded-sm"
                     min="0"
-                    step="1000"
-                    value={addFormData.price}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">Giá gốc</label>
                   <input
                     type="number"
-                    name="original_price"
+                    value={formData.original_price}
+                    onChange={(e) => setFormData({ ...formData, original_price: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border rounded-sm"
                     min="0"
-                    step="1000"
-                    value={addFormData.original_price}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <ImageUpload
-                    value={addFormData.image_url}
-                    onChange={(url) => setAddFormData({ ...addFormData, image_url: url })}
+                    value={formData.image_url}
+                    onChange={(url) => setFormData({ ...formData, image_url: url })}
                     folder="products"
-                    label="Hình ảnh sản phẩm"
+                    label="Ảnh sản phẩm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">Danh mục</label>
                   <select
-                    name="category_id"
-                    value={addFormData.category_id}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    value={formData.category_id}
+                    onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border rounded-sm"
                   >
                     <option value="0">Không có danh mục</option>
                     {categories.map((cat) => (
@@ -463,331 +308,137 @@ export default function AdminProductsPage() {
                   <label className="block text-sm text-gray-700 mb-1">Tồn kho</label>
                   <input
                     type="number"
-                    name="stock"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border rounded-sm"
                     min="0"
-                    value={addFormData.stock}
-                    onChange={handleAddChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
-                    style={{ fontSize: '16px' }}
                   />
                 </div>
                 <div className="md:col-span-2 flex gap-4">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      name="is_featured"
-                      checked={addFormData.is_featured}
-                      onChange={handleAddChange}
-                      className="rounded"
+                      checked={formData.is_featured}
+                      onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
                     />
-                    <span className="text-sm text-gray-700">Sản phẩm nổi bật</span>
+                    <span className="text-sm">Sản phẩm nổi bật</span>
                   </label>
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      name="is_active"
-                      checked={addFormData.is_active}
-                      onChange={handleAddChange}
-                      className="rounded"
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                     />
-                    <span className="text-sm text-gray-700">Kích hoạt</span>
+                    <span className="text-sm">Kích hoạt</span>
                   </label>
                 </div>
               </div>
-              <div className="mt-4">
+              <div className="mt-4 flex gap-2">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-green-500 text-white rounded-sm hover:bg-green-600 transition-colors text-sm disabled:opacity-50"
+                  className="px-4 py-2 bg-green-500 text-white rounded-sm hover:bg-green-600 disabled:opacity-50"
                 >
-                  {loading ? 'Đang thêm...' : 'Thêm sản phẩm'}
+                  {loading ? 'Đang xử lý...' : editingId ? 'Cập nhật' : 'Thêm sản phẩm'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={loading}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-sm hover:bg-gray-600 disabled:opacity-50"
+                >
+                  Hủy
                 </button>
               </div>
             </form>
-          )}
+          </div>
+        )}
 
-          {message && (
-            <div
-              className={`py-3 px-4 rounded-sm mb-4 ${
-                message.type === 'success'
-                  ? 'bg-green-50 border border-green-200 text-green-600'
-                  : 'bg-red-50 border border-red-200 text-red-600'
-              }`}
-            >
-              {message.text}
-            </div>
-          )}
-
-          {/* Pagination Info */}
-          {pagination.total > 0 && (
-            <div className="mb-4 text-sm text-gray-600">
-              Hiển thị {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} / {pagination.total} sản phẩm
-            </div>
-          )}
-
-          {products.length === 0 ? (
-            <div className="text-center py-8 text-gray-600">
-              {searchTerm || selectedCategory ? 'Không tìm thấy sản phẩm nào.' : 'Chưa có sản phẩm nào.'}
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-200">
-                <thead>
-                  <tr>
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Hình ảnh</th>
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Tên</th>
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Danh mục</th>
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Giá</th>
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Tồn kho</th>
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Trạng thái</th>
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-700">Hành động</th>
+        {loading && products.length === 0 ? (
+          <div className="text-center py-8">Đang tải...</div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-8">Chưa có sản phẩm nào.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border">
+              <thead>
+                <tr>
+                  <th className="py-2 px-4 border-b text-left">Ảnh</th>
+                  <th className="py-2 px-4 border-b text-left">Tên</th>
+                  <th className="py-2 px-4 border-b text-left">Danh mục</th>
+                  <th className="py-2 px-4 border-b text-left">Giá</th>
+                  <th className="py-2 px-4 border-b text-left">Tồn kho</th>
+                  <th className="py-2 px-4 border-b text-left">Trạng thái</th>
+                  <th className="py-2 px-4 border-b text-left">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id} className="hover:bg-gray-50">
+                    <td className="py-2 px-4 border-b">
+                      <div className="relative w-16 h-16 rounded border overflow-hidden">
+                        <Image
+                          src={product.image_url || 'https://via.placeholder.com/60x60?text=No+Image'}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    </td>
+                    <td className="py-2 px-4 border-b">
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-xs text-gray-500">{product.slug}</p>
+                      </div>
+                    </td>
+                    <td className="py-2 px-4 border-b">{product.category_name || 'N/A'}</td>
+                    <td className="py-2 px-4 border-b">
+                      <div>
+                        <p className="font-bold text-[#ee4d2d]">{formatCurrency(product.price)}</p>
+                        {product.original_price && product.original_price > product.price && (
+                          <p className="text-xs text-gray-400 line-through">
+                            {formatCurrency(product.original_price)}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2 px-4 border-b">{product.stock}</td>
+                    <td className="py-2 px-4 border-b">
+                      <div className="space-y-1">
+                        {product.is_featured && (
+                          <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">Nổi bật</span>
+                        )}
+                        <span className={`px-2 py-1 rounded-full text-xs ${product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}>
+                          {product.is_active ? 'Hoạt động' : 'Tắt'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-2 px-4 border-b">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          disabled={loading}
+                          className="px-3 py-1 bg-blue-500 text-white rounded-sm hover:bg-blue-600 text-xs disabled:opacity-50"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          disabled={loading}
+                          className="px-3 py-1 bg-red-500 text-white rounded-sm hover:bg-red-600 text-xs disabled:opacity-50"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="py-2 px-4 border-b">
-                        {editingId === product.id ? (
-                          <div className="w-64">
-                            <ImageUpload
-                              value={editFormData.image_url || ''}
-                              onChange={(url) => setEditFormData({ ...editFormData, image_url: url })}
-                              folder="products"
-                              label=""
-                            />
-                          </div>
-                        ) : (
-                          <div className="relative w-16 h-16 rounded overflow-hidden">
-                            <Image
-                              src={product.image_url || 'https://via.placeholder.com/60x60?text=No+Image'}
-                              alt={product.name}
-                              fill
-                              className="object-cover"
-                              unoptimized
-                            />
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2 px-4 border-b text-sm text-gray-800">
-                        {editingId === product.id ? (
-                          <input
-                            type="text"
-                            name="name"
-                            value={editFormData.name || ''}
-                            onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
-                            style={{ fontSize: '16px' }}
-                          />
-                        ) : (
-                          <div>
-                            <p className="font-medium">{product.name}</p>
-                            <p className="text-xs text-gray-500">{product.slug}</p>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2 px-4 border-b text-sm text-gray-800">
-                        {editingId === product.id ? (
-                          <select
-                            name="category_id"
-                            value={editFormData.category_id || 0}
-                            onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm"
-                          >
-                            <option value="0">Không có</option>
-                            {categories.map((cat) => (
-                              <option key={cat.id} value={cat.id}>
-                                {cat.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          product.category_name || 'N/A'
-                        )}
-                      </td>
-                      <td className="py-2 px-4 border-b text-sm text-gray-800">
-                        {editingId === product.id ? (
-                          <div className="space-y-1">
-                            <input
-                              type="number"
-                              name="price"
-                              min="0"
-                              step="1000"
-                              value={editFormData.price || 0}
-                              onChange={handleChange}
-                              className="w-full px-2 py-1 border rounded-sm text-xs text-gray-900"
-                              style={{ fontSize: '16px' }}
-                              placeholder="Giá"
-                            />
-                            <input
-                              type="number"
-                              name="original_price"
-                              min="0"
-                              step="1000"
-                              value={editFormData.original_price || 0}
-                              onChange={handleChange}
-                              className="w-full px-2 py-1 border rounded-sm text-xs text-gray-900"
-                              style={{ fontSize: '16px' }}
-                              placeholder="Giá gốc"
-                            />
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="font-bold text-[#ee4d2d]">{formatCurrency(product.price)}</p>
-                            {product.original_price && product.original_price > product.price && (
-                              <p className="text-xs text-gray-400 line-through">
-                                {formatCurrency(product.original_price)}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2 px-4 border-b text-sm text-gray-800">
-                        {editingId === product.id ? (
-                          <input
-                            type="number"
-                            name="stock"
-                            min="0"
-                            value={editFormData.stock || 0}
-                            onChange={handleChange}
-                            className="w-full px-2 py-1 border rounded-sm text-sm text-gray-900"
-                            style={{ fontSize: '16px' }}
-                          />
-                        ) : (
-                          product.stock
-                        )}
-                      </td>
-                      <td className="py-2 px-4 border-b text-sm">
-                        {editingId === product.id ? (
-                          <div className="space-y-1">
-                            <label className="flex items-center gap-1">
-                              <input
-                                type="checkbox"
-                                name="is_featured"
-                                checked={editFormData.is_featured !== false}
-                                onChange={handleChange}
-                                className="rounded"
-                              />
-                              <span className="text-xs">Nổi bật</span>
-                            </label>
-                            <label className="flex items-center gap-1">
-                              <input
-                                type="checkbox"
-                                name="is_active"
-                                checked={editFormData.is_active !== false}
-                                onChange={handleChange}
-                                className="rounded"
-                              />
-                              <span className="text-xs">Kích hoạt</span>
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            {product.is_featured && (
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Nổi bật
-                              </span>
-                            )}
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {product.is_active ? 'Hoạt động' : 'Tắt'}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2 px-4 border-b text-sm">
-                        {editingId === product.id ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={handleSave}
-                              disabled={loading}
-                              className="px-3 py-1 bg-green-500 text-white rounded-sm hover:bg-green-600 transition-colors text-xs disabled:opacity-50"
-                            >
-                              {loading ? 'Đang lưu...' : 'Lưu'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEditingId(null)
-                                setEditFormData({})
-                                setMessage(null)
-                              }}
-                              disabled={loading}
-                              className="px-3 py-1 bg-gray-500 text-white rounded-sm hover:bg-gray-600 transition-colors text-xs disabled:opacity-50"
-                            >
-                              Hủy
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEdit(product)}
-                              className="px-3 py-1 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors text-xs"
-                            >
-                              Sửa
-                            </button>
-                            <button
-                              onClick={() => handleDelete(product.id)}
-                              className="px-3 py-1 bg-red-500 text-white rounded-sm hover:bg-red-600 transition-colors text-xs"
-                            >
-                              Xóa
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Pagination Controls */}
-            {pagination.totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                    disabled={pagination.page === 1}
-                    className="px-3 py-1 border border-gray-300 rounded-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    Trước
-                  </button>
-                  <span className="px-3 py-1 text-sm text-gray-700">
-                    Trang {pagination.page} / {pagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
-                    disabled={pagination.page === pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    Sau
-                  </button>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <span>Hiển thị:</span>
-                  <select
-                    value={pagination.limit}
-                    onChange={(e) => {
-                      const newLimit = parseInt(e.target.value)
-                      setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }))
-                      fetchProducts(searchTerm, selectedCategory, 1, newLimit)
-                    }}
-                    className="px-2 py-1 border border-gray-300 rounded-sm"
-                  >
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                    <option value="250">250</option>
-                    <option value="500">500</option>
-                  </select>
-                  <span>sản phẩm/trang</span>
-                </div>
-              </div>
-            )}
-          </>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
 }
-

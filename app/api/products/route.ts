@@ -10,11 +10,15 @@ export async function GET(request: NextRequest) {
 
     let query;
     if (categoryId) {
+      // Chỉ lấy sản phẩm có category_id đúng và không NULL
       query = sql`
         SELECT p.*, c.name as category_name, c.discount_percent as category_discount_percent
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
-        WHERE p.category_id = ${categoryId} AND p.is_active = true
+        WHERE p.category_id = ${parseInt(categoryId)} 
+          AND p.category_id IS NOT NULL
+          AND p.is_active = true
+          AND c.id IS NOT NULL
         ORDER BY p.created_at DESC
         LIMIT 100
       `;

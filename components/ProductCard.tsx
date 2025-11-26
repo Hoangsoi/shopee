@@ -98,9 +98,6 @@ export default function ProductCard({ product, hasPermission = true }: ProductCa
             </span>
           )}
         </div>
-        {product.category_name && (
-          <div className="text-xs text-gray-500 mb-2">{product.category_name}</div>
-        )}
         
         {message && (
           <div className={`text-xs py-1 px-2 rounded mb-2 ${

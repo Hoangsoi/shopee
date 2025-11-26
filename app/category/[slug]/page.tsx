@@ -21,6 +21,7 @@ interface Product {
   price: number
   original_price?: number
   image_url?: string
+  category_id?: number
   category_name?: string
   discount_percent?: number
 }
@@ -186,9 +187,11 @@ export default function CategoryPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+              {products
+                .filter((product) => product.category_id === category.id) // Đảm bảo chỉ hiển thị sản phẩm đúng danh mục
+                .map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
             </div>
           )}
         </div>

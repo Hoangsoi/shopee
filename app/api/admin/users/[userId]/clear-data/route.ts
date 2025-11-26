@@ -39,9 +39,13 @@ export async function DELETE(
     const transactionsCountBefore = await sql`
       SELECT COUNT(*)::int as count FROM transactions WHERE user_id = ${userId}
     `;
+    const investmentsCountBefore = await sql`
+      SELECT COUNT(*)::int as count FROM investments WHERE user_id = ${userId}
+    `;
 
     const ordersCount = ordersCountBefore[0]?.count || 0;
     const transactionsCount = transactionsCountBefore[0]?.count || 0;
+    const investmentsCount = investmentsCountBefore[0]?.count || 0;
 
     // Xóa tất cả order_items của user (thông qua orders)
     // Vì order_items có foreign key với orders, nên khi xóa orders sẽ tự động xóa order_items
@@ -49,6 +53,16 @@ export async function DELETE(
     
     // Xóa tất cả transactions của user
     await sql`DELETE FROM transactions WHERE user_id = ${userId}`;
+
+    // Xóa tất cả investments của user
+    try {
+      await sql`DELETE FROM investments WHERE user_id = ${userId}`;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting user investments:', error);
+      }
+    }
 
     // Reset số dư và hoa hồng về 0 như lúc mới đăng ký
     await sql`
@@ -59,10 +73,11 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Đã xóa ${ordersCount} đơn hàng và ${transactionsCount} giao dịch của người dùng thành công. Số dư và hoa hồng đã được reset về 0.`,
+      message: `Đã xóa ${ordersCount} đơn hàng, ${transactionsCount} giao dịch và ${investmentsCount} đầu tư của người dùng thành công. Số dư và hoa hồng đã được reset về 0.`,
       deleted: {
         orders: ordersCount,
         transactions: transactionsCount,
+        investments: investmentsCount,
       },
     });
   } catch (error) {

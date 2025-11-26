@@ -15,10 +15,12 @@ export async function DELETE(request: NextRequest) {
     // Đếm số bản ghi trước khi xóa
     const ordersCountBefore = await sql`SELECT COUNT(*)::int as count FROM orders`;
     const transactionsCountBefore = await sql`SELECT COUNT(*)::int as count FROM transactions`;
+    const investmentsCountBefore = await sql`SELECT COUNT(*)::int as count FROM investments`;
     const usersCountBefore = await sql`SELECT COUNT(*)::int as count FROM users WHERE role != 'admin'`;
 
     const ordersCount = ordersCountBefore[0]?.count || 0;
     const transactionsCount = transactionsCountBefore[0]?.count || 0;
+    const investmentsCount = investmentsCountBefore[0]?.count || 0;
     const usersCount = usersCountBefore[0]?.count || 0;
 
     // Xóa tất cả order_items trước (do foreign key constraint)
@@ -34,6 +36,16 @@ export async function DELETE(request: NextRequest) {
     // Xóa tất cả transactions
     await sql`DELETE FROM transactions`;
 
+    // Xóa tất cả investments
+    try {
+      await sql`DELETE FROM investments`;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting investments:', error);
+      }
+    }
+
     // Reset số dư và hoa hồng về 0 cho tất cả users (trừ admin)
     await sql`
       UPDATE users 
@@ -43,10 +55,11 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Đã xóa tất cả giao dịch và đơn hàng thành công. Đã reset số dư và hoa hồng về 0 cho ${usersCount} người dùng.`,
+      message: `Đã xóa tất cả giao dịch, đơn hàng và đầu tư thành công. Đã reset số dư và hoa hồng về 0 cho ${usersCount} người dùng.`,
       deleted: {
         transactions: transactionsCount,
         orders: ordersCount,
+        investments: investmentsCount,
         users_reset: usersCount,
       },
     });

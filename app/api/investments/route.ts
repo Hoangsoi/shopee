@@ -75,6 +75,44 @@ export async function GET(request: NextRequest) {
       ORDER BY created_at DESC
     `;
 
+    // Lấy transactions liên quan đến đầu tư (hoàn gốc và hoa hồng)
+    const investmentIds = investments.map((inv: any) => inv.id);
+    let returnTransactions: any[] = [];
+    
+    if (investmentIds.length > 0) {
+      try {
+        // Lấy các transactions có description chứa "Hoàn gốc đầu tư" hoặc "Hoàn hoa hồng đầu tư"
+        const transactions = await sql`
+          SELECT 
+            id,
+            type,
+            amount,
+            description,
+            created_at
+          FROM transactions
+          WHERE user_id = ${decoded.userId}
+            AND (
+              description LIKE 'Hoàn gốc đầu tư:%'
+              OR description LIKE 'Hoàn hoa hồng đầu tư:%'
+            )
+          ORDER BY created_at DESC
+        `;
+        
+        returnTransactions = transactions.map((t: any) => ({
+          id: t.id,
+          type: t.type,
+          amount: parseFloat(t.amount.toString()),
+          description: t.description,
+          created_at: t.created_at,
+        }));
+      } catch (error) {
+        // Bảng transactions có thể chưa tồn tại, bỏ qua
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching return transactions:', error);
+        }
+      }
+    }
+
     // Tính tổng số tiền đầu tư và tổng lợi nhuận
     const activeInvestments = investments.filter((inv: any) => inv.status === 'active');
     const totalInvested = activeInvestments.reduce((sum: number, inv: any) => 
@@ -97,6 +135,7 @@ export async function GET(request: NextRequest) {
         updated_at: inv.updated_at,
         last_profit_calculated_at: inv.last_profit_calculated_at,
       })),
+      return_transactions: returnTransactions,
       summary: {
         total_invested: totalInvested,
         total_profit: totalProfit,

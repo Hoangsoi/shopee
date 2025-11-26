@@ -15,6 +15,14 @@ interface Investment {
   updated_at: string
 }
 
+interface ReturnTransaction {
+  id: number
+  type: string
+  amount: number
+  description: string
+  created_at: string
+}
+
 interface InvestmentHistoryModalProps {
   isOpen: boolean
   onClose: () => void
@@ -22,6 +30,7 @@ interface InvestmentHistoryModalProps {
 
 export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHistoryModalProps) {
   const [investments, setInvestments] = useState<Investment[]>([])
+  const [returnTransactions, setReturnTransactions] = useState<ReturnTransaction[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -37,6 +46,7 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
       if (response.ok) {
         const data = await response.json()
         setInvestments(data.investments || [])
+        setReturnTransactions(data.return_transactions || [])
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -45,6 +55,33 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
     } finally {
       setLoading(false)
     }
+  }
+
+  // Lấy transactions liên quan đến một investment
+  const getReturnTransactionsForInvestment = (investment: Investment): ReturnTransaction[] => {
+    if (investment.status !== 'completed') return []
+    
+    // Match transactions dựa trên:
+    // 1. Amount chính xác (hoàn gốc = investment.amount)
+    // 2. Hoặc amount = total_profit (hoàn hoa hồng)
+    // 3. Và thời gian transaction phải sau khi investment completed (sau maturity_date)
+    const maturityTime = investment.maturity_date ? new Date(investment.maturity_date).getTime() : 0
+    
+    return returnTransactions.filter((t) => {
+      const transactionTime = new Date(t.created_at).getTime()
+      const isAfterMaturity = maturityTime > 0 ? transactionTime >= maturityTime - 86400000 : true // Cho phép 1 ngày sai số
+      
+      const isPrincipalReturn = 
+        t.description.includes('Hoàn gốc đầu tư') && 
+        Math.abs(t.amount - investment.amount) < 0.01 // So sánh số tiền với sai số nhỏ
+      
+      const isProfitReturn = 
+        t.description.includes('Hoàn hoa hồng đầu tư') && 
+        investment.total_profit > 0 &&
+        Math.abs(t.amount - investment.total_profit) < 0.01 // So sánh số tiền với sai số nhỏ
+      
+      return (isPrincipalReturn || isProfitReturn) && isAfterMaturity
+    }).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
   }
 
   const formatCurrency = (amount: number) => {
@@ -174,6 +211,64 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                       <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                         <span className="text-xs font-semibold text-gray-700">Thời gian còn lại:</span>
                         <CountdownTimer targetDate={investment.maturity_date} />
+                      </div>
+                    )}
+                    
+                    {/* Hiển thị thông tin hoàn trả cho investment đã hoàn thành */}
+                    {investment.status === 'completed' && (
+                      <div className="pt-3 border-t border-gray-200 mt-3">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">Thông tin hoàn trả:</div>
+                        {(() => {
+                          const returns = getReturnTransactionsForInvestment(investment)
+                          if (returns.length === 0) {
+                            // Nếu không tìm thấy transactions, hiển thị từ investment data
+                            return (
+                              <div className="space-y-1.5 text-xs">
+                                <div className="flex items-center justify-between text-gray-600">
+                                  <span>💰 Hoàn gốc:</span>
+                                  <span className="font-semibold text-blue-600">
+                                    {formatCurrency(investment.amount)}
+                                  </span>
+                                </div>
+                                {investment.total_profit > 0 && (
+                                  <div className="flex items-center justify-between text-gray-600">
+                                    <span>💵 Hoàn hoa hồng:</span>
+                                    <span className="font-semibold text-green-600">
+                                      {formatCurrency(investment.total_profit)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          }
+                          return (
+                            <div className="space-y-1.5 text-xs">
+                              {returns.map((t) => {
+                                const isPrincipal = t.description.includes('Hoàn gốc đầu tư')
+                                return (
+                                  <div
+                                    key={t.id}
+                                    className="flex items-center justify-between text-gray-600"
+                                  >
+                                    <span>{isPrincipal ? '💰 Hoàn gốc:' : '💵 Hoàn hoa hồng:'}</span>
+                                    <div className="text-right">
+                                      <span
+                                        className={`font-semibold ${
+                                          isPrincipal ? 'text-blue-600' : 'text-green-600'
+                                        }`}
+                                      >
+                                        {formatCurrency(t.amount)}
+                                      </span>
+                                      <div className="text-[10px] text-gray-400 mt-0.5">
+                                        {formatDate(t.created_at)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        })()}
                       </div>
                     )}
                   </div>

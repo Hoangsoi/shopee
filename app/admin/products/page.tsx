@@ -26,10 +26,12 @@ interface Category {
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [allProducts, setAllProducts] = useState<Product[]>([]) // Lưu tất cả sản phẩm
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null) // Danh mục được chọn
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -47,6 +49,7 @@ export default function AdminProductsPage() {
   useEffect(() => {
     loadCategories()
     loadProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadCategories = async () => {
@@ -64,16 +67,43 @@ export default function AdminProductsPage() {
   const loadProducts = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/products?page=1&limit=100')
+      const res = await fetch('/api/admin/products?page=1&limit=1000')
       const data = await res.json()
       if (res.ok) {
-        setProducts(data.products || [])
+        const allProds = data.products || []
+        setAllProducts(allProds)
+        // Nếu đã chọn danh mục, lọc ngay
+        if (selectedCategoryId) {
+          setProducts(allProds.filter((p: Product) => p.category_id === selectedCategoryId))
+        } else {
+          setProducts(allProds)
+        }
       }
     } catch (error) {
       console.error('Error:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Lọc sản phẩm theo danh mục
+  const handleCategorySelect = (categoryId: number | null) => {
+    setSelectedCategoryId(categoryId)
+    if (categoryId === null) {
+      // Hiển thị tất cả
+      setProducts(allProducts)
+    } else {
+      // Lọc theo danh mục
+      setProducts(allProducts.filter((p) => p.category_id === categoryId))
+    }
+  }
+
+  // Đếm số sản phẩm trong mỗi danh mục
+  const getProductCountByCategory = (categoryId: number | null) => {
+    if (categoryId === null) {
+      return allProducts.length
+    }
+    return allProducts.filter((p) => p.category_id === categoryId).length
   }
 
   const resetForm = () => {
@@ -116,7 +146,11 @@ export default function AdminProductsPage() {
       if (res.ok) {
         setMessage({ type: 'success', text: 'Thêm sản phẩm thành công!' })
         resetForm()
-        loadProducts()
+        await loadProducts()
+        // Nếu đang lọc theo danh mục, giữ nguyên filter
+        if (selectedCategoryId) {
+          handleCategorySelect(selectedCategoryId)
+        }
       } else {
         setMessage({ type: 'error', text: data.error || 'Thêm thất bại' })
       }
@@ -166,7 +200,11 @@ export default function AdminProductsPage() {
       if (res.ok) {
         setMessage({ type: 'success', text: 'Cập nhật thành công!' })
         resetForm()
-        loadProducts()
+        await loadProducts()
+        // Nếu đang lọc theo danh mục, giữ nguyên filter
+        if (selectedCategoryId) {
+          handleCategorySelect(selectedCategoryId)
+        }
       } else {
         setMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
       }
@@ -185,7 +223,11 @@ export default function AdminProductsPage() {
       const data = await res.json()
       if (res.ok) {
         setMessage({ type: 'success', text: 'Xóa thành công!' })
-        loadProducts()
+        await loadProducts()
+        // Nếu đang lọc theo danh mục, giữ nguyên filter
+        if (selectedCategoryId) {
+          handleCategorySelect(selectedCategoryId)
+        }
       } else {
         setMessage({ type: 'error', text: data.error || 'Xóa thất bại' })
       }
@@ -198,6 +240,14 @@ export default function AdminProductsPage() {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+  }
+
+  const categoryIcons: { [key: string]: string } = {
+    'Mỹ phẩm': '💄',
+    'Điện tử': '📱',
+    'Điện lạnh': '❄️',
+    'Cao cấp': '💎',
+    'VIP': '⭐',
   }
 
   return (
@@ -215,6 +265,59 @@ export default function AdminProductsPage() {
             + Thêm sản phẩm
           </button>
         </div>
+
+        {/* Danh sách danh mục để lọc */}
+        {categories.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">Lọc theo danh mục:</h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {/* Nút "Tất cả" */}
+              <button
+                onClick={() => handleCategorySelect(null)}
+                className={`flex flex-col items-center p-4 rounded-lg shadow-sm transition-all ${
+                  selectedCategoryId === null
+                    ? 'bg-[#ee4d2d] text-white shadow-md'
+                    : 'bg-white hover:shadow-md'
+                }`}
+              >
+                <div className="text-3xl mb-2">📦</div>
+                <div className="text-center">
+                  <div className="font-semibold text-sm mb-1">Tất cả</div>
+                  <div className="text-xs opacity-75">
+                    {getProductCountByCategory(null)} sản phẩm
+                  </div>
+                </div>
+              </button>
+
+              {/* Các danh mục */}
+              {categories.map((category) => {
+                const isSelected = selectedCategoryId === category.id
+                const productCount = getProductCountByCategory(category.id)
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => handleCategorySelect(category.id)}
+                    className={`flex flex-col items-center p-4 rounded-lg shadow-sm transition-all ${
+                      isSelected
+                        ? 'bg-[#ee4d2d] text-white shadow-md'
+                        : 'bg-white hover:shadow-md'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">
+                      {categoryIcons[category.name] || '📦'}
+                    </div>
+                    <div className="text-center">
+                      <div className="font-semibold text-sm mb-1">{category.name}</div>
+                      <div className={`text-xs ${isSelected ? 'opacity-90' : 'opacity-75'}`}>
+                        {productCount} sản phẩm
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {message && (
           <div
@@ -354,10 +457,24 @@ export default function AdminProductsPage() {
           </div>
         )}
 
+        {/* Thông báo danh mục đang chọn */}
+        {selectedCategoryId !== null && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              Đang hiển thị sản phẩm của danh mục: <strong>{categories.find(c => c.id === selectedCategoryId)?.name || 'N/A'}</strong>
+              {' '}({products.length} sản phẩm)
+            </p>
+          </div>
+        )}
+
         {loading && products.length === 0 ? (
           <div className="text-center py-8">Đang tải...</div>
         ) : products.length === 0 ? (
-          <div className="text-center py-8">Chưa có sản phẩm nào.</div>
+          <div className="text-center py-8">
+            {selectedCategoryId !== null 
+              ? `Chưa có sản phẩm nào trong danh mục "${categories.find(c => c.id === selectedCategoryId)?.name || 'N/A'}".`
+              : 'Chưa có sản phẩm nào.'}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full border">

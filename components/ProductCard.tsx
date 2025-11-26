@@ -76,23 +76,31 @@ export default function ProductCard({ product, hasPermission = true }: ProductCa
      product.image_url.startsWith('https://') || 
      product.image_url.startsWith('data:image/'))
   
-  const imageSrc: string = imageError || !isValidImageUrl
-    ? `https://via.placeholder.com/300x300?text=${encodeURIComponent(product.name.substring(0, 20))}`
-    : (product.image_url || `https://via.placeholder.com/300x300?text=${encodeURIComponent(product.name.substring(0, 20))}`)
+  // Không sử dụng external placeholder service, chỉ hiển thị text nếu lỗi
+  const shouldShowPlaceholder = imageError || !isValidImageUrl
 
   return (
     <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="relative aspect-square bg-gray-100">
-        <Image
-          src={imageSrc}
-          alt={product.name}
-          fill
-          className="object-cover"
-          unoptimized
-          onError={() => {
-            setImageError(true)
-          }}
-        />
+        {shouldShowPlaceholder ? (
+          <div className="w-full h-full flex items-center justify-center text-gray-400 text-center p-4">
+            <div>
+              <div className="text-4xl mb-2">📦</div>
+              <div className="text-xs font-medium">{product.name.substring(0, 20)}</div>
+            </div>
+          </div>
+        ) : (
+          <Image
+            src={product.image_url!}
+            alt={product.name}
+            fill
+            className="object-cover"
+            unoptimized={product.image_url!.startsWith('data:image/')}
+            onError={() => {
+              setImageError(true)
+            }}
+          />
+        )}
         {discount > 0 && (
           <div className="absolute top-2 right-2 bg-[#ee4d2d] text-white text-xs font-bold px-2 py-1 rounded">
             -{discount}%

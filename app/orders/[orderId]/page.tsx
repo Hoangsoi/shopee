@@ -141,12 +141,30 @@ export default function OrderDetailPage() {
             {order.items.map((item) => (
               <div key={item.id} className="flex gap-4 p-3 bg-gray-50 rounded-lg">
                 <div className="w-16 h-16 flex-shrink-0 bg-gray-200 rounded overflow-hidden relative">
-                  <Image
-                    src={item.image_url || 'https://via.placeholder.com/64x64?text=Product'}
-                    alt={item.product_name}
-                    fill
-                    className="object-cover"
-                    unoptimized
+                  {item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://') || item.image_url.startsWith('data:image/')) ? (
+                    <Image
+                      src={item.image_url}
+                      alt={item.product_name}
+                      fill
+                      className="object-cover"
+                      unoptimized={item.image_url.startsWith('data:image/')}
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement
+                        img.style.display = 'none'
+                        const parent = img.parentElement
+                        if (parent && !parent.querySelector('.image-placeholder')) {
+                          const placeholder = document.createElement('div')
+                          placeholder.className = 'image-placeholder w-full h-full flex items-center justify-center text-xs text-gray-400'
+                          placeholder.textContent = '📦'
+                          parent.appendChild(placeholder)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <span className="text-2xl">📦</span>
+                    </div>
+                  )}
                   />
                 </div>
                 <div className="flex-1 min-w-0">

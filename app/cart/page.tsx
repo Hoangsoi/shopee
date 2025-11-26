@@ -190,13 +190,30 @@ export default function CartPage() {
                 <div key={item.id} className="p-4 border-b border-gray-200 last:border-b-0">
                   <div className="flex gap-4">
                     <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded overflow-hidden relative">
-                      <Image
-                        src={item.image_url || 'https://via.placeholder.com/80x80?text=Product'}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
+                      {item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://') || item.image_url.startsWith('data:image/')) ? (
+                        <Image
+                          src={item.image_url}
+                          alt={item.name}
+                          fill
+                          className="object-cover"
+                          unoptimized={item.image_url.startsWith('data:image/')}
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement
+                            img.style.display = 'none'
+                            const parent = img.parentElement
+                            if (parent && !parent.querySelector('.image-placeholder')) {
+                              const placeholder = document.createElement('div')
+                              placeholder.className = 'image-placeholder w-full h-full flex items-center justify-center text-xs text-gray-400'
+                              placeholder.textContent = '📦'
+                              parent.appendChild(placeholder)
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <span className="text-2xl">📦</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm text-gray-800 mb-1 line-clamp-2">

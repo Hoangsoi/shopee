@@ -378,7 +378,16 @@ export default function AdminProductsPage() {
                             className="object-cover"
                             unoptimized
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://via.placeholder.com/60x60?text=${encodeURIComponent(product.name.substring(0, 10))}`
+                              // Không thay đổi src, chỉ ẩn ảnh và hiển thị placeholder
+                              const img = e.target as HTMLImageElement
+                              img.style.display = 'none'
+                              const parent = img.parentElement
+                              if (parent && !parent.querySelector('.image-placeholder')) {
+                                const placeholder = document.createElement('div')
+                                placeholder.className = 'image-placeholder w-full h-full flex items-center justify-center text-xs text-gray-400 text-center p-1'
+                                placeholder.textContent = product.name.substring(0, 10)
+                                parent.appendChild(placeholder)
+                              }
                             }}
                           />
                         ) : (

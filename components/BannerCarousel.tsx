@@ -49,17 +49,23 @@ export default function BannerCarousel() {
   }
 
   const BannerContent = ({ banner }: { banner: Banner }) => {
+    const [imageError, setImageError] = useState(false)
     const isBase64 = banner.image_url.startsWith('data:image/')
     const imageSrc = banner.image_url
 
-    const imageElement = isBase64 ? (
+    const imageElement = imageError ? (
+      <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
+        <div className="text-center">
+          <div className="text-4xl mb-2">🖼️</div>
+          <div className="text-sm">Banner</div>
+        </div>
+      </div>
+    ) : isBase64 ? (
       <img
         src={imageSrc}
         alt={banner.title}
         className="w-full h-full object-cover"
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Banner'
-        }}
+        onError={() => setImageError(true)}
       />
     ) : (
       <Image
@@ -69,9 +75,7 @@ export default function BannerCarousel() {
         className="object-cover"
         sizes="100vw"
         unoptimized
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Banner'
-        }}
+        onError={() => setImageError(true)}
       />
     )
 

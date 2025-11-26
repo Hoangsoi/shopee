@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
 
     const products = await query;
 
-    return NextResponse.json({
+    // Thêm cache headers để tăng tốc độ
+    const response = NextResponse.json({
       products: products.map((product): Product => ({
         id: product.id,
         name: product.name,
@@ -63,6 +64,11 @@ export async function GET(request: NextRequest) {
         updated_at: product.updated_at,
       })),
     });
+
+    // Cache 30 giây cho products
+    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+    
+    return response;
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Get products error:', error);

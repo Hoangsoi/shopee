@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo, useMemo } from 'react'
 import Image from 'next/image'
 
 interface Product {
@@ -18,17 +18,19 @@ interface ProductCardProps {
   hasPermission?: boolean
 }
 
-export default function ProductCard({ product, hasPermission = true }: ProductCardProps) {
+function ProductCard({ product, hasPermission = true }: ProductCardProps) {
   const [adding, setAdding] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [imageError, setImageError] = useState(false)
 
   // Ưu tiên sử dụng discount_percent từ category, nếu không có thì tính từ original_price
-  const discount = product.discount_percent !== undefined && product.discount_percent !== null
-    ? product.discount_percent
-    : product.original_price
-    ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
-    : 0
+  const discount = useMemo(() => {
+    return product.discount_percent !== undefined && product.discount_percent !== null
+      ? product.discount_percent
+      : product.original_price
+      ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
+      : 0
+  }, [product.discount_percent, product.original_price, product.price])
 
   const handleAddToCart = async () => {
     if (!hasPermission) {
@@ -145,4 +147,6 @@ export default function ProductCard({ product, hasPermission = true }: ProductCa
     </div>
   )
 }
+
+export default memo(ProductCard)
 

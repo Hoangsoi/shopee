@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, memo } from 'react'
 import ProductCard from './ProductCard'
 
 interface Product {
@@ -19,7 +19,7 @@ interface FeaturedProductsProps {
   hasPermission?: boolean
 }
 
-export default function FeaturedProducts({ categoryId, categoryName, hasPermission = true }: FeaturedProductsProps) {
+function FeaturedProducts({ categoryId, categoryName, hasPermission = true }: FeaturedProductsProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -75,4 +75,6 @@ export default function FeaturedProducts({ categoryId, categoryName, hasPermissi
     </div>
   )
 }
+
+export default memo(FeaturedProducts)
 

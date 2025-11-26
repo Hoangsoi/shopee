@@ -93,8 +93,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    checkAuth()
-    fetchCategories()
+    // Parallel fetch để tăng tốc độ
+    Promise.all([
+      checkAuth(),
+      fetchCategories(),
+    ]).catch((error) => {
+      console.error('Error loading homepage data:', error)
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

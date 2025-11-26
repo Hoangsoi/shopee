@@ -49,10 +49,15 @@ export default function ProfilePage() {
   ])
 
   useEffect(() => {
-    fetchUser()
-    checkBankAccount()
-    fetchInvestments()
-    fetchInvestmentRate()
+    // Parallel fetch để tăng tốc độ
+    Promise.all([
+      fetchUser(),
+      checkBankAccount(),
+      fetchInvestments(),
+      fetchInvestmentRate(),
+    ]).catch((error) => {
+      console.error('Error loading profile data:', error)
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
+// Cache column checks để tránh query mỗi lần
+let columnCache: {
+  hasWalletBalance: boolean;
+  hasCommission: boolean;
+  hasIsFrozen: boolean;
+  hasVipLevel: boolean;
+  checked: boolean;
+} = {
+  hasWalletBalance: false,
+  hasCommission: false,
+  hasIsFrozen: false,
+  hasVipLevel: false,
+  checked: false,
+};
+
+async function checkColumns() {
+  if (columnCache.checked) {
+    return columnCache;
+  }
+
+  try {
+    const columns = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      AND column_name IN ('wallet_balance', 'commission', 'is_frozen', 'vip_level', 'is_vip')
+    ` as Array<{ column_name: string }>;
+    
+    columnCache = {
+      hasWalletBalance: columns.some((col) => col.column_name === 'wallet_balance'),
+      hasCommission: columns.some((col) => col.column_name === 'commission'),
+      hasIsFrozen: columns.some((col) => col.column_name === 'is_frozen'),
+      hasVipLevel: columns.some((col) => col.column_name === 'vip_level'),
+      checked: true,
+    };
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Error checking columns:', error);
+    }
+  }
+
+  return columnCache;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value;
@@ -22,29 +66,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Kiểm tra xem các cột wallet_balance, commission, is_frozen và vip_level có tồn tại không
-    let hasWalletBalance = false;
-    let hasCommission = false;
-    let hasIsFrozen = false;
-    let hasVipLevel = false;
-    
-    try {
-      const columns = await sql`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' 
-        AND column_name IN ('wallet_balance', 'commission', 'is_frozen', 'vip_level', 'is_vip')
-      ` as Array<{ column_name: string }>;
-      
-      hasWalletBalance = columns.some((col) => col.column_name === 'wallet_balance');
-      hasCommission = columns.some((col) => col.column_name === 'commission');
-      hasIsFrozen = columns.some((col) => col.column_name === 'is_frozen');
-      hasVipLevel = columns.some((col) => col.column_name === 'vip_level');
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Error checking columns:', error);
-      }
-    }
+    // Kiểm tra columns với cache
+    const { hasWalletBalance, hasCommission, hasIsFrozen, hasVipLevel } = await checkColumns();
 
     // Xây dựng query động dựa trên các cột có sẵn
     let query;

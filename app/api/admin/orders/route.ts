@@ -8,6 +8,7 @@ const updateOrderStatusSchema = z.object({
   status: z.enum(['confirmed', 'cancelled'], {
     errorMap: () => ({ message: 'Status phải là confirmed hoặc cancelled' }),
   }),
+  rejection_reason: z.string().optional(), // Lý do từ chối (chỉ dùng khi status = 'cancelled')
 });
 
 // Admin check is now handled by lib/auth.ts isAdmin() function
@@ -156,7 +157,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const validatedData = updateOrderStatusSchema.parse(body);
 
-    const { order_id, status } = validatedData;
+    const { order_id, status, rejection_reason } = validatedData;
 
     // Lấy thông tin đơn hàng
     const orders = await sql`
@@ -213,10 +214,19 @@ export async function PUT(request: NextRequest) {
       totalCommission += commission;
     }
 
-    // Cập nhật trạng thái đơn hàng
+    // Cập nhật trạng thái đơn hàng và lý do từ chối (nếu có)
+    const rejectionNote = status === 'cancelled' && rejection_reason 
+      ? rejection_reason 
+      : status === 'cancelled' 
+      ? 'Hết hàng' // Lý do mặc định
+      : null;
+    
     await sql`
       UPDATE orders
-      SET status = ${status}, updated_at = CURRENT_TIMESTAMP
+      SET 
+        status = ${status}, 
+        notes = ${rejectionNote || null},
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = ${order_id}
     `;
 

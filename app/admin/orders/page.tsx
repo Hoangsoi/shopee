@@ -21,6 +21,9 @@ export default function AdminOrdersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectingOrderId, setRejectingOrderId] = useState<number | null>(null)
+  const [rejectionReason, setRejectionReason] = useState<string>('Hết hàng')
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -83,13 +86,18 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const handleReject = async (orderId: number) => {
-    if (!confirm('Xác nhận từ chối đơn hàng này? Khách hàng sẽ chỉ nhận lại tiền gốc, không có hoa hồng.')) {
-      return
-    }
+  const handleReject = (orderId: number) => {
+    setRejectingOrderId(orderId)
+    setRejectionReason('Hết hàng') // Reset về lý do mặc định
+    setShowRejectModal(true)
+  }
 
-    setProcessingId(orderId)
+  const confirmReject = async () => {
+    if (!rejectingOrderId) return
+
+    setProcessingId(rejectingOrderId)
     setMessage(null)
+    setShowRejectModal(false)
 
     try {
       const response = await fetch('/api/admin/orders', {
@@ -98,8 +106,9 @@ export default function AdminOrdersPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          order_id: orderId,
+          order_id: rejectingOrderId,
           status: 'cancelled',
+          rejection_reason: rejectionReason || 'Hết hàng',
         }),
       })
 
@@ -116,6 +125,7 @@ export default function AdminOrdersPage() {
       setMessage({ type: 'error', text: 'Lỗi kết nối khi từ chối đơn hàng' })
     } finally {
       setProcessingId(null)
+      setRejectingOrderId(null)
     }
   }
 
@@ -293,6 +303,51 @@ export default function AdminOrdersPage() {
           )}
         </div>
       </div>
+
+      {/* Modal từ chối đơn hàng */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Từ chối đơn hàng</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Khách hàng sẽ chỉ nhận lại tiền gốc, không có hoa hồng.
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lý do từ chối:
+                </label>
+                <input
+                  type="text"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                  placeholder="Nhập lý do từ chối"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false)
+                    setRejectingOrderId(null)
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-sm hover:bg-gray-300 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={confirmReject}
+                  className="px-4 py-2 bg-red-500 text-white rounded-sm hover:bg-red-600 transition-colors"
+                >
+                  Xác nhận từ chối
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

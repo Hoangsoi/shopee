@@ -165,7 +165,6 @@ export default function OrderDetailPage() {
                       <span className="text-2xl">📦</span>
                     </div>
                   )}
-                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm text-gray-800 mb-1 line-clamp-2">

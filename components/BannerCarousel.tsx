@@ -60,13 +60,6 @@ export default function BannerCarousel() {
           <div className="text-sm">Banner</div>
         </div>
       </div>
-    ) : isBase64 ? (
-      <img
-        src={imageSrc}
-        alt={banner.title}
-        className="w-full h-full object-cover"
-        onError={() => setImageError(true)}
-      />
     ) : (
       <Image
         src={imageSrc}
@@ -74,7 +67,7 @@ export default function BannerCarousel() {
         fill
         className="object-cover"
         sizes="100vw"
-        unoptimized
+        unoptimized={isBase64}
         onError={() => setImageError(true)}
       />
     )

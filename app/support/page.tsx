@@ -19,15 +19,13 @@ interface User {
 }
 
 export default function SupportPage() {
-  const [zaloLink, setZaloLink] = useState<string>('')
-  const [zaloEnabled, setZaloEnabled] = useState<boolean>(false)
   const [loading, setLoading] = useState(true)
   const [crispLoaded, setCrispLoaded] = useState(false)
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    fetchZaloSettings()
     fetchUser()
+    setLoading(false)
   }, [])
 
   const fetchUser = async () => {
@@ -143,36 +141,6 @@ export default function SupportPage() {
     }
   }
 
-  const fetchZaloSettings = async () => {
-    try {
-      // Thêm timestamp để tránh cache
-      const response = await fetch(`/api/settings/zalo?t=${Date.now()}`)
-      if (response.ok) {
-        const data = await response.json()
-        const linkValue = data.link || ''
-        // Xử lý enabled: có thể là boolean hoặc string
-        const isEnabled = data.enabled === true || data.enabled === 'true' || String(data.enabled).toLowerCase() === 'true'
-        setZaloLink(linkValue)
-        setZaloEnabled(isEnabled)
-      } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Failed to fetch Zalo settings:', response.status)
-        }
-      }
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching Zalo settings:', error)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleZaloChat = () => {
-    if (zaloLink) {
-      window.open(zaloLink, '_blank')
-    }
-  }
 
   return (
     <>
@@ -244,23 +212,6 @@ export default function SupportPage() {
                 <span>Chat ngay với chúng tôi</span>
               </button>
 
-              {/* Zalo Chat Button */}
-              {zaloEnabled === true && zaloLink && zaloLink.trim() !== '' ? (
-                <button
-                  onClick={handleZaloChat}
-                  className="w-full bg-white border-2 border-blue-500 rounded-xl p-4 md:p-5 hover:bg-blue-50 hover:shadow-lg active:scale-98 transition-all shadow-md"
-                >
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-md">
-                      <span className="text-2xl md:text-3xl">💬</span>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs md:text-sm text-gray-600 font-medium">Zalo</p>
-                      <p className="font-bold text-gray-800 text-base md:text-lg">Chat ngay</p>
-                    </div>
-                  </div>
-                </button>
-              ) : null}
             </div>
           </div>
 
@@ -290,7 +241,6 @@ export default function SupportPage() {
               </div>
               <div className="space-y-2">
                 <p className="text-sm md:text-base text-gray-700">💬 Chat trực tuyến</p>
-                <p className="text-sm md:text-base text-gray-700">📱 Zalo Chat</p>
               </div>
             </div>
           </div>

@@ -329,134 +329,6 @@ export default function AdminProductsPage() {
           </div>
         )}
 
-        {(showAddForm || editingId) && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-            <h3 className="font-semibold mb-4">{editingId ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới'}</h3>
-            <form onSubmit={editingId ? (e) => { e.preventDefault(); handleUpdate() } : handleAdd}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-700 mb-1">Tên sản phẩm *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-sm"
-                    required
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-700 mb-1">Slug</label>
-                  <input
-                    type="text"
-                    value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-sm"
-                    placeholder="auto-generate"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-700 mb-1">Mô tả</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border rounded-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Giá *</label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border rounded-sm"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Giá gốc</label>
-                  <input
-                    type="number"
-                    value={formData.original_price}
-                    onChange={(e) => setFormData({ ...formData, original_price: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border rounded-sm"
-                    min="0"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <ImageUpload
-                    value={formData.image_url}
-                    onChange={(url) => setFormData({ ...formData, image_url: url })}
-                    folder="products"
-                    label="Ảnh sản phẩm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Danh mục</label>
-                  <select
-                    value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border rounded-sm"
-                  >
-                    <option value="0">Không có danh mục</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Tồn kho</label>
-                  <input
-                    type="number"
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border rounded-sm"
-                    min="0"
-                  />
-                </div>
-                <div className="md:col-span-2 flex gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_featured}
-                      onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                    />
-                    <span className="text-sm">Sản phẩm nổi bật</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    />
-                    <span className="text-sm">Kích hoạt</span>
-                  </label>
-                </div>
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-green-500 text-white rounded-sm hover:bg-green-600 disabled:opacity-50"
-                >
-                  {loading ? 'Đang xử lý...' : editingId ? 'Cập nhật' : 'Thêm sản phẩm'}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  disabled={loading}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-sm hover:bg-gray-600 disabled:opacity-50"
-                >
-                  Hủy
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
         {/* Thông báo danh mục đang chọn */}
         {selectedCategoryId !== null && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -569,6 +441,156 @@ export default function AdminProductsPage() {
           </div>
         )}
       </div>
+
+      {/* Modal Add/Edit Product */}
+      {(showAddForm || editingId) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto my-8">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center z-10">
+              <h3 className="text-xl font-bold text-gray-800">
+                {editingId ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới'}
+              </h3>
+              <button
+                onClick={resetForm}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                aria-label="Đóng"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <form onSubmit={editingId ? (e) => { e.preventDefault(); handleUpdate() } : handleAdd}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-gray-700 mb-1 font-medium">Tên sản phẩm *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-gray-700 mb-1 font-medium">Slug</label>
+                    <input
+                      type="text"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      placeholder="auto-generate"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-gray-700 mb-1 font-medium">Mô tả</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1 font-medium">Giá *</label>
+                    <input
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1 font-medium">Giá gốc</label>
+                    <input
+                      type="number"
+                      value={formData.original_price}
+                      onChange={(e) => setFormData({ ...formData, original_price: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      min="0"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <ImageUpload
+                      value={formData.image_url}
+                      onChange={(url) => setFormData({ ...formData, image_url: url })}
+                      folder="products"
+                      label="Ảnh sản phẩm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1 font-medium">Danh mục</label>
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                    >
+                      <option value="0">Không có danh mục</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1 font-medium">Tồn kho</label>
+                    <input
+                      type="number"
+                      value={formData.stock}
+                      onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d]"
+                      min="0"
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_featured}
+                        onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-gray-700">Sản phẩm nổi bật</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_active}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-gray-700">Kích hoạt</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-6 flex gap-3 justify-end border-t border-gray-200 pt-4">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    disabled={loading}
+                    className="px-6 py-2 bg-gray-500 text-white rounded-sm hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-2 bg-[#ee4d2d] text-white rounded-sm hover:bg-[#f05d40] disabled:opacity-50 transition-colors font-medium"
+                  >
+                    {loading ? 'Đang xử lý...' : editingId ? 'Cập nhật' : 'Thêm sản phẩm'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

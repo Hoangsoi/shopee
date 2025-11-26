@@ -21,6 +21,7 @@ interface ProductCardProps {
 export default function ProductCard({ product, hasPermission = true }: ProductCardProps) {
   const [adding, setAdding] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [imageError, setImageError] = useState(false)
 
   // Ưu tiên sử dụng discount_percent từ category, nếu không có thì tính từ original_price
   const discount = product.discount_percent !== undefined && product.discount_percent !== null
@@ -68,15 +69,29 @@ export default function ProductCard({ product, hasPermission = true }: ProductCa
     }
   }
 
+  // Kiểm tra xem image_url có hợp lệ không
+  const isValidImageUrl = product.image_url && 
+    product.image_url.trim() !== '' && 
+    (product.image_url.startsWith('http://') || 
+     product.image_url.startsWith('https://') || 
+     product.image_url.startsWith('data:image/'))
+  
+  const imageSrc: string = imageError || !isValidImageUrl
+    ? `https://via.placeholder.com/300x300?text=${encodeURIComponent(product.name.substring(0, 20))}`
+    : (product.image_url || `https://via.placeholder.com/300x300?text=${encodeURIComponent(product.name.substring(0, 20))}`)
+
   return (
     <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="relative aspect-square bg-gray-100">
         <Image
-          src={product.image_url || 'https://via.placeholder.com/300x300?text=Product'}
+          src={imageSrc}
           alt={product.name}
           fill
           className="object-cover"
           unoptimized
+          onError={() => {
+            setImageError(true)
+          }}
         />
         {discount > 0 && (
           <div className="absolute top-2 right-2 bg-[#ee4d2d] text-white text-xs font-bold px-2 py-1 rounded">

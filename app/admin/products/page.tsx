@@ -493,14 +493,27 @@ export default function AdminProductsPage() {
                 {products.map((product) => (
                   <tr key={product.id} className="hover:bg-gray-50">
                     <td className="py-2 px-4 border-b">
-                      <div className="relative w-16 h-16 rounded border overflow-hidden">
-                        <Image
-                          src={product.image_url || 'https://via.placeholder.com/60x60?text=No+Image'}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
+                      <div className="relative w-16 h-16 rounded border overflow-hidden bg-gray-100">
+                        {product.image_url && 
+                         product.image_url.trim() !== '' && 
+                         (product.image_url.startsWith('http://') || 
+                          product.image_url.startsWith('https://') || 
+                          product.image_url.startsWith('data:image/')) ? (
+                          <Image
+                            src={product.image_url}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://via.placeholder.com/60x60?text=${encodeURIComponent(product.name.substring(0, 10))}`
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 text-center p-1">
+                            {product.name.substring(0, 10)}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="py-2 px-4 border-b">

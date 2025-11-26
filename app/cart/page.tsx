@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import Link from 'next/link'
@@ -25,6 +25,9 @@ export default function CartPage() {
   const [totalQuantity, setTotalQuantity] = useState(0)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<number | null>(null)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [orderNumber, setOrderNumber] = useState<string>('')
+  const autoRedirectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchCart = useCallback(async () => {
     try {
@@ -47,6 +50,15 @@ export default function CartPage() {
   useEffect(() => {
     fetchCart()
   }, [fetchCart])
+
+  // Cleanup timeout khi component unmount
+  useEffect(() => {
+    return () => {
+      if (autoRedirectTimeoutRef.current) {
+        clearTimeout(autoRedirectTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleUpdateQuantity = async (cartItemId: number, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -130,8 +142,13 @@ export default function CartPage() {
       const data = await response.json()
 
       if (response.ok) {
-        alert(`Đặt hàng thành công! Mã đơn hàng: ${data.order.order_number}`)
-        router.push('/orders')
+        setOrderNumber(data.order.order_number)
+        setShowSuccessModal(true)
+        // Tự động chuyển trang sau 5 giây
+        autoRedirectTimeoutRef.current = setTimeout(() => {
+          setShowSuccessModal(false)
+          router.push('/orders')
+        }, 5000)
       } else {
         alert(data.error || 'Đặt hàng thất bại')
       }
@@ -283,6 +300,67 @@ export default function CartPage() {
         )}
       </div>
       <BottomNavigation />
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
+            {/* Header với gradient */}
+            <div className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 p-6 text-white text-center">
+              <div className="mb-3">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full backdrop-blur-sm">
+                  <span className="text-5xl">✅</span>
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold mb-1">Đặt hàng thành công!</h2>
+              <p className="text-white/90 text-sm">Cảm ơn bạn đã mua sắm</p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 text-center">
+              <div className="mb-4">
+                <p className="text-gray-600 mb-2">Mã đơn hàng của bạn:</p>
+                <div className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg shadow-lg">
+                  <p className="text-2xl font-bold text-white tracking-wider">
+                    {orderNumber}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 mb-6">
+                Vui lòng lưu lại mã đơn hàng để tra cứu sau này
+              </p>
+              
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    if (autoRedirectTimeoutRef.current) {
+                      clearTimeout(autoRedirectTimeoutRef.current)
+                    }
+                    setShowSuccessModal(false)
+                    router.push('/orders')
+                  }}
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all shadow-lg transform hover:scale-105"
+                >
+                  Xem đơn hàng
+                </button>
+                <button
+                  onClick={() => {
+                    if (autoRedirectTimeoutRef.current) {
+                      clearTimeout(autoRedirectTimeoutRef.current)
+                    }
+                    setShowSuccessModal(false)
+                    router.push('/')
+                  }}
+                  className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-all"
+                >
+                  Tiếp tục mua
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

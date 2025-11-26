@@ -110,20 +110,39 @@ export async function GET(request: NextRequest) {
           WHERE id = ${investment.id}
         `;
         
-        // Ghi lịch sử giao dịch
+        // Ghi lịch sử giao dịch - TÁCH RÕ: Hoàn gốc và Hoàn hoa hồng
         try {
+          const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount);
+          const formattedProfit = new Intl.NumberFormat('vi-VN').format(totalProfit);
+          
+          // Transaction 1: Hoàn gốc
           await sql`
             INSERT INTO transactions (user_id, type, amount, status, description)
             VALUES (
               ${investment.user_id}, 
               'deposit', 
-              ${totalReturn}, 
+              ${amount}, 
               'completed', 
-              ${`Hoàn lại đầu tư (gốc + lãi ${days} ngày): ${new Intl.NumberFormat('vi-VN').format(totalReturn)} VND`}
+              ${`Hoàn gốc đầu tư: ${formattedAmount} VND`}
+            )
+          `;
+          
+          // Transaction 2: Hoàn hoa hồng (lãi)
+          await sql`
+            INSERT INTO transactions (user_id, type, amount, status, description)
+            VALUES (
+              ${investment.user_id}, 
+              'deposit', 
+              ${totalProfit}, 
+              'completed', 
+              ${`Hoàn hoa hồng đầu tư (${days} ngày, ${investment.daily_profit_rate}%/ngày): ${formattedProfit} VND`}
             )
           `;
         } catch (error) {
           // Bỏ qua nếu bảng transactions chưa tồn tại
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error creating transactions:', error);
+          }
         }
         
         processedCount++;

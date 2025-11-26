@@ -33,6 +33,22 @@ export async function DELETE(
     }
 
     // Đếm số bản ghi trước khi xóa
+    let orderItemsCount = 0;
+    try {
+      // Đếm order_items của user (thông qua orders)
+      const orderItemsCountBefore = await sql`
+        SELECT COUNT(*)::int as count 
+        FROM order_items 
+        WHERE order_id IN (SELECT id FROM orders WHERE user_id = ${userId})
+      `;
+      orderItemsCount = orderItemsCountBefore[0]?.count || 0;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error counting order_items:', error);
+      }
+    }
+
     const ordersCountBefore = await sql`
       SELECT COUNT(*)::int as count FROM orders WHERE user_id = ${userId}
     `;
@@ -49,6 +65,20 @@ export async function DELETE(
 
     // Xóa tất cả order_items của user (thông qua orders)
     // Vì order_items có foreign key với orders, nên khi xóa orders sẽ tự động xóa order_items
+    // Nhưng để đảm bảo, xóa trực tiếp trước
+    try {
+      await sql`
+        DELETE FROM order_items 
+        WHERE order_id IN (SELECT id FROM orders WHERE user_id = ${userId})
+      `;
+    } catch (error) {
+      // Bảng có thể không tồn tại hoặc đã được xóa bởi CASCADE
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting order_items:', error);
+      }
+    }
+
+    // Xóa tất cả orders của user
     await sql`DELETE FROM orders WHERE user_id = ${userId}`;
     
     // Xóa tất cả transactions của user
@@ -64,20 +94,51 @@ export async function DELETE(
       }
     }
 
-    // Reset số dư và hoa hồng về 0 như lúc mới đăng ký
-    await sql`
-      UPDATE users 
-      SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = ${userId}
-    `;
+    // Reset số dư, hoa hồng và VIP level về 0 như lúc mới đăng ký
+    // Kiểm tra xem cột vip_level có tồn tại không
+    let vipLevelReset = false;
+    try {
+      const checkVipLevel = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'vip_level'
+      `;
+      if (checkVipLevel.length > 0) {
+        await sql`
+          UPDATE users 
+          SET wallet_balance = 0, commission = 0, vip_level = 0, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = ${userId}
+        `;
+        vipLevelReset = true;
+      } else {
+        // Nếu cột vip_level chưa tồn tại, chỉ reset wallet_balance và commission
+        await sql`
+          UPDATE users 
+          SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = ${userId}
+        `;
+      }
+    } catch (error) {
+      // Fallback: chỉ reset wallet_balance và commission
+      await sql`
+        UPDATE users 
+        SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = ${userId}
+      `;
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error resetting VIP level:', error);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Đã xóa ${ordersCount} đơn hàng, ${transactionsCount} giao dịch và ${investmentsCount} đầu tư của người dùng thành công. Số dư và hoa hồng đã được reset về 0.`,
+      message: `Đã xóa tất cả dữ liệu của người dùng thành công: ${orderItemsCount} chi tiết đơn hàng, ${ordersCount} đơn hàng, ${transactionsCount} giao dịch, ${investmentsCount} đầu tư. Đã reset số dư, hoa hồng${vipLevelReset ? ' và cấp độ VIP' : ''} về 0.`,
       deleted: {
+        order_items: orderItemsCount,
         orders: ordersCount,
         transactions: transactionsCount,
         investments: investmentsCount,
+        vip_level_reset: vipLevelReset,
       },
     });
   } catch (error) {

@@ -13,6 +13,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Đếm số bản ghi trước khi xóa
+    let orderItemsCount = 0;
+    try {
+      const orderItemsCountBefore = await sql`SELECT COUNT(*)::int as count FROM order_items`;
+      orderItemsCount = orderItemsCountBefore[0]?.count || 0;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+    }
+
     const ordersCountBefore = await sql`SELECT COUNT(*)::int as count FROM orders`;
     const transactionsCountBefore = await sql`SELECT COUNT(*)::int as count FROM transactions`;
     const investmentsCountBefore = await sql`SELECT COUNT(*)::int as count FROM investments`;
@@ -28,6 +36,9 @@ export async function DELETE(request: NextRequest) {
       await sql`DELETE FROM order_items`;
     } catch (error) {
       // Bảng có thể không tồn tại hoặc đã được xóa bởi CASCADE
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting order_items:', error);
+      }
     }
     
     // Xóa tất cả orders
@@ -46,21 +57,52 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Reset số dư và hoa hồng về 0 cho tất cả users (trừ admin)
-    await sql`
-      UPDATE users 
-      SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
-      WHERE role != 'admin'
-    `;
+    // Reset số dư, hoa hồng và VIP level về 0 cho tất cả users (trừ admin)
+    // Kiểm tra xem cột vip_level có tồn tại không
+    let vipLevelReset = false;
+    try {
+      const checkVipLevel = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'vip_level'
+      `;
+      if (checkVipLevel.length > 0) {
+        await sql`
+          UPDATE users 
+          SET wallet_balance = 0, commission = 0, vip_level = 0, updated_at = CURRENT_TIMESTAMP 
+          WHERE role != 'admin'
+        `;
+        vipLevelReset = true;
+      } else {
+        // Nếu cột vip_level chưa tồn tại, chỉ reset wallet_balance và commission
+        await sql`
+          UPDATE users 
+          SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
+          WHERE role != 'admin'
+        `;
+      }
+    } catch (error) {
+      // Fallback: chỉ reset wallet_balance và commission
+      await sql`
+        UPDATE users 
+        SET wallet_balance = 0, commission = 0, updated_at = CURRENT_TIMESTAMP 
+        WHERE role != 'admin'
+      `;
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error resetting VIP level:', error);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Đã xóa tất cả giao dịch, đơn hàng và đầu tư thành công. Đã reset số dư và hoa hồng về 0 cho ${usersCount} người dùng.`,
+      message: `Đã xóa tất cả dữ liệu thành công: ${orderItemsCount} chi tiết đơn hàng, ${ordersCount} đơn hàng, ${transactionsCount} giao dịch, ${investmentsCount} đầu tư. Đã reset số dư, hoa hồng${vipLevelReset ? ' và cấp độ VIP' : ''} về 0 cho ${usersCount} người dùng.`,
       deleted: {
-        transactions: transactionsCount,
+        order_items: orderItemsCount,
         orders: ordersCount,
+        transactions: transactionsCount,
         investments: investmentsCount,
         users_reset: usersCount,
+        vip_level_reset: vipLevelReset,
       },
     });
   } catch (error) {

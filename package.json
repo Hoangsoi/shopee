@@ -9,7 +9,8 @@
     "lint": "next lint",
     "migrate": "tsx scripts/migrate-to-neon.ts",
     "setup-db": "tsx scripts/setup-all-tables.ts",
-    "add-products": "tsx scripts/add-sample-products.ts"
+    "add-products": "tsx scripts/add-sample-products.ts",
+    "fix-product-names": "tsx scripts/fix-product-names.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.7.0",

@@ -56,7 +56,6 @@ function generateProductName(product: any): string {
           'cap': 'Cấp',
           'vip': 'VIP',
           'san': 'Sản',
-          'pham': 'Phẩm',
           'ao': 'Áo',
           'quan': 'Quần',
           'giay': 'Giày',

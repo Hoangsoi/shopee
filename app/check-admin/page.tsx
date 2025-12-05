@@ -101,7 +101,7 @@ export default function CheckAdminPage() {
             <div className="text-center py-8 text-gray-500">
               <p className="text-lg mb-2">⚠️ Chưa có tài khoản admin nào</p>
               <p className="text-sm">
-                Bạn cần set role = 'admin' cho ít nhất một tài khoản trong database
+                Bạn cần set role = &apos;admin&apos; cho ít nhất một tài khoản trong database
               </p>
             </div>
           ) : (
@@ -199,12 +199,12 @@ export default function CheckAdminPage() {
           <h3 className="text-lg font-bold text-blue-800 mb-3">💡 Hướng dẫn</h3>
           <ul className="list-disc list-inside space-y-2 text-sm text-blue-700">
             <li>
-              <strong>Tài khoản Admin:</strong> Các tài khoản có role = 'admin' (đã được trim và lowercase)
+              <strong>Tài khoản Admin:</strong> Các tài khoản có role = &apos;admin&apos; (đã được trim và lowercase)
             </li>
             <li>
               <strong>Để set role admin:</strong> Chạy SQL trong Neon Dashboard:
               <code className="block bg-white p-2 rounded mt-2 font-mono text-xs">
-                UPDATE users SET role = 'admin' WHERE email = 'your-email@example.com';
+                UPDATE users SET role = &apos;admin&apos; WHERE email = &apos;your-email@example.com&apos;;
               </code>
             </li>
             <li>

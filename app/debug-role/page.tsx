@@ -188,7 +188,7 @@ export default function DebugRolePage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-700">Token có role = 'admin'?</span>
+                    <span className="text-gray-700">Token có role = &apos;admin&apos;?</span>
                     <span
                       className={`font-bold ${
                         debugInfo.comparison.isAdminInToken ? 'text-green-600' : 'text-red-600'
@@ -198,7 +198,7 @@ export default function DebugRolePage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-700">Database có role = 'admin'?</span>
+                    <span className="text-gray-700">Database có role = &apos;admin&apos;?</span>
                     <span
                       className={`font-bold ${
                         debugInfo.comparison.isAdminInDatabase ? 'text-green-600' : 'text-red-600'
@@ -263,7 +263,7 @@ export default function DebugRolePage() {
               <strong>Database Role:</strong> Role hiện tại trong database
             </li>
             <li>
-              <strong>Vấn đề:</strong> Nếu database có role = 'admin' nhưng token vẫn có role cũ,
+              <strong>Vấn đề:</strong> Nếu database có role = &apos;admin&apos; nhưng token vẫn có role cũ,
               bạn cần đăng xuất và đăng nhập lại để token mới được tạo
             </li>
           </ul>

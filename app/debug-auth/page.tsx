@@ -178,7 +178,7 @@ export default function DebugAuthPage() {
                   <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
                     <p className="text-red-600 font-bold">❌ PROBLEM FOUND: Token still has old role!</p>
                     <p className="mt-2">Token role: <code>{debugInfo.tokenRole}</code></p>
-                    <p className="mt-2">Solution: Click "Đăng xuất và đăng nhập lại" button below to get a new token with admin role.</p>
+                    <p className="mt-2">Solution: Click &quot;Đăng xuất và đăng nhập lại&quot; button below to get a new token with admin role.</p>
                   </div>
                 )}
                 {debugInfo?.tokenPayload && debugInfo?.isTokenRoleAdmin && (

@@ -104,7 +104,7 @@ export default function DebugAuthPage() {
             <div className="space-y-2 text-blue-700">
               <p>1. Click nút bên dưới để đăng nhập</p>
               <p>2. Sau khi đăng nhập, quay lại trang này để kiểm tra</p>
-              <p>3. Nếu role = 'admin', bạn sẽ tự động được redirect vào trang admin</p>
+              <p>3. Nếu role = &apos;admin&apos;, bạn sẽ tự động được redirect vào trang admin</p>
             </div>
             <div className="mt-4">
               <a
@@ -134,9 +134,9 @@ export default function DebugAuthPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Role Comparison Tests</h2>
           <div className="space-y-2 font-mono text-sm">
-            <p>role === 'admin': <span className={debugInfo?.roleComparison?.strict ? 'text-green-600' : 'text-red-600'}>{debugInfo?.roleComparison?.strict ? '✅' : '❌'}</span></p>
-            <p>role.toLowerCase() === 'admin': <span className={debugInfo?.roleComparison?.lowercase ? 'text-green-600' : 'text-red-600'}>{debugInfo?.roleComparison?.lowercase ? '✅' : '❌'}</span></p>
-            <p>role.trim() === 'admin': <span className={debugInfo?.roleComparison?.trimmed ? 'text-green-600' : 'text-red-600'}>{debugInfo?.roleComparison?.trimmed ? '✅' : '❌'}</span></p>
+            <p>role === &apos;admin&apos;: <span className={debugInfo?.roleComparison?.strict ? 'text-green-600' : 'text-red-600'}>{debugInfo?.roleComparison?.strict ? '✅' : '❌'}</span></p>
+            <p>role.toLowerCase() === &apos;admin&apos;: <span className={debugInfo?.roleComparison?.lowercase ? 'text-green-600' : 'text-red-600'}>{debugInfo?.roleComparison?.lowercase ? '✅' : '❌'}</span></p>
+            <p>role.trim() === &apos;admin&apos;: <span className={debugInfo?.roleComparison?.trimmed ? 'text-green-600' : 'text-red-600'}>{debugInfo?.roleComparison?.trimmed ? '✅' : '❌'}</span></p>
           </div>
         </div>
 
@@ -173,7 +173,7 @@ export default function DebugAuthPage() {
             <h2 className="text-xl font-semibold mb-4">⚠️ Diagnostic Results</h2>
             {debugInfo?.isRoleAdmin ? (
               <div className="space-y-2">
-                <p className="text-green-600 font-bold">✅ Role is 'admin' in database</p>
+                <p className="text-green-600 font-bold">✅ Role is &apos;admin&apos; in database</p>
                 {debugInfo?.tokenPayload && !debugInfo?.isTokenRoleAdmin && (
                   <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
                     <p className="text-red-600 font-bold">❌ PROBLEM FOUND: Token still has old role!</p>
@@ -184,15 +184,15 @@ export default function DebugAuthPage() {
                 {debugInfo?.tokenPayload && debugInfo?.isTokenRoleAdmin && (
                   <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded">
                     <p className="text-green-600 font-bold">✅ Everything looks good!</p>
-                    <p className="mt-2">Both database role and token role are 'admin'. You should be able to access admin pages.</p>
+                    <p className="mt-2">Both database role and token role are &apos;admin&apos;. You should be able to access admin pages.</p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-red-600 font-bold">❌ Role is NOT 'admin' in database</p>
+                <p className="text-red-600 font-bold">❌ Role is NOT &apos;admin&apos; in database</p>
                 <p>Current role: <code>{JSON.stringify(debugInfo?.userRole)}</code></p>
-                <p className="mt-2">Solution: Update role in database to 'admin' first. See instructions in FIX_ADMIN_REDIRECT.md</p>
+                <p className="mt-2">Solution: Update role in database to &apos;admin&apos; first. See instructions in FIX_ADMIN_REDIRECT.md</p>
               </div>
             )}
           </div>

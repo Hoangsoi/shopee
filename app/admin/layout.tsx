@@ -19,6 +19,7 @@ const menuItems = [
   { path: '/admin/products', label: 'Sản phẩm', icon: '🛍️', countKey: null },
   { path: '/admin/orders', label: 'Đơn hàng', icon: '📦', countKey: 'pendingOrders' },
   { path: '/admin/transactions', label: 'Giao dịch', icon: '💳', countKey: 'pendingWithdrawals' },
+  { path: '/admin/investments', label: 'Đầu tư', icon: '📈', countKey: null },
   { path: '/admin/bank-accounts', label: 'Ngân hàng', icon: '🏦', countKey: null },
   { path: '/admin/notifications', label: 'Thông báo', icon: '📢', countKey: null },
   { path: '/admin/banners', label: 'Banner', icon: '🖼️', countKey: null },

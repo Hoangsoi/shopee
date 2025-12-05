@@ -105,27 +105,31 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
     })
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return (
-          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-            Đang hoạt động
-          </span>
-        )
-      case 'completed':
-        return (
-          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-            Đã hoàn thành
-          </span>
-        )
-      default:
-        return (
-          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-            {status}
-          </span>
-        )
+  const getStatusBadge = (status: string, maturityDate: string | null) => {
+    // Kiểm tra thời gian đáo hạn để hiển thị chính xác
+    const isExpired = maturityDate && new Date(maturityDate) <= new Date();
+    
+    if (status === 'completed' || isExpired) {
+      return (
+        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+          Kết thúc
+        </span>
+      )
     }
+    
+    if (status === 'active') {
+      return (
+        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+          Đang hoạt động
+        </span>
+      )
+    }
+    
+    return (
+      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+        {status}
+      </span>
+    )
   }
 
   if (!isOpen) return null
@@ -174,7 +178,7 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                         <span className="text-lg font-bold text-gray-900">
                           {formatCurrency(investment.amount)}
                         </span>
-                        {getStatusBadge(investment.status)}
+                        {getStatusBadge(investment.status, investment.maturity_date)}
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                         <div>

@@ -57,6 +57,17 @@ export async function GET(request: NextRequest) {
       // Bảng đã tồn tại, tiếp tục
     }
 
+    // Tự động cập nhật status dựa trên maturity_date trước khi lấy dữ liệu
+    // Cập nhật các đầu tư đã đáo hạn (maturity_date <= now()) thành 'completed'
+    await sql`
+      UPDATE investments
+      SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ${decoded.userId}
+        AND status = 'active'
+        AND maturity_date IS NOT NULL
+        AND maturity_date <= CURRENT_TIMESTAMP
+    `;
+
     // Lấy tất cả đầu tư của user
     const investments = await sql`
       SELECT 

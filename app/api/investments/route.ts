@@ -86,6 +86,45 @@ export async function GET(request: NextRequest) {
       ORDER BY created_at DESC
     `;
 
+    // Tính lợi nhuận real-time cho các đầu tư đang hoạt động
+    const now = new Date();
+    for (const inv of investments) {
+      if (inv.status === 'active' && inv.maturity_date && new Date(inv.maturity_date) > now) {
+        const amount = parseFloat(inv.amount.toString());
+        const dailyRate = parseFloat(inv.daily_profit_rate.toString()) / 100;
+        const days = inv.investment_days || 1;
+        const createdDate = new Date(inv.created_at);
+        const lastCalculated = inv.last_profit_calculated_at 
+          ? new Date(inv.last_profit_calculated_at) 
+          : createdDate;
+        
+        // Tính số ngày đã trôi qua từ lần tính cuối cùng
+        const daysSinceLastCalculation = Math.floor((now.getTime() - lastCalculated.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceLastCalculation >= 1) {
+          // Tính lợi nhuận cho số ngày đã trôi qua
+          const daysToCalculate = Math.min(daysSinceLastCalculation, days);
+          const profitForPeriod = amount * dailyRate * daysToCalculate;
+          const currentProfit = parseFloat(inv.total_profit?.toString() || '0');
+          const newTotalProfit = currentProfit + profitForPeriod;
+          
+          // Cập nhật lợi nhuận trong database
+          await sql`
+            UPDATE investments
+            SET 
+              total_profit = ${newTotalProfit},
+              last_profit_calculated_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${inv.id}
+          `;
+          
+          // Cập nhật giá trị trong object để trả về
+          inv.total_profit = newTotalProfit;
+          inv.last_profit_calculated_at = now.toISOString();
+        }
+      }
+    }
+
     // Lấy transactions liên quan đến đầu tư (hoàn gốc và hoa hồng)
     const investmentIds = investments.map((inv: any) => inv.id);
     let returnTransactions: any[] = [];

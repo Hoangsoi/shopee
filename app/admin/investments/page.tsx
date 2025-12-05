@@ -40,6 +40,7 @@ export default function AdminInvestmentsPage() {
   const [issues, setIssues] = useState<InvestmentIssues | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [calculatingProfit, setCalculatingProfit] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -102,6 +103,33 @@ export default function AdminInvestmentsPage() {
     }
   }
 
+  const handleCalculateProfit = async () => {
+    if (!confirm('Bạn có chắc chắn muốn tính lợi nhuận cho tất cả đầu tư đang hoạt động?')) {
+      return
+    }
+
+    try {
+      setCalculatingProfit(true)
+      const response = await fetch('/api/cron/calculate-daily-profit', {
+        method: 'GET',
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Đã tính lợi nhuận thành công!\n- Đã xử lý: ${data.processed_count} đầu tư`)
+        fetchInvestments()
+      } else {
+        const error = await response.json()
+        alert(`Lỗi: ${error.error || 'Không thể tính lợi nhuận'}`)
+      }
+    } catch (error) {
+      console.error('Error calculating profit:', error)
+      alert('Lỗi khi tính lợi nhuận')
+    } finally {
+      setCalculatingProfit(false)
+    }
+  }
+
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -127,7 +155,7 @@ export default function AdminInvestmentsPage() {
     
     if (status === 'completed' || isExpired) {
       return (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-800">
           Kết thúc
         </span>
       )
@@ -135,14 +163,14 @@ export default function AdminInvestmentsPage() {
     
     if (status === 'active') {
       return (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-          Đang hoạt động
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-800">
+          Hoạt động
         </span>
       )
     }
     
     return (
-      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-800">
         {status}
       </span>
     )
@@ -169,85 +197,92 @@ export default function AdminInvestmentsPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
-      <div className="p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Quản lý đầu tư</h2>
+      <div className="p-3">
+        <div className="mb-3">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Quản lý đầu tư</h2>
           
-          {/* Thống kê */}
+          {/* Thống kê - Compact */}
           {stats && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <p className="text-sm text-gray-600 mb-1">Tổng số đầu tư</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Đang hoạt động: {stats.active_count} | Kết thúc: {stats.completed_count}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+              <div className="bg-white rounded shadow-sm p-2">
+                <p className="text-xs text-gray-600">Tổng số</p>
+                <p className="text-lg font-bold text-blue-600">{stats.total}</p>
+                <p className="text-xs text-gray-500">
+                  {stats.active_count} đang hoạt động | {stats.completed_count} kết thúc
                 </p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <p className="text-sm text-gray-600 mb-1">Tổng tiền đang đầu tư</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="bg-white rounded shadow-sm p-2">
+                <p className="text-xs text-gray-600">Đang đầu tư</p>
+                <p className="text-sm font-bold text-green-600">
                   {formatCurrency(stats.total_active_amount)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Lợi nhuận: {formatCurrency(stats.total_active_profit)}
+                <p className="text-xs text-gray-500">
+                  LN: {formatCurrency(stats.total_active_profit)}
                 </p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <p className="text-sm text-gray-600 mb-1">Tổng tiền đã kết thúc</p>
-                <p className="text-2xl font-bold text-gray-600">
+              <div className="bg-white rounded shadow-sm p-2">
+                <p className="text-xs text-gray-600">Đã kết thúc</p>
+                <p className="text-sm font-bold text-gray-600">
                   {formatCurrency(stats.total_completed_amount)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Lợi nhuận: {formatCurrency(stats.total_completed_profit)}
+                <p className="text-xs text-gray-500">
+                  LN: {formatCurrency(stats.total_completed_profit)}
                 </p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <p className="text-sm text-gray-600 mb-1">Vấn đề cần xử lý</p>
+              <div className="bg-white rounded shadow-sm p-2">
+                <p className="text-xs text-gray-600">Vấn đề</p>
                 {issues && (issues.expired_but_active > 0 || issues.not_expired_but_completed > 0) ? (
                   <>
-                    <p className="text-2xl font-bold text-red-600">
+                    <p className="text-lg font-bold text-red-600">
                       {issues.expired_but_active + issues.not_expired_but_completed}
                     </p>
-                    <p className="text-xs text-red-600 mt-1">
-                      {issues.expired_but_active > 0 && `${issues.expired_but_active} đã đáo hạn nhưng vẫn active`}
+                    <p className="text-xs text-red-600">
+                      {issues.expired_but_active > 0 && `${issues.expired_but_active} đáo hạn`}
                       {issues.expired_but_active > 0 && issues.not_expired_but_completed > 0 && ' | '}
-                      {issues.not_expired_but_completed > 0 && `${issues.not_expired_but_completed} chưa đáo hạn nhưng đã completed`}
+                      {issues.not_expired_but_completed > 0 && `${issues.not_expired_but_completed} sai trạng thái`}
                     </p>
                   </>
                 ) : (
                   <>
-                    <p className="text-2xl font-bold text-green-600">0</p>
-                    <p className="text-xs text-green-600 mt-1">Không có vấn đề</p>
+                    <p className="text-lg font-bold text-green-600">0</p>
+                    <p className="text-xs text-green-600">OK</p>
                   </>
                 )}
               </div>
             </div>
           )}
 
-          {/* Nút cập nhật trạng thái */}
-          <div className="mb-4 flex gap-2">
+          {/* Nút cập nhật trạng thái và tính lợi nhuận - Compact */}
+          <div className="mb-2 flex gap-2 flex-wrap">
             <button
               onClick={handleUpdateStatus}
               disabled={updating}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {updating ? 'Đang cập nhật...' : '🔄 Cập nhật trạng thái tất cả'}
+              {updating ? 'Đang cập nhật...' : '🔄 Cập nhật trạng thái'}
+            </button>
+            <button
+              onClick={handleCalculateProfit}
+              disabled={calculatingProfit}
+              className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {calculatingProfit ? 'Đang tính...' : '💰 Tính lợi nhuận'}
             </button>
           </div>
 
-          {/* Filters */}
-          <div className="mb-4 flex gap-4 items-center">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Lọc theo trạng thái:
+          {/* Filters - Compact */}
+          <div className="mb-2 flex gap-2 items-end">
+            <div className="flex-shrink-0">
+              <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                Trạng thái:
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="all">Tất cả</option>
                 <option value="active">Đang hoạt động</option>
@@ -256,97 +291,95 @@ export default function AdminInvestmentsPage() {
             </div>
 
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 mb-0.5">
                 Tìm kiếm:
               </label>
               <input
                 type="text"
-                placeholder="Email, tên, SĐT hoặc ID đầu tư..."
+                placeholder="Email, tên, SĐT, ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
         </div>
 
-        {/* Danh sách đầu tư */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+        {/* Danh sách đầu tư - Compact */}
+        <div className="bg-white rounded shadow-sm overflow-hidden">
+          <div className="overflow-x-auto max-h-[calc(100vh-300px)]">
+            <table className="min-w-full divide-y divide-gray-200 text-xs">
+              <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                     ID
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                     Người dùng
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                     Số tiền
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Lãi suất
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
+                    Lãi
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Số ngày
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
+                    Ngày
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                     Lợi nhuận
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                     Trạng thái
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ngày đáo hạn
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
+                    Đáo hạn
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ngày tạo
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
+                    Tạo
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredInvestments.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={9} className="px-2 py-4 text-center text-gray-500 text-xs">
                       Không có đầu tư nào
                     </td>
                   </tr>
                 ) : (
                   filteredInvestments.map((inv) => (
                     <tr key={inv.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-2 py-1 whitespace-nowrap text-xs font-medium text-gray-900">
                         #{inv.id}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{inv.user_name || 'N/A'}</div>
-                          <div className="text-gray-500 text-xs">{inv.user_email}</div>
-                          {inv.user_phone && (
-                            <div className="text-gray-500 text-xs">{inv.user_phone}</div>
-                          )}
-                        </div>
+                      <td className="px-2 py-1 text-xs text-gray-900">
+                        <div className="font-medium">{inv.user_name || 'N/A'}</div>
+                        <div className="text-gray-500 text-[10px]">{inv.user_email}</div>
+                        {inv.user_phone && (
+                          <div className="text-gray-500 text-[10px]">{inv.user_phone}</div>
+                        )}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                      <td className="px-2 py-1 whitespace-nowrap text-xs font-semibold text-gray-900">
                         {formatCurrency(inv.amount)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {inv.daily_profit_rate}%/ngày
+                      <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
+                        {inv.daily_profit_rate}%
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {inv.investment_days} ngày
+                      <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
+                        {inv.investment_days}d
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">
+                      <td className="px-2 py-1 whitespace-nowrap text-xs font-semibold text-green-600">
                         {formatCurrency(inv.total_profit)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <td className="px-2 py-1 whitespace-nowrap">
                         {getStatusBadge(inv.status, inv.maturity_date)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(inv.maturity_date)}
+                      <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
+                        {inv.maturity_date ? new Date(inv.maturity_date).toLocaleDateString('vi-VN') : 'N/A'}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(inv.created_at)}
+                      <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-500">
+                        {new Date(inv.created_at).toLocaleDateString('vi-VN')}
                       </td>
                     </tr>
                   ))
@@ -356,9 +389,9 @@ export default function AdminInvestmentsPage() {
           </div>
         </div>
 
-        {/* Pagination info */}
+        {/* Pagination info - Compact */}
         {filteredInvestments.length > 0 && (
-          <div className="mt-4 text-sm text-gray-600">
+          <div className="mt-2 text-xs text-gray-600">
             Hiển thị {filteredInvestments.length} / {investments.length} đầu tư
           </div>
         )}

@@ -111,7 +111,7 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
     
     if (status === 'completed' || isExpired) {
       return (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-800">
           Kết thúc
         </span>
       )
@@ -119,14 +119,14 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
     
     if (status === 'active') {
       return (
-        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-          Đang hoạt động
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-800">
+          Hoạt động
         </span>
       )
     }
     
     return (
-      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-800">
         {status}
       </span>
     )
@@ -135,26 +135,26 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-6 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
+        {/* Header - Compact */}
+        <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-3 text-white">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">📈</span>
-              <h2 className="text-xl md:text-2xl font-bold">Lịch sử đầu tư</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📈</span>
+              <h2 className="text-lg font-bold">Lịch sử đầu tư</h2>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-full transition-colors"
+              className="p-1 hover:bg-white/20 rounded transition-colors"
             >
-              <span className="text-2xl">✕</span>
+              <span className="text-lg">✕</span>
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content - Compact */}
+        <div className="flex-1 overflow-y-auto p-3">
           {loading ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
@@ -166,31 +166,30 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
               <p className="text-gray-600 text-lg">Chưa có khoản đầu tư nào</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {investments.map((investment) => (
                 <div
                   key={investment.id}
-                  className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                  className="border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-1.5">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg font-bold text-gray-900">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-gray-900">
                           {formatCurrency(investment.amount)}
                         </span>
                         {getStatusBadge(investment.status, investment.maturity_date)}
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                      <div className="grid grid-cols-3 gap-1 text-xs text-gray-600">
                         <div>
-                          <span className="font-semibold">Tỷ lệ lợi nhuận:</span>{' '}
-                          {investment.daily_profit_rate}%/ngày
+                          <span className="font-medium">Lãi:</span> {investment.daily_profit_rate}%/ngày
                         </div>
                         <div>
-                          <span className="font-semibold">Số ngày:</span> {investment.investment_days} ngày
+                          <span className="font-medium">Ngày:</span> {investment.investment_days}d
                         </div>
                         {investment.total_profit > 0 && (
-                          <div className="col-span-2">
-                            <span className="font-semibold">Lợi nhuận:</span>{' '}
+                          <div>
+                            <span className="font-medium">LN:</span>{' '}
                             <span className="text-green-600 font-bold">
                               {formatCurrency(investment.total_profit)}
                             </span>
@@ -200,43 +199,43 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                     </div>
                   </div>
 
-                  <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Ngày bắt đầu:</span>
+                  <div className="border-t border-gray-100 pt-1.5 mt-1.5 space-y-1">
+                    <div className="flex items-center justify-between text-[10px] text-gray-500">
+                      <span>Bắt đầu:</span>
                       <span className="font-medium">{formatDate(investment.created_at)}</span>
                     </div>
                     {investment.maturity_date && (
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>Ngày đáo hạn:</span>
+                      <div className="flex items-center justify-between text-[10px] text-gray-500">
+                        <span>Đáo hạn:</span>
                         <span className="font-medium">{formatDate(investment.maturity_date)}</span>
                       </div>
                     )}
                     {investment.status === 'active' && investment.maturity_date && (
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                        <span className="text-xs font-semibold text-gray-700">Thời gian còn lại:</span>
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                        <span className="text-[10px] font-semibold text-gray-700">Còn lại:</span>
                         <CountdownTimer targetDate={investment.maturity_date} />
                       </div>
                     )}
                     
-                    {/* Hiển thị thông tin hoàn trả cho investment đã hoàn thành */}
+                    {/* Hiển thị thông tin hoàn trả cho investment đã hoàn thành - Compact */}
                     {investment.status === 'completed' && (
-                      <div className="pt-3 border-t border-gray-200 mt-3">
-                        <div className="text-xs font-semibold text-gray-700 mb-2">Thông tin hoàn trả:</div>
+                      <div className="pt-1.5 border-t border-gray-200 mt-1.5">
+                        <div className="text-[10px] font-semibold text-gray-700 mb-1">Hoàn trả:</div>
                         {(() => {
                           const returns = getReturnTransactionsForInvestment(investment)
                           if (returns.length === 0) {
                             // Nếu không tìm thấy transactions, hiển thị từ investment data
                             return (
-                              <div className="space-y-1.5 text-xs">
+                              <div className="space-y-0.5 text-[10px]">
                                 <div className="flex items-center justify-between text-gray-600">
-                                  <span>💰 Hoàn gốc:</span>
+                                  <span>Gốc:</span>
                                   <span className="font-semibold text-blue-600">
                                     {formatCurrency(investment.amount)}
                                   </span>
                                 </div>
                                 {investment.total_profit > 0 && (
                                   <div className="flex items-center justify-between text-gray-600">
-                                    <span>💵 Hoàn hoa hồng:</span>
+                                    <span>Hoa hồng:</span>
                                     <span className="font-semibold text-green-600">
                                       {formatCurrency(investment.total_profit)}
                                     </span>
@@ -246,7 +245,7 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                             )
                           }
                           return (
-                            <div className="space-y-1.5 text-xs">
+                            <div className="space-y-0.5 text-[10px]">
                               {returns.map((t) => {
                                 const isPrincipal = t.description.includes('Hoàn gốc đầu tư')
                                 return (
@@ -254,7 +253,7 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                                     key={t.id}
                                     className="flex items-center justify-between text-gray-600"
                                   >
-                                    <span>{isPrincipal ? '💰 Hoàn gốc:' : '💵 Hoàn hoa hồng:'}</span>
+                                    <span>{isPrincipal ? 'Gốc:' : 'Hoa hồng:'}</span>
                                     <div className="text-right">
                                       <span
                                         className={`font-semibold ${
@@ -263,8 +262,8 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                                       >
                                         {formatCurrency(t.amount)}
                                       </span>
-                                      <div className="text-[10px] text-gray-400 mt-0.5">
-                                        {formatDate(t.created_at)}
+                                      <div className="text-[9px] text-gray-400">
+                                        {new Date(t.created_at).toLocaleDateString('vi-VN')}
                                       </div>
                                     </div>
                                   </div>
@@ -282,11 +281,11 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
+        {/* Footer - Compact */}
+        <div className="border-t border-gray-200 p-2 bg-gray-50">
           <button
             onClick={onClose}
-            className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-red-600 transition-all shadow-lg"
+            className="w-full py-1.5 px-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-semibold rounded hover:from-orange-600 hover:to-red-600 transition-all"
           >
             Đóng
           </button>

@@ -46,7 +46,7 @@ export default function DebugRolePage() {
       const data = await response.json()
       setDebugInfo(data)
     } catch (error) {
-      setDebugInfo({ error: 'Lỗi kết nối đến server' })
+      setDebugInfo({ success: false, error: 'Lỗi kết nối đến server' })
     } finally {
       setLoading(false)
     }

@@ -54,12 +54,18 @@ export default function AdminInvestmentsPage() {
       const response = await fetch(url.toString())
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched investments data:', data)
         setInvestments(data.investments || [])
         setStats(data.stats || null)
         setIssues(data.issues || null)
+      } else {
+        const errorData = await response.json()
+        console.error('Error response:', errorData)
+        alert(`Lỗi: ${errorData.error || 'Không thể tải danh sách đầu tư'}`)
       }
     } catch (error) {
       console.error('Error fetching investments:', error)
+      alert('Lỗi khi tải danh sách đầu tư. Vui lòng kiểm tra console để xem chi tiết.')
     } finally {
       setLoading(false)
     }

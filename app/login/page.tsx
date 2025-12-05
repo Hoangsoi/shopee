@@ -64,13 +64,29 @@ export default function LoginPage() {
           }
         }
         
+        // Kiểm tra role (trim và lowercase để tránh lỗi)
+        const userRole = data.user?.role?.toString().trim().toLowerCase()
+        
+        // Debug logging
+        console.log('Login successful:', {
+          email: data.user?.email,
+          role: data.user?.role,
+          roleNormalized: userRole,
+          shouldRedirectToAdmin: userRole === 'admin'
+        })
+        
+        // Đợi một chút để đảm bảo cookie được set
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
         // Redirect theo role
-        if (data.user?.role === 'admin') {
-          router.push('/admin')
+        if (userRole === 'admin') {
+          console.log('Redirecting to /admin for admin user')
+          // Sử dụng window.location.href để đảm bảo redirect hoàn toàn
+          window.location.href = '/admin'
         } else {
-          router.push('/')
+          console.log('Redirecting to / for regular user')
+          window.location.href = '/'
         }
-        router.refresh()
       } else {
         setError(data.error || 'Đăng nhập thất bại')
       }

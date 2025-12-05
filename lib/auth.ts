@@ -71,10 +71,32 @@ export async function isAdmin(request: Request | { cookies: { get: (name: string
       return false;
     }
     
-    return users[0].role === 'admin';
+    // Normalize role để so sánh chính xác (trim và lowercase)
+    const dbRole = users[0].role?.toString().trim().toLowerCase() || 'user';
+    
+    // Debug logging trong development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('isAdmin check:', {
+        userId: decoded.userId,
+        dbRole: users[0].role,
+        dbRoleNormalized: dbRole,
+        isAdmin: dbRole === 'admin'
+      });
+    }
+    
+    return dbRole === 'admin';
   } catch (error) {
     // If database check fails, fallback to token role (less secure but better than nothing)
-    return decoded.role === 'admin';
+    const tokenRole = decoded.role?.toString().trim().toLowerCase() || 'user';
+    if (process.env.NODE_ENV === 'development') {
+      console.log('isAdmin fallback to token:', {
+        userId: decoded.userId,
+        tokenRole: decoded.role,
+        tokenRoleNormalized: tokenRole,
+        isAdmin: tokenRole === 'admin'
+      });
+    }
+    return tokenRole === 'admin';
   }
 }
 

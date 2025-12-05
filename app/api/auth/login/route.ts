@@ -63,8 +63,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Normalize role để đảm bảo chính xác
+    const userRole = user.role?.toString().trim() || 'user';
+    
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Login API:', {
+        email: user.email,
+        userId: user.id,
+        role: user.role,
+        roleNormalized: userRole,
+        isAdmin: userRole.toLowerCase() === 'admin'
+      });
+    }
+
     // Generate token với role (sử dụng email)
-    const token = generateToken(user.id, user.email, user.role || 'user');
+    const token = generateToken(user.id, user.email, userRole);
 
     // Set cookie
     const response = NextResponse.json(
@@ -74,7 +88,7 @@ export async function POST(request: NextRequest) {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role || 'user',
+          role: userRole, // Sử dụng role đã normalize
         },
         token,
       },

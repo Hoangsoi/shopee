@@ -19,6 +19,18 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'chupanhquangcao.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.chupanhquangcao.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   eslint: {

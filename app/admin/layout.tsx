@@ -54,13 +54,27 @@ export default function AdminLayout({
         const data = await response.json()
         const userData = data.user
         
-        if (userData.role !== 'admin') {
+        // Kiểm tra role (trim và lowercase để tránh lỗi)
+        const userRole = userData?.role?.toString().trim().toLowerCase()
+        
+        // Debug logging
+        console.log('Admin layout checkAuth:', {
+          email: userData?.email,
+          role: userData?.role,
+          roleNormalized: userRole,
+          isAdmin: userRole === 'admin'
+        })
+        
+        if (userRole !== 'admin') {
+          console.log('User is not admin, redirecting to /')
           router.push('/')
           return
         }
         
+        console.log('User is admin, setting user data')
         setUser(userData)
       } else {
+        console.log('Auth check failed, redirecting to /login')
         router.push('/login')
       }
     } catch (error) {

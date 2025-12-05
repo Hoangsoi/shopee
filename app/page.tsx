@@ -110,11 +110,14 @@ export default function Home() {
         const data = await response.json()
         const userData = data.user
         
-                // Nếu là admin, redirect đến trang admin dashboard
-                if (userData.role === 'admin') {
-                  router.push('/admin/dashboard')
-                  return
-                }
+        // Kiểm tra role (trim và lowercase để tránh lỗi)
+        const userRole = userData?.role?.toString().trim().toLowerCase()
+        
+        // Nếu là admin, redirect đến trang admin dashboard
+        if (userRole === 'admin') {
+          router.push('/admin/dashboard')
+          return
+        }
         
         setUser(userData)
         

@@ -631,11 +631,11 @@ export async function POST(request: NextRequest) {
     // Thêm dữ liệu mẫu cho banners
     await sql`
       INSERT INTO banners (image_url, title, is_active, sort_order) VALUES
-      ('https://images.unsplash.com/photo-1607082349566-187342175e2f?w=800', 'Banner 1', true, 1),
-      ('https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800', 'Banner 2', true, 2),
-      ('https://images.unsplash.com/photo-1607082349566-187342175e2f?w=800', 'Banner 3', true, 3),
-      ('https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800', 'Banner 4', true, 4),
-      ('https://images.unsplash.com/photo-1607082349566-187342175e2f?w=800', 'Banner 5', true, 5)
+      ('https://images.unsplash.com/photo-1607082349566-187342175e2f', 'Banner 1', true, 1),
+      ('https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da', 'Banner 2', true, 2),
+      ('https://images.unsplash.com/photo-1607082349566-187342175e2f', 'Banner 3', true, 3),
+      ('https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da', 'Banner 4', true, 4),
+      ('https://images.unsplash.com/photo-1607082349566-187342175e2f', 'Banner 5', true, 5)
       ON CONFLICT DO NOTHING
     `;
     safeLog('✓ Dữ liệu mẫu banners đã được thêm');

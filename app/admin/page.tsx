@@ -7,8 +7,10 @@ export default function AdminPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.push('/admin/dashboard')
-  }, [router])
+    // Sử dụng window.location.href để đảm bảo redirect hoàn toàn
+    console.log('AdminPage: Redirecting to /admin/dashboard')
+    window.location.href = '/admin/dashboard'
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">

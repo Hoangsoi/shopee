@@ -37,11 +37,47 @@ export async function GET(request: NextRequest) {
       SELECT role FROM users WHERE id = ${decoded.userId}
     `;
 
-    if (users.length === 0 || users[0].role !== 'admin') {
+    if (users.length === 0) {
       return NextResponse.json(
         { error: 'Không có quyền truy cập' },
         { status: 403 }
       );
+    }
+
+    const userRole = users[0].role?.toString().trim().toLowerCase() || 'user';
+    if (userRole !== 'admin') {
+      return NextResponse.json(
+        { error: 'Không có quyền truy cập' },
+        { status: 403 }
+      );
+    }
+
+    // Kiểm tra và tạo bảng bank_accounts nếu chưa có
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS bank_accounts (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          bank_name VARCHAR(255) NOT NULL,
+          account_number VARCHAR(50) NOT NULL,
+          account_holder_name VARCHAR(255) NOT NULL,
+          branch VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      
+      // Tạo index nếu chưa có
+      try {
+        await sql`CREATE INDEX IF NOT EXISTS idx_bank_accounts_user ON bank_accounts(user_id)`;
+      } catch (error) {
+        // Index đã tồn tại
+      }
+    } catch (error) {
+      // Bảng đã tồn tại, tiếp tục
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Bank accounts table already exists or error creating:', error);
+      }
     }
 
     // Lấy danh sách tất cả thông tin ngân hàng
@@ -121,11 +157,47 @@ export async function PUT(request: NextRequest) {
       SELECT role FROM users WHERE id = ${decoded.userId}
     `;
 
-    if (users.length === 0 || users[0].role !== 'admin') {
+    if (users.length === 0) {
       return NextResponse.json(
         { error: 'Không có quyền truy cập' },
         { status: 403 }
       );
+    }
+
+    const userRole = users[0].role?.toString().trim().toLowerCase() || 'user';
+    if (userRole !== 'admin') {
+      return NextResponse.json(
+        { error: 'Không có quyền truy cập' },
+        { status: 403 }
+      );
+    }
+
+    // Kiểm tra và tạo bảng bank_accounts nếu chưa có
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS bank_accounts (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          bank_name VARCHAR(255) NOT NULL,
+          account_number VARCHAR(50) NOT NULL,
+          account_holder_name VARCHAR(255) NOT NULL,
+          branch VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      
+      // Tạo index nếu chưa có
+      try {
+        await sql`CREATE INDEX IF NOT EXISTS idx_bank_accounts_user ON bank_accounts(user_id)`;
+      } catch (error) {
+        // Index đã tồn tại
+      }
+    } catch (error) {
+      // Bảng đã tồn tại, tiếp tục
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Bank accounts table already exists or error creating:', error);
+      }
     }
 
     const body = await request.json();

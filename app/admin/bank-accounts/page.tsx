@@ -29,16 +29,21 @@ export default function BankAccountsPage() {
 
   const fetchBankAccounts = useCallback(async () => {
     try {
+      setLoading(true)
       const response = await fetch('/api/admin/bank-accounts')
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched bank accounts data:', data)
         setBankAccounts(data.bank_accounts || [])
+        setMessage(null)
       } else {
-        setMessage({ type: 'error', text: 'Lỗi khi tải danh sách tài khoản ngân hàng' })
+        const errorData = await response.json()
+        console.error('Error response:', errorData)
+        setMessage({ type: 'error', text: errorData.error || 'Lỗi khi tải danh sách tài khoản ngân hàng' })
       }
     } catch (error) {
       console.error('Error fetching bank accounts:', error)
-      setMessage({ type: 'error', text: 'Lỗi kết nối khi tải danh sách tài khoản ngân hàng' })
+      setMessage({ type: 'error', text: 'Lỗi kết nối khi tải danh sách tài khoản ngân hàng. Vui lòng kiểm tra console để xem chi tiết.' })
     } finally {
       setLoading(false)
     }

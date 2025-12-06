@@ -2,18 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { isAdmin, verifyToken, hashPassword } from '@/lib/auth';
 import { z } from 'zod';
+import { handleError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 const updateUserSchema = z.object({
   user_id: z.number().int().positive('ID người dùng không hợp lệ'),
-  name: z.string().optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  agent_code: z.string().optional(),
-  role: z.enum(['user', 'admin']).optional(),
-  wallet_balance: z.number().optional(),
-  commission: z.number().optional(),
+  name: z.string().max(255, 'Tên không được vượt quá 255 ký tự').optional(),
+  email: z.string().email('Email không hợp lệ').max(255, 'Email không được vượt quá 255 ký tự').optional(),
+  phone: z.string().regex(/^[0-9]{10,11}$/, 'Số điện thoại phải có 10-11 chữ số').optional(),
+  agent_code: z.string().max(50, 'Mã đại lý không được vượt quá 50 ký tự').optional(),
+  role: z.enum(['user', 'admin'], {
+    errorMap: () => ({ message: 'Vai trò phải là user hoặc admin' }),
+  }).optional(),
+  wallet_balance: z.number()
+    .min(0, 'Số dư ví không được âm')
+    .max(1000000000, 'Số dư ví không được vượt quá 1 tỷ VNĐ')
+    .optional(),
+  commission: z.number()
+    .min(0, 'Hoa hồng không được âm')
+    .max(1000000000, 'Hoa hồng không được vượt quá 1 tỷ VNĐ')
+    .optional(),
   is_frozen: z.boolean().optional(),
-  password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự').optional(),
+  password: z.string()
+    .min(6, 'Mật khẩu phải có ít nhất 6 ký tự')
+    .max(100, 'Mật khẩu không được vượt quá 100 ký tự')
+    .optional(),
 });
 
 // Admin check is now handled by lib/auth.ts isAdmin() function
@@ -50,14 +63,14 @@ export async function GET(request: NextRequest) {
       if (checkColumn.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN is_frozen BOOLEAN DEFAULT false`;
         if (process.env.NODE_ENV === 'development') {
-          console.log('✓ Đã thêm cột is_frozen vào bảng users');
+          logger.info('Đã thêm cột is_frozen vào bảng users');
         }
       }
     } catch (error: any) {
       // Bỏ qua lỗi nếu cột đã tồn tại
       if (!error.message?.includes('already exists') && !error.message?.includes('duplicate')) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('Error checking is_frozen column:', error);
+          logger.error('Error checking is_frozen column', error instanceof Error ? error : new Error(String(error)));
         }
       }
     }
@@ -141,7 +154,7 @@ export async function GET(request: NextRequest) {
     } catch (error: any) {
       // Nếu lỗi do cột is_frozen chưa tồn tại, thử query lại không có cột đó
       if (error.message?.includes('is_frozen') || error.message?.includes('column')) {
-        console.log('Retrying query without is_frozen column...');
+        logger.debug('Retrying query without is_frozen column...');
         if (search) {
           users = await sql`
             SELECT 
@@ -207,11 +220,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Get users error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi lấy danh sách người dùng', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    logger.error('Get users error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -306,18 +316,8 @@ export async function PUT(request: NextRequest) {
               },
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Update user error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi cập nhật thông tin người dùng' },
-      { status: 500 }
-    );
+    logger.error('Update user error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -367,11 +367,8 @@ export async function DELETE(request: NextRequest) {
       message: 'Xóa người dùng thành công',
     });
   } catch (error) {
-    console.error('Delete user error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi xóa người dùng' },
-      { status: 500 }
-    );
+    logger.error('Delete user error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 

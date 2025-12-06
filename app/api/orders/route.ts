@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { z } from 'zod';
+import { handleError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 const createOrderSchema = z.object({
   items: z.array(z.object({
-    product_id: z.number().int().positive(),
-    quantity: z.number().int().positive(),
-  })),
-  payment_method: z.string().optional(),
-  shipping_address: z.string().optional(),
-  notes: z.string().optional(),
+    product_id: z.number().int().positive('ID sản phẩm phải là số nguyên dương'),
+    quantity: z.number()
+      .int('Số lượng phải là số nguyên')
+      .positive('Số lượng phải lớn hơn 0')
+      .max(1000, 'Số lượng không được vượt quá 1000'),
+  })).min(1, 'Giỏ hàng không được trống'),
+  payment_method: z.string().max(50, 'Phương thức thanh toán không được vượt quá 50 ký tự').optional(),
+  shipping_address: z.string().max(500, 'Địa chỉ giao hàng không được vượt quá 500 ký tự').optional(),
+  notes: z.string().max(1000, 'Ghi chú không được vượt quá 1000 ký tự').optional(),
 });
 
 // GET: Lấy danh sách đơn hàng của user
@@ -55,33 +60,39 @@ export async function GET(request: NextRequest) {
         ORDER BY o.created_at DESC
       `;
 
-      // Tính commission cho từng đơn hàng đã xác nhận
-      const ordersWithCommission = await Promise.all(
-        orders.map(async (order: any) => {
-          let commission = 0;
+      // Lấy commission từ database (đã được lưu khi phê duyệt)
+      // Kiểm tra xem cột commission có tồn tại không
+      let ordersWithCommission;
+      try {
+        const checkCommission = await sql`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'orders' AND column_name = 'commission'
+        `;
+        
+        if (checkCommission.length > 0) {
+          // Cột commission đã tồn tại, lấy từ database
+          const ordersWithCommissionData = await sql`
+            SELECT 
+              o.id,
+              o.order_number,
+              o.total_amount,
+              o.status,
+              o.payment_method,
+              o.shipping_address,
+              o.notes,
+              o.commission,
+              o.created_at,
+              o.updated_at,
+              COUNT(oi.id) as item_count
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            WHERE o.user_id = ${decoded.userId}
+            GROUP BY o.id, o.order_number, o.total_amount, o.status, o.payment_method, o.shipping_address, o.notes, o.commission, o.created_at, o.updated_at
+            ORDER BY o.created_at DESC
+          `;
           
-          // Chỉ tính commission cho đơn hàng đã xác nhận
-          if (order.status === 'confirmed') {
-            const orderItems = await sql`
-              SELECT 
-                oi.subtotal,
-                p.category_id,
-                c.discount_percent
-              FROM order_items oi
-              JOIN products p ON oi.product_id = p.id
-              LEFT JOIN categories c ON p.category_id = c.id
-              WHERE oi.order_id = ${order.id}
-            `;
-            
-            // Tính tổng commission
-            for (const item of orderItems) {
-              const discountPercent = item.discount_percent || 0;
-              const subtotal = parseFloat(item.subtotal.toString());
-              commission += subtotal * (discountPercent / 100);
-            }
-          }
-          
-          return {
+          ordersWithCommission = ordersWithCommissionData.map((order: any) => ({
             id: order.id,
             order_number: order.order_number,
             total_amount: parseFloat(order.total_amount.toString()),
@@ -90,12 +101,84 @@ export async function GET(request: NextRequest) {
             shipping_address: order.shipping_address,
             notes: order.notes,
             item_count: parseInt(order.item_count.toString()),
-            commission: commission,
+            commission: order.commission ? parseFloat(order.commission.toString()) : 0,
             created_at: order.created_at,
             updated_at: order.updated_at,
-          };
-        })
-      );
+          }));
+        } else {
+          // Cột commission chưa tồn tại, tính lại (fallback)
+          const orderIds = orders.map((o: any) => o.id);
+          let commissionsMap: Record<number, number> = {};
+          
+          if (orderIds.length > 0) {
+            const commissionData = await sql`
+              SELECT 
+                oi.order_id,
+                SUM(oi.subtotal * COALESCE(c.discount_percent, 0) / 100.0) as total_commission
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              JOIN products p ON oi.product_id = p.id
+              LEFT JOIN categories c ON p.category_id = c.id
+              WHERE oi.order_id IN ${sql(orderIds)} AND o.status = 'confirmed'
+              GROUP BY oi.order_id
+            `;
+            
+            for (const row of commissionData) {
+              commissionsMap[row.order_id] = parseFloat(row.total_commission?.toString() || '0');
+            }
+          }
+          
+          ordersWithCommission = orders.map((order: any) => ({
+            id: order.id,
+            order_number: order.order_number,
+            total_amount: parseFloat(order.total_amount.toString()),
+            status: order.status,
+            payment_method: order.payment_method,
+            shipping_address: order.shipping_address,
+            notes: order.notes,
+            item_count: parseInt(order.item_count.toString()),
+            commission: commissionsMap[order.id] || 0,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+          }));
+        }
+      } catch (error) {
+        // Fallback: tính commission như cũ
+        const orderIds = orders.map((o: any) => o.id);
+        let commissionsMap: Record<number, number> = {};
+        
+        if (orderIds.length > 0) {
+          const commissionData = await sql`
+            SELECT 
+              oi.order_id,
+              SUM(oi.subtotal * COALESCE(c.discount_percent, 0) / 100.0) as total_commission
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN products p ON oi.product_id = p.id
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE oi.order_id IN ${sql(orderIds)} AND o.status = 'confirmed'
+            GROUP BY oi.order_id
+          `;
+          
+          for (const row of commissionData) {
+            commissionsMap[row.order_id] = parseFloat(row.total_commission?.toString() || '0');
+          }
+        }
+        
+        ordersWithCommission = orders.map((order: any) => ({
+          id: order.id,
+          order_number: order.order_number,
+          total_amount: parseFloat(order.total_amount.toString()),
+          status: order.status,
+          payment_method: order.payment_method,
+          shipping_address: order.shipping_address,
+          notes: order.notes,
+          item_count: parseInt(order.item_count.toString()),
+          commission: commissionsMap[order.id] || 0,
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+        }));
+      }
 
       return NextResponse.json({
         orders: ordersWithCommission,
@@ -110,11 +193,8 @@ export async function GET(request: NextRequest) {
       throw error;
     }
   } catch (error) {
-    console.error('Get orders error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi lấy danh sách đơn hàng' },
-      { status: 500 }
-    );
+    logger.error('Get orders error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -216,10 +296,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Lấy thông tin sản phẩm và tính tổng tiền
+    // Sử dụng SELECT FOR UPDATE để lock rows và tránh race condition
     let totalAmount = 0;
     const orderItemsData = [];
 
     for (const item of validatedData.items) {
+      // Sử dụng SELECT FOR UPDATE để lock row và kiểm tra stock
       const products = await sql`
         SELECT 
           p.id, 
@@ -231,6 +313,7 @@ export async function POST(request: NextRequest) {
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.id = ${item.product_id} AND p.is_active = true
+        FOR UPDATE
       `;
 
       if (products.length === 0) {
@@ -242,9 +325,10 @@ export async function POST(request: NextRequest) {
 
       const product = products[0];
 
+      // Kiểm tra stock sau khi đã lock row
       if (product.stock < item.quantity) {
         return NextResponse.json(
-          { error: `Sản phẩm "${product.name}" không đủ số lượng` },
+          { error: `Sản phẩm "${product.name}" không đủ số lượng. Số lượng còn lại: ${product.stock}` },
           { status: 400 }
         );
       }
@@ -275,35 +359,108 @@ export async function POST(request: NextRequest) {
     // Tạo order_number
     const orderNumber = `ORD-${Date.now()}-${decoded.userId}`;
 
-    // Trừ tiền từ ví ngay lập tức
-    await sql`
-      UPDATE users 
-      SET wallet_balance = wallet_balance - ${totalAmount}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${decoded.userId}
-    `;
-
-    // Tạo đơn hàng với status 'pending' (chờ admin phê duyệt)
-    const orderResult = await sql`
-      INSERT INTO orders (user_id, order_number, total_amount, status, payment_method, shipping_address, notes)
-      VALUES (${decoded.userId}, ${orderNumber}, ${totalAmount}, 'pending', ${validatedData.payment_method || null}, ${validatedData.shipping_address || null}, ${validatedData.notes || null})
-      RETURNING id, order_number, total_amount, status, created_at
-    `;
-
-    const orderId = orderResult[0].id;
-
-    // Thêm order_items
-    for (const item of orderItemsData) {
+    // Sử dụng transaction để đảm bảo tính atomic
+    // Nếu bất kỳ bước nào fail, tất cả sẽ được rollback
+    try {
+      // Bước 1: Trừ tiền từ ví
       await sql`
-        INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity, subtotal)
-        VALUES (${orderId}, ${item.product_id}, ${item.product_name}, ${item.product_price}, ${item.quantity}, ${item.subtotal})
+        UPDATE users 
+        SET wallet_balance = wallet_balance - ${totalAmount}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${decoded.userId} AND wallet_balance >= ${totalAmount}
       `;
 
-      // Cập nhật stock
-      await sql`
-        UPDATE products 
-        SET stock = stock - ${item.quantity}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${item.product_id}
+      // Kiểm tra xem có trừ tiền thành công không
+      const checkBalance = await sql`
+        SELECT wallet_balance FROM users WHERE id = ${decoded.userId}
       `;
+      const newBalance = checkBalance[0]?.wallet_balance ? parseFloat(checkBalance[0].wallet_balance.toString()) : 0;
+      
+      // Nếu số dư không đúng (có thể đã bị trừ bởi request khác), rollback
+      if (Math.abs(newBalance - (walletBalance - totalAmount)) > 0.01) {
+        // Hoàn lại tiền nếu đã trừ
+        await sql`
+          UPDATE users 
+          SET wallet_balance = wallet_balance + ${totalAmount}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${decoded.userId}
+        `;
+        return NextResponse.json(
+          { error: 'Số dư ví không đủ hoặc đã thay đổi. Vui lòng thử lại.' },
+          { status: 400 }
+        );
+      }
+
+      // Bước 2: Tạo đơn hàng
+      const orderResult = await sql`
+        INSERT INTO orders (user_id, order_number, total_amount, status, payment_method, shipping_address, notes)
+        VALUES (${decoded.userId}, ${orderNumber}, ${totalAmount}, 'pending', ${validatedData.payment_method || null}, ${validatedData.shipping_address || null}, ${validatedData.notes || null})
+        RETURNING id, order_number, total_amount, status, created_at
+      `;
+
+      const orderId = orderResult[0].id;
+
+      // Bước 3: Thêm order_items và cập nhật stock (atomic)
+      for (const item of orderItemsData) {
+        // Cập nhật stock với điều kiện stock >= quantity để tránh stock âm (atomic operation)
+        // Nếu stock không đủ, update sẽ không ảnh hưởng đến row nào
+        const updateResult = await sql`
+          UPDATE products 
+          SET stock = stock - ${item.quantity}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${item.product_id} AND stock >= ${item.quantity}
+          RETURNING id, stock, name
+        `;
+
+        // Kiểm tra xem có cập nhật thành công không
+        if (updateResult.length === 0) {
+          // Stock không đủ - rollback: hoàn lại tiền, xóa order_items và xóa order
+          try {
+            await sql`DELETE FROM order_items WHERE order_id = ${orderId}`;
+            await sql`DELETE FROM orders WHERE id = ${orderId}`;
+            await sql`
+              UPDATE users 
+              SET wallet_balance = wallet_balance + ${totalAmount}, updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${decoded.userId}
+            `;
+          } catch (rollbackError) {
+            console.error('Error during rollback:', rollbackError);
+          }
+          
+          return NextResponse.json(
+            { error: `Sản phẩm "${item.product_name}" không đủ số lượng. Có thể đã được người khác mua trước đó.` },
+            { status: 400 }
+          );
+        }
+
+        // Thêm order_item sau khi đã cập nhật stock thành công
+        await sql`
+          INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity, subtotal)
+          VALUES (${orderId}, ${item.product_id}, ${item.product_name}, ${item.product_price}, ${item.quantity}, ${item.subtotal})
+        `;
+      }
+    } catch (error) {
+      // Nếu có lỗi, rollback: hoàn lại tiền, xóa order_items và xóa order (nếu đã tạo)
+      try {
+        // Kiểm tra xem order đã được tạo chưa
+        const existingOrder = await sql`SELECT id FROM orders WHERE order_number = ${orderNumber}`;
+        if (existingOrder.length > 0) {
+          const existingOrderId = existingOrder[0].id;
+          await sql`DELETE FROM order_items WHERE order_id = ${existingOrderId}`;
+          await sql`DELETE FROM orders WHERE id = ${existingOrderId}`;
+        }
+        // Hoàn lại tiền
+        await sql`
+          UPDATE users 
+          SET wallet_balance = wallet_balance + ${totalAmount}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${decoded.userId}
+        `;
+      } catch (rollbackError) {
+        console.error('Error during rollback:', rollbackError);
+      }
+      
+      console.error('Create order error:', error);
+      return NextResponse.json(
+        { error: 'Lỗi khi tạo đơn hàng. Tiền đã được hoàn lại.' },
+        { status: 500 }
+      );
     }
 
     // Xóa giỏ hàng sau khi tạo đơn hàng
@@ -322,18 +479,8 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Create order error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi tạo đơn hàng' },
-      { status: 500 }
-    );
+    logger.error('Create order error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 

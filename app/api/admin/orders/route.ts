@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
+import { handleError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 const updateOrderStatusSchema = z.object({
   order_id: z.number().int().positive('ID đơn hàng không hợp lệ'),
   status: z.enum(['confirmed', 'cancelled'], {
     errorMap: () => ({ message: 'Status phải là confirmed hoặc cancelled' }),
   }),
-  rejection_reason: z.string().optional(), // Lý do từ chối (chỉ dùng khi status = 'cancelled')
+  rejection_reason: z.string().max(500, 'Lý do từ chối không được vượt quá 500 ký tự').optional(),
 });
 
 // Admin check is now handled by lib/auth.ts isAdmin() function
@@ -135,15 +137,8 @@ export async function GET(request: NextRequest) {
       throw dbError;
     }
   } catch (error: any) {
-    console.error('Get all orders error:', error);
-    console.error('Error details:', error.message, error.stack);
-    return NextResponse.json(
-      { 
-        error: 'Lỗi khi lấy danh sách đơn hàng',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: 500 }
-    );
+    logger.error('Get all orders error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -214,7 +209,24 @@ export async function PUT(request: NextRequest) {
       totalCommission += commission;
     }
 
-    // Cập nhật trạng thái đơn hàng và lý do từ chối (nếu có)
+    // Đảm bảo cột commission tồn tại trong bảng orders
+    try {
+      const checkCommission = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'orders' AND column_name = 'commission'
+      `;
+      if (checkCommission.length === 0) {
+        await sql`ALTER TABLE orders ADD COLUMN commission DECIMAL(15, 2) DEFAULT 0`;
+      }
+    } catch (error) {
+      // Column may already exist or table doesn't exist yet
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Commission column check:', error);
+      }
+    }
+
+    // Cập nhật trạng thái đơn hàng, commission và lý do từ chối (nếu có)
     const rejectionNote = status === 'cancelled' && rejection_reason 
       ? rejection_reason 
       : status === 'cancelled' 
@@ -225,6 +237,7 @@ export async function PUT(request: NextRequest) {
       UPDATE orders
       SET 
         status = ${status}, 
+        commission = ${status === 'confirmed' ? totalCommission : 0},
         notes = ${rejectionNote || null},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${order_id}
@@ -273,18 +286,8 @@ export async function PUT(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Update order status error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi cập nhật trạng thái đơn hàng' },
-      { status: 500 }
-    );
+    logger.error('Update order status error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 

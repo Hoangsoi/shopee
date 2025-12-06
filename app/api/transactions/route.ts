@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { z } from 'zod';
+import { handleError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 const createTransactionSchema = z.object({
-  type: z.enum(['deposit', 'withdraw']),
-  amount: z.number().positive(),
-  description: z.string().optional(),
+  type: z.enum(['deposit', 'withdraw'], {
+    errorMap: () => ({ message: 'Loại giao dịch phải là deposit hoặc withdraw' }),
+  }),
+  amount: z.number()
+    .positive('Số tiền phải lớn hơn 0')
+    .max(1000000000, 'Số tiền không được vượt quá 1 tỷ VNĐ')
+    .refine((val) => val >= 1000, 'Số tiền tối thiểu là 1,000 VNĐ'),
+  description: z.string().max(500, 'Mô tả không được vượt quá 500 ký tự').optional(),
 });
 
 // GET: Lấy lịch sử giao dịch (nạp/rút) của user
@@ -32,6 +39,29 @@ export async function GET(request: NextRequest) {
 
     // Kiểm tra xem bảng transactions có tồn tại không
     try {
+      // Lấy pagination params
+      const { searchParams } = new URL(request.url);
+      const page = parseInt(searchParams.get('page') || '1', 10);
+      const limit = parseInt(searchParams.get('limit') || '20', 10);
+      const offset = (page - 1) * limit;
+
+      // Validate pagination
+      if (page < 1 || limit < 1 || limit > 100) {
+        return NextResponse.json(
+          { error: 'Tham số pagination không hợp lệ. Page >= 1, Limit 1-100' },
+          { status: 400 }
+        );
+      }
+
+      // Lấy tổng số transactions
+      const countResult = await sql`
+        SELECT COUNT(*)::int as count
+        FROM transactions
+        WHERE user_id = ${decoded.userId}
+      `;
+      const totalCount = countResult[0]?.count || 0;
+
+      // Lấy transactions với pagination
       const transactions = await sql`
         SELECT 
           t.id,
@@ -47,6 +77,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN bank_accounts ba ON t.bank_account_id = ba.id
         WHERE t.user_id = ${decoded.userId}
         ORDER BY t.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
 
       return NextResponse.json({
@@ -61,6 +92,12 @@ export async function GET(request: NextRequest) {
           created_at: t.created_at,
           updated_at: t.updated_at,
         })),
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        },
       });
     } catch (error: any) {
       // Nếu bảng chưa tồn tại, trả về mảng rỗng
@@ -72,11 +109,8 @@ export async function GET(request: NextRequest) {
       throw error;
     }
   } catch (error) {
-    console.error('Get transactions error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi lấy lịch sử giao dịch' },
-      { status: 500 }
-    );
+    logger.error('Get transactions error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -218,18 +252,8 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Create transaction error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi tạo giao dịch' },
-      { status: 500 }
-    );
+    logger.error('Create transaction error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 

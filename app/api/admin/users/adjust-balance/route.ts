@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
+import { handleError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 const adjustBalanceSchema = z.object({
   user_id: z.number().int().positive('ID người dùng không hợp lệ'),
-  amount: z.number().positive('Số tiền phải lớn hơn 0'),
+  amount: z.number()
+    .positive('Số tiền phải lớn hơn 0')
+    .max(1000000000, 'Số tiền không được vượt quá 1 tỷ VNĐ')
+    .refine((val) => val >= 1000, 'Số tiền tối thiểu là 1,000 VNĐ'),
   type: z.enum(['add', 'subtract'], {
     errorMap: () => ({ message: 'Type phải là add hoặc subtract' }),
   }),
-  description: z.string().optional(),
+  description: z.string().max(500, 'Mô tả không được vượt quá 500 ký tự').optional(),
 });
 
 // Admin check is now handled by lib/auth.ts isAdmin() function
@@ -54,14 +59,31 @@ export async function POST(request: NextRequest) {
       ? currentBalance + amount 
       : currentBalance - amount;
 
-    // Cập nhật số dư ví
-    await sql`
+    // Validate số dư không được âm
+    if (newBalance < 0) {
+      return NextResponse.json(
+        { error: 'Số dư sau khi điều chỉnh không được âm' },
+        { status: 400 }
+      );
+    }
+
+    // Cập nhật số dư ví với điều kiện đảm bảo không âm
+    const updateResult = await sql`
       UPDATE users
       SET 
         wallet_balance = ${newBalance},
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${user_id}
+      WHERE id = ${user_id} AND (wallet_balance >= 0 OR ${type} = 'add')
+      RETURNING id, wallet_balance
     `;
+
+    // Kiểm tra xem có cập nhật thành công không
+    if (updateResult.length === 0) {
+      return NextResponse.json(
+        { error: 'Không thể cập nhật số dư. Vui lòng thử lại.' },
+        { status: 400 }
+      );
+    }
 
     // Nếu là cộng tiền (nạp tiền), tạo transaction và ghi lịch sử
     if (type === 'add') {
@@ -113,18 +135,8 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Adjust balance error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi cộng/trừ tiền' },
-      { status: 500 }
-    );
+    logger.error('Adjust balance error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 

@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { z } from 'zod';
+import { handleError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 const addToCartSchema = z.object({
-  product_id: z.number().int().positive(),
-  quantity: z.number().int().positive().default(1),
+  product_id: z.number().int().positive('ID sản phẩm phải là số nguyên dương'),
+  quantity: z.number()
+    .int('Số lượng phải là số nguyên')
+    .positive('Số lượng phải lớn hơn 0')
+    .max(1000, 'Số lượng không được vượt quá 1000')
+    .default(1),
 });
 
 // GET: Lấy giỏ hàng của user hiện tại
@@ -31,24 +37,65 @@ export async function GET(request: NextRequest) {
 
     // Kiểm tra xem bảng cart_items có tồn tại không
     try {
-      const cartItems = await sql`
-        SELECT 
-          ci.id,
-          ci.product_id,
-          ci.quantity,
-          p.name,
-          p.price,
-          p.original_price,
-          p.image_url,
-          p.stock,
-          c.name as category_name,
-          c.discount_percent
-        FROM cart_items ci
-        INNER JOIN products p ON ci.product_id = p.id
-        LEFT JOIN categories c ON p.category_id = c.id
-        WHERE ci.user_id = ${decoded.userId} AND p.is_active = true
-        ORDER BY ci.created_at DESC
-      `;
+      // Lấy pagination params (optional, mặc định không giới hạn)
+      const { searchParams } = new URL(request.url);
+      const page = searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : null;
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : null;
+      
+      let offset: number | null = null;
+      if (page !== null && limit !== null) {
+        offset = (page - 1) * limit;
+        // Validate pagination
+        if (page < 1 || limit < 1 || limit > 100) {
+          return NextResponse.json(
+            { error: 'Tham số pagination không hợp lệ. Page >= 1, Limit 1-100' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Query với hoặc không có pagination
+      let cartItems;
+      if (page !== null && limit !== null && offset !== null) {
+        cartItems = await sql`
+          SELECT 
+            ci.id,
+            ci.product_id,
+            ci.quantity,
+            p.name,
+            p.price,
+            p.original_price,
+            p.image_url,
+            p.stock,
+            c.name as category_name,
+            c.discount_percent
+          FROM cart_items ci
+          INNER JOIN products p ON ci.product_id = p.id
+          LEFT JOIN categories c ON p.category_id = c.id
+          WHERE ci.user_id = ${decoded.userId} AND p.is_active = true
+          ORDER BY ci.created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `;
+      } else {
+        cartItems = await sql`
+          SELECT 
+            ci.id,
+            ci.product_id,
+            ci.quantity,
+            p.name,
+            p.price,
+            p.original_price,
+            p.image_url,
+            p.stock,
+            c.name as category_name,
+            c.discount_percent
+          FROM cart_items ci
+          INNER JOIN products p ON ci.product_id = p.id
+          LEFT JOIN categories c ON p.category_id = c.id
+          WHERE ci.user_id = ${decoded.userId} AND p.is_active = true
+          ORDER BY ci.created_at DESC
+        `;
+      }
 
       // Tính tổng tiền
       let total = 0;
@@ -73,11 +120,30 @@ export async function GET(request: NextRequest) {
       // Tính tổng số lượng sản phẩm (tổng quantity của tất cả items)
       const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
+      // Lấy tổng số items nếu có pagination
+      let pagination = undefined;
+      if (page !== null && limit !== null) {
+        const countResult = await sql`
+          SELECT COUNT(*)::int as count
+          FROM cart_items ci
+          INNER JOIN products p ON ci.product_id = p.id
+          WHERE ci.user_id = ${decoded.userId} AND p.is_active = true
+        `;
+        const totalCount = countResult[0]?.count || 0;
+        pagination = {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        };
+      }
+
       return NextResponse.json({
         items,
         total,
-        count: items.length, // Số loại sản phẩm
-        totalQuantity, // Tổng số lượng sản phẩm
+        count: items.length, // Số loại sản phẩm trong trang hiện tại
+        totalQuantity, // Tổng số lượng sản phẩm trong trang hiện tại
+        ...(pagination ? { pagination } : {}),
       });
     } catch (error: any) {
       // Nếu bảng chưa tồn tại, trả về giỏ hàng rỗng
@@ -92,11 +158,8 @@ export async function GET(request: NextRequest) {
       throw error;
     }
   } catch (error) {
-    console.error('Get cart error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi lấy giỏ hàng' },
-      { status: 500 }
-    );
+    logger.error('Get cart error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -207,18 +270,8 @@ export async function POST(request: NextRequest) {
       cart_item: result[0],
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    console.error('Add to cart error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi thêm vào giỏ hàng' },
-      { status: 500 }
-    );
+    logger.error('Add to cart error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -270,11 +323,8 @@ export async function DELETE(request: NextRequest) {
       message: 'Đã xóa khỏi giỏ hàng',
     });
   } catch (error) {
-    console.error('Delete from cart error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi xóa khỏi giỏ hàng' },
-      { status: 500 }
-    );
+    logger.error('Delete from cart error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 
@@ -341,11 +391,8 @@ export async function PUT(request: NextRequest) {
       message: 'Đã cập nhật số lượng',
     });
   } catch (error) {
-    console.error('Update cart error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi cập nhật giỏ hàng' },
-      { status: 500 }
-    );
+    logger.error('Update cart error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 

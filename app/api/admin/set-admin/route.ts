@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { isAdmin } from '@/lib/auth';
+import { handleError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
-// API để set role admin cho user (cần authentication và chỉ admin mới được dùng)
+// API để set role admin cho user (chỉ admin mới được dùng)
 export async function POST(request: NextRequest) {
   try {
+    // Kiểm tra quyền admin
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { userId, email } = body;
 
@@ -23,9 +31,10 @@ export async function POST(request: NextRequest) {
       `;
       if (checkRole.length === 0) {
         await sql`ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'`;
+        logger.info('Đã thêm cột role vào bảng users');
       }
     } catch (error) {
-      console.log('Role column may already exist');
+      logger.debug('Role column may already exist');
     }
 
     // Cập nhật role thành admin
@@ -53,16 +62,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    logger.info('Set admin role thành công', { userId: result[0].id, email: result[0].email });
+    
     return NextResponse.json({
       message: 'Đã set role admin thành công',
       user: result[0],
     });
   } catch (error) {
-    console.error('Set admin error:', error);
-    return NextResponse.json(
-      { error: 'Lỗi khi set role admin' },
-      { status: 500 }
-    );
+    logger.error('Set admin error', error instanceof Error ? error : new Error(String(error)));
+    return handleError(error);
   }
 }
 

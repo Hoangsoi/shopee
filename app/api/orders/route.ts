@@ -111,21 +111,23 @@ export async function GET(request: NextRequest) {
           let commissionsMap: Record<number, number> = {};
           
           if (orderIds.length > 0) {
-            // Sử dụng = ANY() cho array trong PostgreSQL
-            const commissionData = await sql`
-              SELECT 
-                oi.order_id,
-                SUM(oi.subtotal * COALESCE(c.discount_percent, 0) / 100.0) as total_commission
-              FROM order_items oi
-              JOIN orders o ON oi.order_id = o.id
-              JOIN products p ON oi.product_id = p.id
-              LEFT JOIN categories c ON p.category_id = c.id
-              WHERE oi.order_id = ANY(${orderIds}) AND o.status = 'confirmed'
-              GROUP BY oi.order_id
-            `;
-            
-            for (const row of commissionData) {
-              commissionsMap[row.order_id] = parseFloat(row.total_commission?.toString() || '0');
+            // Tính commission cho từng order riêng lẻ để tránh lỗi TypeScript với array
+            for (const orderId of orderIds) {
+              const commissionData = await sql`
+                SELECT 
+                  oi.order_id,
+                  SUM(oi.subtotal * COALESCE(c.discount_percent, 0) / 100.0) as total_commission
+                FROM order_items oi
+                JOIN orders o ON oi.order_id = o.id
+                JOIN products p ON oi.product_id = p.id
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE oi.order_id = ${orderId} AND o.status = 'confirmed'
+                GROUP BY oi.order_id
+              `;
+              
+              if (commissionData.length > 0) {
+                commissionsMap[orderId] = parseFloat(commissionData[0].total_commission?.toString() || '0');
+              }
             }
           }
           
@@ -149,21 +151,23 @@ export async function GET(request: NextRequest) {
         let commissionsMap: Record<number, number> = {};
         
         if (orderIds.length > 0) {
-          // Sử dụng = ANY() cho array trong PostgreSQL
-          const commissionData = await sql`
-            SELECT 
-              oi.order_id,
-              SUM(oi.subtotal * COALESCE(c.discount_percent, 0) / 100.0) as total_commission
-            FROM order_items oi
-            JOIN orders o ON oi.order_id = o.id
-            JOIN products p ON oi.product_id = p.id
-            LEFT JOIN categories c ON p.category_id = c.id
-            WHERE oi.order_id = ANY(${orderIds}) AND o.status = 'confirmed'
-            GROUP BY oi.order_id
-          `;
-          
-          for (const row of commissionData) {
-            commissionsMap[row.order_id] = parseFloat(row.total_commission?.toString() || '0');
+          // Tính commission cho từng order riêng lẻ để tránh lỗi TypeScript với array
+          for (const orderId of orderIds) {
+            const commissionData = await sql`
+              SELECT 
+                oi.order_id,
+                SUM(oi.subtotal * COALESCE(c.discount_percent, 0) / 100.0) as total_commission
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              JOIN products p ON oi.product_id = p.id
+              LEFT JOIN categories c ON p.category_id = c.id
+              WHERE oi.order_id = ${orderId} AND o.status = 'confirmed'
+              GROUP BY oi.order_id
+            `;
+            
+            if (commissionData.length > 0) {
+              commissionsMap[orderId] = parseFloat(commissionData[0].total_commission?.toString() || '0');
+            }
           }
         }
         

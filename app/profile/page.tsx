@@ -380,63 +380,77 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          {/* Card Thông tin tài khoản */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+          {/* Card Thông tin tài khoản & Ngân hàng */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 md:col-span-2">
             <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
               <span className="text-2xl">👤</span>
-              <h2 className="text-lg md:text-xl font-bold text-gray-800">Thông tin tài khoản</h2>
+              <h2 className="text-lg md:text-xl font-bold text-gray-800">Thông tin tài khoản & Ngân hàng</h2>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <span className="text-gray-400 text-sm w-20 flex-shrink-0">Tên:</span>
-                <p className="text-gray-800 font-semibold flex-1">{user.name || 'Chưa cập nhật'}</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-gray-400 text-sm w-20 flex-shrink-0">Email:</span>
-                <p className="text-gray-800 font-semibold flex-1 break-words text-sm md:text-base">{user.email}</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-gray-400 text-sm w-20 flex-shrink-0">SĐT:</span>
-                <p className="text-gray-800 font-semibold flex-1">{maskPhone(user.phone)}</p>
+            
+            {/* Thông tin tài khoản */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                <span>📋</span>
+                <span>Thông tin tài khoản</span>
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-gray-400 text-sm w-24 flex-shrink-0">Tên:</span>
+                  <p className="text-gray-800 font-semibold flex-1">{user.name || 'Chưa cập nhật'}</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-gray-400 text-sm w-24 flex-shrink-0">Email:</span>
+                  <p className="text-gray-800 font-semibold flex-1 break-words text-sm md:text-base">{user.email}</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-gray-400 text-sm w-24 flex-shrink-0">SĐT:</span>
+                  <p className="text-gray-800 font-semibold flex-1">{maskPhone(user.phone)}</p>
+                </div>
+                {user.agent_code && (
+                  <div className="flex items-start gap-3">
+                    <span className="text-gray-400 text-sm w-24 flex-shrink-0">Mã đại lý:</span>
+                    <p className="text-gray-800 font-semibold flex-1">{user.agent_code}</p>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Card Thông tin ngân hàng */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-100">
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
-            <span className="text-2xl">🏦</span>
-            <h2 className="text-lg md:text-xl font-bold text-gray-800">Thông tin ngân hàng</h2>
-          </div>
-          {bankAccount ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <label className="text-xs text-gray-500 block mb-1">Ngân hàng</label>
-                <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.bank_name}</p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <label className="text-xs text-gray-500 block mb-1">Số tài khoản</label>
-                <p className="text-gray-800 font-semibold text-base md:text-lg font-mono">{bankAccount.account_number}</p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <label className="text-xs text-gray-500 block mb-1">Chủ tài khoản</label>
-                <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.account_holder_name}</p>
-              </div>
-              {bankAccount.branch && (
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <label className="text-xs text-gray-500 block mb-1">Chi nhánh</label>
-                  <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.branch}</p>
+            {/* Thông tin ngân hàng */}
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                <span>🏦</span>
+                <span>Thông tin ngân hàng</span>
+              </h3>
+              {bankAccount ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <label className="text-xs text-gray-500 block mb-1">Ngân hàng</label>
+                    <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.bank_name}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <label className="text-xs text-gray-500 block mb-1">Số tài khoản</label>
+                    <p className="text-gray-800 font-semibold text-base md:text-lg font-mono">{bankAccount.account_number}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <label className="text-xs text-gray-500 block mb-1">Chủ tài khoản</label>
+                    <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.account_holder_name}</p>
+                  </div>
+                  {bankAccount.branch && (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <label className="text-xs text-gray-500 block mb-1">Chi nhánh</label>
+                      <p className="text-gray-800 font-semibold text-base md:text-lg">{bankAccount.branch}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-gray-50 rounded-xl">
+                  <span className="text-3xl mb-2 block">🏦</span>
+                  <p className="text-sm md:text-base text-gray-600 font-medium">Chưa có thông tin ngân hàng</p>
+                  <p className="text-xs text-gray-400 mt-1">Thông tin sẽ được lưu khi bạn rút tiền lần đầu</p>
                 </div>
               )}
             </div>
-          ) : (
-            <div className="text-center py-8 bg-gray-50 rounded-xl">
-              <span className="text-4xl mb-3 block">🏦</span>
-              <p className="text-sm md:text-base text-gray-600 font-medium">Chưa có thông tin ngân hàng</p>
-              <p className="text-xs text-gray-400 mt-2">Thông tin sẽ được lưu khi bạn rút tiền lần đầu</p>
-            </div>
-          )}
+          </div>
         </div>
         
         {/* Button Đăng xuất */}

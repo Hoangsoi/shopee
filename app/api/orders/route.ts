@@ -365,6 +365,9 @@ export async function POST(request: NextRequest) {
     // Tạo order_number
     const orderNumber = `ORD-${Date.now()}-${decoded.userId}`;
 
+    // Biến để lưu kết quả order (cần dùng bên ngoài try block)
+    let orderResult: any[] = [];
+
     // Sử dụng transaction để đảm bảo tính atomic
     // Nếu bất kỳ bước nào fail, tất cả sẽ được rollback
     try {
@@ -396,7 +399,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Bước 2: Tạo đơn hàng
-      const orderResult = await sql`
+      orderResult = await sql`
         INSERT INTO orders (user_id, order_number, total_amount, status, payment_method, shipping_address, notes)
         VALUES (${decoded.userId}, ${orderNumber}, ${totalAmount}, 'pending', ${validatedData.payment_method || null}, ${validatedData.shipping_address || null}, ${validatedData.notes || null})
         RETURNING id, order_number, total_amount, status, created_at

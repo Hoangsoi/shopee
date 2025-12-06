@@ -13,13 +13,21 @@ interface LogEntry {
 
 class Logger {
   private formatMessage(level: LogLevel, message: string, data?: unknown, error?: Error): LogEntry {
-    return {
+    const entry: LogEntry = {
       level,
       message,
       timestamp: new Date().toISOString(),
-      ...(data && { data }),
-      ...(error && { error: { message: error.message, stack: error.stack } }),
     };
+    
+    if (data !== undefined && data !== null) {
+      entry.data = data;
+    }
+    
+    if (error) {
+      entry.error = { message: error.message, stack: error.stack };
+    }
+    
+    return entry;
   }
 
   private log(level: LogLevel, message: string, data?: unknown, error?: Error): void {

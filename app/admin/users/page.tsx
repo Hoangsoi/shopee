@@ -85,6 +85,7 @@ export default function AdminUsersPage() {
       wallet_balance: user.wallet_balance,
       commission: user.commission,
       is_frozen: user.is_frozen || false,
+      vip_level: user.vip_level || 0,
     }
     setOriginalUserData(originalData)
     setEditFormData({
@@ -373,8 +374,8 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="py-2 px-3 border-b text-xs text-center">
                         {user.vip_level && user.vip_level > 0 ? (
-                          <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-800" title={`VIP ${user.vip_level}`}>
-                            ⭐ {user.vip_level}
+                          <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-300" title={`Cấp VIP ${user.vip_level}`}>
+                            ⭐ VIP {user.vip_level}
                           </span>
                         ) : (
                           <span className="text-gray-400">-</span>
@@ -682,6 +683,29 @@ export default function AdminUsersPage() {
                         />
                         <p className="text-xs text-gray-500 mt-1">
                           Hiện tại: {formatCurrency(users.find((u) => u.id === editingId)?.commission || 0)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Cấp VIP <span className="text-gray-500">(Chỉ xem)</span>
+                        </label>
+                        <div className="w-full px-3 py-2 border border-gray-300 rounded-sm bg-gray-50 flex items-center gap-2">
+                          {editFormData.vip_level && editFormData.vip_level > 0 ? (
+                            <>
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-300">
+                                ⭐ VIP {editFormData.vip_level}
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                (Cấp độ {editFormData.vip_level})
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-500">Chưa có cấp VIP</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Cấp VIP được tự động cập nhật dựa trên tổng số tiền đã nạp
                         </p>
                       </div>
 

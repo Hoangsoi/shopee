@@ -211,6 +211,7 @@ export async function GET(request: NextRequest) {
         commission: user.commission ? parseFloat(user.commission.toString()) : 0,
         created_at: user.created_at,
         is_frozen: user.is_frozen !== undefined ? (user.is_frozen || false) : false,
+        vip_level: user.vip_level !== undefined && user.vip_level !== null ? parseInt(user.vip_level.toString()) : 0,
       })),
       pagination: {
         page,

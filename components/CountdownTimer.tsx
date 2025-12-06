@@ -5,29 +5,26 @@ import { useState, useEffect } from 'react'
 interface CountdownTimerProps {
   targetDate: string | Date
   onComplete?: () => void
-  variant?: 'light' | 'dark' // 'light' = text trắng (cho background tối), 'dark' = text tối (cho background sáng)
 }
 
-export default function CountdownTimer({ targetDate, onComplete, variant = 'dark' }: CountdownTimerProps) {
+export default function CountdownTimer({ targetDate, onComplete }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState<{
     days: number
     hours: number
     minutes: number
     seconds: number
   } | null>(null)
+  const [isExpired, setIsExpired] = useState(false)
 
   useEffect(() => {
-    const calculateTimeLeft = () => {
-      // Parse target date (from database, stored as UTC)
-      const target = typeof targetDate === 'string' ? new Date(targetDate) : targetDate
-      
-      // Get current time (server/client time)
-      const now = new Date()
-      
-      // Calculate difference (both are in same timezone context)
-      const difference = target.getTime() - now.getTime()
+    const target = new Date(targetDate).getTime()
+
+    const updateTimer = () => {
+      const now = new Date().getTime()
+      const difference = target - now
 
       if (difference <= 0) {
+        setIsExpired(true)
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 })
         if (onComplete) {
           onComplete()
@@ -41,39 +38,50 @@ export default function CountdownTimer({ targetDate, onComplete, variant = 'dark
       const seconds = Math.floor((difference % (1000 * 60)) / 1000)
 
       setTimeLeft({ days, hours, minutes, seconds })
+      setIsExpired(false)
     }
 
-    calculateTimeLeft()
-    const interval = setInterval(calculateTimeLeft, 1000)
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
 
     return () => clearInterval(interval)
   }, [targetDate, onComplete])
 
-  const textColorClass = variant === 'light' ? 'text-white/90' : 'text-gray-700'
-  const textColorSecondaryClass = variant === 'light' ? 'text-white/80' : 'text-gray-600'
-
-  if (!timeLeft) {
-    return <span className={`text-xs ${textColorSecondaryClass}`}>Đang tính...</span>
+  if (timeLeft === null) {
+    return (
+      <div className="text-sm text-gray-500">Đang tính toán...</div>
+    )
   }
 
-  if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
-    return <span className={`text-xs ${textColorSecondaryClass}`}>Đã đến hạn</span>
+  if (isExpired) {
+    return (
+      <div className="text-sm font-semibold text-green-600">
+        🎉 Đã đến thời gian mở thưởng!
+      </div>
+    )
   }
 
   return (
-    <div className={`flex items-center gap-1 text-xs ${textColorClass}`}>
-      <span className="font-semibold">⏰</span>
-      {timeLeft.days > 0 && (
-        <span>
-          <span className="font-bold">{timeLeft.days}</span>d
-        </span>
-      )}
-      <span>
-        <span className="font-bold">{String(timeLeft.hours).padStart(2, '0')}</span>:
-        <span className="font-bold">{String(timeLeft.minutes).padStart(2, '0')}</span>:
-        <span className="font-bold">{String(timeLeft.seconds).padStart(2, '0')}</span>
-      </span>
+    <div className="flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-1">
+        <span className="font-semibold text-gray-700">{timeLeft.days}</span>
+        <span className="text-gray-500 text-xs">ngày</span>
+      </div>
+      <span className="text-gray-400">:</span>
+      <div className="flex items-center gap-1">
+        <span className="font-semibold text-gray-700">{String(timeLeft.hours).padStart(2, '0')}</span>
+        <span className="text-gray-500 text-xs">giờ</span>
+      </div>
+      <span className="text-gray-400">:</span>
+      <div className="flex items-center gap-1">
+        <span className="font-semibold text-gray-700">{String(timeLeft.minutes).padStart(2, '0')}</span>
+        <span className="text-gray-500 text-xs">phút</span>
+      </div>
+      <span className="text-gray-400">:</span>
+      <div className="flex items-center gap-1">
+        <span className="font-semibold text-gray-700">{String(timeLeft.seconds).padStart(2, '0')}</span>
+        <span className="text-gray-500 text-xs">giây</span>
+      </div>
     </div>
   )
 }
-

@@ -111,6 +111,7 @@ export async function GET(request: NextRequest) {
           let commissionsMap: Record<number, number> = {};
           
           if (orderIds.length > 0) {
+            // Sử dụng = ANY() cho array trong PostgreSQL
             const commissionData = await sql`
               SELECT 
                 oi.order_id,
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest) {
               JOIN orders o ON oi.order_id = o.id
               JOIN products p ON oi.product_id = p.id
               LEFT JOIN categories c ON p.category_id = c.id
-              WHERE oi.order_id IN ${sql(orderIds)} AND o.status = 'confirmed'
+              WHERE oi.order_id = ANY(${orderIds}) AND o.status = 'confirmed'
               GROUP BY oi.order_id
             `;
             
@@ -148,6 +149,7 @@ export async function GET(request: NextRequest) {
         let commissionsMap: Record<number, number> = {};
         
         if (orderIds.length > 0) {
+          // Sử dụng = ANY() cho array trong PostgreSQL
           const commissionData = await sql`
             SELECT 
               oi.order_id,
@@ -156,7 +158,7 @@ export async function GET(request: NextRequest) {
             JOIN orders o ON oi.order_id = o.id
             JOIN products p ON oi.product_id = p.id
             LEFT JOIN categories c ON p.category_id = c.id
-            WHERE oi.order_id IN ${sql(orderIds)} AND o.status = 'confirmed'
+            WHERE oi.order_id = ANY(${orderIds}) AND o.status = 'confirmed'
             GROUP BY oi.order_id
           `;
           

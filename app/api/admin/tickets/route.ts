@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
     // Tạo số lượng vé được yêu cầu
     for (let i = 0; i < validatedData.quantity; i++) {
       let attempts = 0;
-      let ticketCode: string;
+      let ticketCode: string = '';
       let isUnique = false;
 
       // Đảm bảo mã vé là unique
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (!isUnique) {
+      if (!isUnique || !ticketCode) {
         errors.push(`Không thể tạo mã vé unique sau ${attempts} lần thử`);
         continue;
       }

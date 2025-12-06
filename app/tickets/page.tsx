@@ -17,10 +17,6 @@ export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchTickets()
-  }, [])
-
   const fetchTickets = async () => {
     try {
       setLoading(true)
@@ -39,6 +35,11 @@ export default function TicketsPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchTickets()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('vi-VN', {

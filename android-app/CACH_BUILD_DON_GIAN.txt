@@ -1,0 +1,63 @@
+═══════════════════════════════════════════════════════════
+  HƯỚNG DẪN BUILD APK - CÁCH ĐƠN GIẢN NHẤT
+═══════════════════════════════════════════════════════════
+
+CÁCH 1: DÙNG ANDROID STUDIO (KHUYẾN NGHỊ - DỄ NHẤT)
+─────────────────────────────────────────────────────
+
+BƯỚC 1: Tải Android Studio
+  → Vào: https://developer.android.com/studio
+  → Tải về và cài đặt
+
+BƯỚC 2: Mở project
+  → Mở Android Studio
+  → Click "Open"
+  → Chọn thư mục "android-app"
+  → Click "OK"
+
+BƯỚC 3: Đợi sync (5-10 phút lần đầu)
+  → Android Studio tự động tải dependencies
+  → Đợi đến khi thấy "Gradle sync finished"
+
+BƯỚC 4: Build APK
+  → Click menu "Build" (ở trên cùng)
+  → Chọn "Build Bundle(s) / APK(s)"
+  → Chọn "Build APK(s)"
+  → Đợi 1-2 phút
+
+BƯỚC 5: Lấy APK
+  → Khi xong, click "locate" hoặc "Show in Explorer"
+  → File APK: app-debug.apk
+  → Copy vào điện thoại và cài đặt
+
+═══════════════════════════════════════════════════════════
+
+CÁCH 2: NHỜ NGƯỜI KHÁC BUILD
+─────────────────────────────────────────────────────
+
+1. Nén thư mục "android-app" thành file ZIP
+2. Gửi cho người có Android Studio
+3. Họ build và gửi lại file APK cho bạn
+
+═══════════════════════════════════════════════════════════
+
+CÁCH 3: BUILD ONLINE (NÂNG CAO)
+─────────────────────────────────────────────────────
+
+Sử dụng GitHub Actions:
+1. Upload project lên GitHub
+2. Tạo GitHub Actions workflow
+3. Tự động build và tải APK về
+
+(Xem file HUONG_DAN_BUILD_CHI_TIET.md để biết chi tiết)
+
+═══════════════════════════════════════════════════════════
+
+LƯU Ý:
+  - Cách 1 (Android Studio) là DỄ NHẤT
+  - Lần đầu build mất 10-15 phút (tải dependencies)
+  - Cần kết nối Internet
+  - APK debug không cần ký số, cài trực tiếp được
+
+═══════════════════════════════════════════════════════════
+

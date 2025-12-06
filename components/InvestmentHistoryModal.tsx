@@ -223,52 +223,47 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                         <div className="text-[10px] font-semibold text-gray-700 mb-1">Hoàn trả:</div>
                         {(() => {
                           const returns = getReturnTransactionsForInvestment(investment)
-                          if (returns.length === 0) {
-                            // Nếu không tìm thấy transactions, hiển thị từ investment data
-                            return (
-                              <div className="space-y-0.5 text-[10px]">
-                                <div className="flex items-center justify-between text-gray-600">
-                                  <span>Gốc:</span>
-                                  <span className="font-semibold text-blue-600">
-                                    {formatCurrency(investment.amount)}
-                                  </span>
-                                </div>
-                                {investment.total_profit > 0 && (
-                                  <div className="flex items-center justify-between text-gray-600">
-                                    <span>Hoa hồng:</span>
-                                    <span className="font-semibold text-green-600">
-                                      {formatCurrency(investment.total_profit)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          }
+                          const principalReturn = returns.find(t => t.description.includes('Hoàn gốc đầu tư'))
+                          const profitReturn = returns.find(t => t.description.includes('Hoàn hoa hồng đầu tư'))
+                          
+                          // Luôn hiển thị cả gốc và hoa hồng
                           return (
                             <div className="space-y-0.5 text-[10px]">
-                              {returns.map((t) => {
-                                const isPrincipal = t.description.includes('Hoàn gốc đầu tư')
-                                return (
-                                  <div
-                                    key={t.id}
-                                    className="flex items-center justify-between text-gray-600"
-                                  >
-                                    <span>{isPrincipal ? 'Gốc:' : 'Hoa hồng:'}</span>
-                                    <div className="text-right">
-                                      <span
-                                        className={`font-semibold ${
-                                          isPrincipal ? 'text-blue-600' : 'text-green-600'
-                                        }`}
-                                      >
-                                        {formatCurrency(t.amount)}
-                                      </span>
-                                      <div className="text-[9px] text-gray-400">
-                                        {new Date(t.created_at).toLocaleDateString('vi-VN')}
-                                      </div>
+                              {/* Hiển thị tiền gốc hoàn lại */}
+                              <div className="flex items-center justify-between text-gray-600">
+                                <span>Gốc:</span>
+                                <div className="text-right">
+                                  <span className="font-semibold text-blue-600">
+                                    {principalReturn 
+                                      ? formatCurrency(principalReturn.amount)
+                                      : formatCurrency(investment.amount)
+                                    }
+                                  </span>
+                                  {principalReturn && (
+                                    <div className="text-[9px] text-gray-400">
+                                      {new Date(principalReturn.created_at).toLocaleDateString('vi-VN')}
                                     </div>
-                                  </div>
-                                )
-                              })}
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Hiển thị hoa hồng hoàn lại */}
+                              <div className="flex items-center justify-between text-gray-600">
+                                <span>Hoa hồng:</span>
+                                <div className="text-right">
+                                  <span className="font-semibold text-green-600">
+                                    {profitReturn 
+                                      ? formatCurrency(profitReturn.amount)
+                                      : formatCurrency(investment.total_profit || 0)
+                                    }
+                                  </span>
+                                  {profitReturn && (
+                                    <div className="text-[9px] text-gray-400">
+                                      {new Date(profitReturn.created_at).toLocaleDateString('vi-VN')}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           )
                         })()}

@@ -117,7 +117,7 @@ export default function WithdrawAmountModal({ isOpen, onClose, onSuccess, wallet
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <p className="text-xs text-yellow-800">
-              ⚠️ Yêu cầu rút tiền sẽ được gửi đến admin để duyệt. Tiền sẽ được chuyển vào tài khoản ngân hàng đã đăng ký.
+              ⚠️ Yêu cầu rút tiền sẽ được gửi tới Bộ phận kế toán để xét duyệt. Tiền sẽ được chuyển vào tài khoản ngân hàng đã đăng ký.
             </p>
           </div>
 

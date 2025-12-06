@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { isAdmin, verifyToken } from '@/lib/auth';
+import { isAdmin, verifyToken, hashPassword } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateUserSchema = z.object({
@@ -13,6 +13,7 @@ const updateUserSchema = z.object({
   wallet_balance: z.number().optional(),
   commission: z.number().optional(),
   is_frozen: z.boolean().optional(),
+  password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự').optional(),
 });
 
 // Admin check is now handled by lib/auth.ts isAdmin() function
@@ -275,6 +276,11 @@ export async function PUT(request: NextRequest) {
     }
     if (updateData.is_frozen !== undefined) {
       await sql`UPDATE users SET is_frozen = ${updateData.is_frozen}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.password !== undefined && updateData.password.trim() !== '') {
+      // Hash password mới trước khi lưu
+      const hashedPassword = await hashPassword(updateData.password);
+      await sql`UPDATE users SET password = ${hashedPassword}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
     }
 
     // Lấy thông tin user sau khi cập nhật

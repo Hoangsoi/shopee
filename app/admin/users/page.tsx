@@ -21,7 +21,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editFormData, setEditFormData] = useState<Partial<User & { is_frozen: boolean }>>({})
+  const [editFormData, setEditFormData] = useState<Partial<User & { is_frozen: boolean; password: string }>>({})
   const [showEditModal, setShowEditModal] = useState(false)
   const [showBalanceModal, setShowBalanceModal] = useState(false)
   const [balanceFormData, setBalanceFormData] = useState({
@@ -84,6 +84,7 @@ export default function AdminUsersPage() {
       wallet_balance: user.wallet_balance,
       commission: user.commission,
       is_frozen: user.is_frozen || false,
+      password: '', // Trường mật khẩu luôn trống (không hiển thị mật khẩu cũ vì đã hash)
     })
     setShowEditModal(true)
     setMessage(null)
@@ -168,15 +169,25 @@ export default function AdminUsersPage() {
 
     setLoading(true)
     try {
+      // Tách password ra khỏi editFormData
+      const { password, ...otherData } = editFormData
+      
+      // Chỉ thêm password vào body nếu có giá trị
+      const requestBody: any = {
+        user_id: editingId,
+        ...otherData,
+      }
+      
+      if (password && password.trim() !== '') {
+        requestBody.password = password
+      }
+
       const response = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user_id: editingId,
-          ...editFormData,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await response.json()
@@ -546,6 +557,24 @@ export default function AdminUsersPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
                           style={{ fontSize: '16px' }}
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Mật khẩu mới <span className="text-gray-500">(Tùy chọn)</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="password"
+                          value={editFormData.password || ''}
+                          onChange={handleChange}
+                          placeholder="Để trống nếu không đổi mật khẩu"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
+                          style={{ fontSize: '16px' }}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          ⚠️ Mật khẩu cũ đã được mã hóa, không thể xem. Nhập mật khẩu mới (tối thiểu 6 ký tự) để thay đổi. Để trống nếu giữ nguyên mật khẩu cũ.
+                        </p>
                       </div>
 
                       <div>

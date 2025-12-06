@@ -22,6 +22,7 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editFormData, setEditFormData] = useState<Partial<User & { is_frozen: boolean; password: string }>>({})
+  const [originalUserData, setOriginalUserData] = useState<Partial<User & { is_frozen: boolean }>>({})
   const [showEditModal, setShowEditModal] = useState(false)
   const [showBalanceModal, setShowBalanceModal] = useState(false)
   const [balanceFormData, setBalanceFormData] = useState({
@@ -75,7 +76,7 @@ export default function AdminUsersPage() {
 
   const handleEdit = (user: User) => {
     setEditingId(user.id)
-    setEditFormData({
+    const originalData = {
       name: user.name,
       email: user.email,
       phone: user.phone || '',
@@ -84,6 +85,10 @@ export default function AdminUsersPage() {
       wallet_balance: user.wallet_balance,
       commission: user.commission,
       is_frozen: user.is_frozen || false,
+    }
+    setOriginalUserData(originalData)
+    setEditFormData({
+      ...originalData,
       password: '', // Trường mật khẩu luôn trống (không hiển thị mật khẩu cũ vì đã hash)
     })
     setShowEditModal(true)
@@ -158,10 +163,20 @@ export default function AdminUsersPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
-    setEditFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : (name === 'wallet_balance' || name === 'commission' ? parseFloat(value) || 0 : value),
-    }))
+    
+    setEditFormData((prev) => {
+      if (type === 'checkbox') {
+        return { ...prev, [name]: checked }
+      }
+      
+      // Xử lý số dư ví và hoa hồng: cho phép để trống
+      if (name === 'wallet_balance' || name === 'commission') {
+        const numValue = value === '' ? undefined : parseFloat(value)
+        return { ...prev, [name]: isNaN(numValue as number) ? undefined : numValue }
+      }
+      
+      return { ...prev, [name]: value }
+    })
   }
 
   const handleSave = async () => {
@@ -172,12 +187,48 @@ export default function AdminUsersPage() {
       // Tách password ra khỏi editFormData
       const { password, ...otherData } = editFormData
       
-      // Chỉ thêm password vào body nếu có giá trị
+      // Chỉ gửi các trường đã thay đổi so với dữ liệu ban đầu
       const requestBody: any = {
         user_id: editingId,
-        ...otherData,
       }
       
+      // Chỉ thêm các trường đã thay đổi
+      if (otherData.name !== undefined && otherData.name !== originalUserData.name) {
+        requestBody.name = otherData.name
+      }
+      if (otherData.email !== undefined && otherData.email !== originalUserData.email) {
+        requestBody.email = otherData.email
+      }
+      if (otherData.phone !== undefined && otherData.phone !== originalUserData.phone) {
+        requestBody.phone = otherData.phone
+      }
+      if (otherData.agent_code !== undefined && otherData.agent_code !== originalUserData.agent_code) {
+        requestBody.agent_code = otherData.agent_code
+      }
+      if (otherData.role !== undefined && otherData.role !== originalUserData.role) {
+        requestBody.role = otherData.role
+      }
+      // Chỉ gửi wallet_balance nếu có giá trị và khác với giá trị ban đầu (so sánh số chính xác)
+      if (otherData.wallet_balance !== undefined) {
+        const originalBalance = originalUserData.wallet_balance ?? 0
+        const newBalance = otherData.wallet_balance ?? 0
+        if (Math.abs(newBalance - originalBalance) > 0.01) { // Cho phép sai số nhỏ do float
+          requestBody.wallet_balance = newBalance
+        }
+      }
+      // Chỉ gửi commission nếu có giá trị và khác với giá trị ban đầu (so sánh số chính xác)
+      if (otherData.commission !== undefined) {
+        const originalCommission = originalUserData.commission ?? 0
+        const newCommission = otherData.commission ?? 0
+        if (Math.abs(newCommission - originalCommission) > 0.01) { // Cho phép sai số nhỏ do float
+          requestBody.commission = newCommission
+        }
+      }
+      if (otherData.is_frozen !== undefined && otherData.is_frozen !== originalUserData.is_frozen) {
+        requestBody.is_frozen = otherData.is_frozen
+      }
+      
+      // Chỉ thêm password nếu có giá trị
       if (password && password.trim() !== '') {
         requestBody.password = password
       }
@@ -196,6 +247,7 @@ export default function AdminUsersPage() {
         setMessage({ type: 'success', text: 'Cập nhật thành công!' })
         setEditingId(null)
         setEditFormData({})
+        setOriginalUserData({})
         setShowEditModal(false)
         fetchUsers(searchTerm)
       } else {
@@ -594,14 +646,17 @@ export default function AdminUsersPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Số dư ví (₫)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Số dư ví (₫) <span className="text-gray-500">(Tùy chọn)</span>
+                        </label>
                         <input
                           type="number"
                           name="wallet_balance"
-                          value={editFormData.wallet_balance || 0}
+                          value={editFormData.wallet_balance ?? ''}
                           onChange={handleChange}
                           min="0"
-                          step="1000"
+                          step="1"
+                          placeholder="Để trống nếu không thay đổi"
                           className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
                           style={{ fontSize: '16px' }}
                         />
@@ -611,14 +666,17 @@ export default function AdminUsersPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Hoa hồng (₫)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Hoa hồng (₫) <span className="text-gray-500">(Tùy chọn)</span>
+                        </label>
                         <input
                           type="number"
                           name="commission"
-                          value={editFormData.commission || 0}
+                          value={editFormData.commission ?? ''}
                           onChange={handleChange}
                           min="0"
-                          step="1000"
+                          step="1"
+                          placeholder="Để trống nếu không thay đổi"
                           className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-gray-900"
                           style={{ fontSize: '16px' }}
                         />
@@ -664,6 +722,7 @@ export default function AdminUsersPage() {
                           setShowEditModal(false)
                           setEditingId(null)
                           setEditFormData({})
+                          setOriginalUserData({})
                           setMessage(null)
                         }}
                         disabled={loading}

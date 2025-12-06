@@ -252,10 +252,24 @@ export default function InvestmentHistoryModal({ isOpen, onClose }: InvestmentHi
                                 <span>Hoa hồng:</span>
                                 <div className="text-right">
                                   <span className="font-semibold text-green-600">
-                                    {profitReturn 
-                                      ? formatCurrency(profitReturn.amount)
-                                      : formatCurrency(investment.total_profit || 0)
-                                    }
+                                    {(() => {
+                                      // Ưu tiên hiển thị từ transaction nếu có
+                                      if (profitReturn) {
+                                        return formatCurrency(profitReturn.amount);
+                                      }
+                                      // Nếu không có transaction, tính lại từ investment data
+                                      if (investment.total_profit && investment.total_profit > 0) {
+                                        return formatCurrency(investment.total_profit);
+                                      }
+                                      // Nếu total_profit = 0 nhưng đầu tư đã completed, tính lại
+                                      if (investment.status === 'completed' && investment.amount && investment.daily_profit_rate && investment.investment_days) {
+                                        const calculatedProfit = investment.amount * (investment.daily_profit_rate / 100) * investment.investment_days;
+                                        if (calculatedProfit > 0) {
+                                          return formatCurrency(calculatedProfit);
+                                        }
+                                      }
+                                      return formatCurrency(0);
+                                    })()}
                                   </span>
                                   {profitReturn && (
                                     <div className="text-[9px] text-gray-400">

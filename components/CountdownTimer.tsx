@@ -5,9 +5,10 @@ import { useState, useEffect } from 'react'
 interface CountdownTimerProps {
   targetDate: string | Date
   onComplete?: () => void
+  variant?: 'dark' | 'light'
 }
 
-export default function CountdownTimer({ targetDate, onComplete }: CountdownTimerProps) {
+export default function CountdownTimer({ targetDate, onComplete, variant = 'dark' }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState<{
     days: number
     hours: number
@@ -47,15 +48,22 @@ export default function CountdownTimer({ targetDate, onComplete }: CountdownTime
     return () => clearInterval(interval)
   }, [targetDate, onComplete])
 
+  const isLight = variant === 'light'
+  const loadingColorClass = isLight ? 'text-white/80' : 'text-gray-500'
+  const expiredColorClass = isLight ? 'text-green-300' : 'text-green-600'
+  const textColorClass = isLight ? 'text-white' : 'text-gray-700'
+  const labelColorClass = isLight ? 'text-white/80' : 'text-gray-500'
+  const separatorColorClass = isLight ? 'text-white/60' : 'text-gray-400'
+
   if (timeLeft === null) {
     return (
-      <div className="text-sm text-gray-500">Đang tính toán...</div>
+      <div className={`text-sm ${loadingColorClass}`}>Đang tính toán...</div>
     )
   }
 
   if (isExpired) {
     return (
-      <div className="text-sm font-semibold text-green-600">
+      <div className={`text-sm font-semibold ${expiredColorClass}`}>
         🎉 Đã đến thời gian mở thưởng!
       </div>
     )
@@ -64,23 +72,23 @@ export default function CountdownTimer({ targetDate, onComplete }: CountdownTime
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className="flex items-center gap-1">
-        <span className="font-semibold text-gray-700">{timeLeft.days}</span>
-        <span className="text-gray-500 text-xs">ngày</span>
+        <span className={`font-semibold ${textColorClass}`}>{timeLeft.days}</span>
+        <span className={`${labelColorClass} text-xs`}>ngày</span>
       </div>
-      <span className="text-gray-400">:</span>
+      <span className={separatorColorClass}>:</span>
       <div className="flex items-center gap-1">
-        <span className="font-semibold text-gray-700">{String(timeLeft.hours).padStart(2, '0')}</span>
-        <span className="text-gray-500 text-xs">giờ</span>
+        <span className={`font-semibold ${textColorClass}`}>{String(timeLeft.hours).padStart(2, '0')}</span>
+        <span className={`${labelColorClass} text-xs`}>giờ</span>
       </div>
-      <span className="text-gray-400">:</span>
+      <span className={separatorColorClass}>:</span>
       <div className="flex items-center gap-1">
-        <span className="font-semibold text-gray-700">{String(timeLeft.minutes).padStart(2, '0')}</span>
-        <span className="text-gray-500 text-xs">phút</span>
+        <span className={`font-semibold ${textColorClass}`}>{String(timeLeft.minutes).padStart(2, '0')}</span>
+        <span className={`${labelColorClass} text-xs`}>phút</span>
       </div>
-      <span className="text-gray-400">:</span>
+      <span className={separatorColorClass}>:</span>
       <div className="flex items-center gap-1">
-        <span className="font-semibold text-gray-700">{String(timeLeft.seconds).padStart(2, '0')}</span>
-        <span className="text-gray-500 text-xs">giây</span>
+        <span className={`font-semibold ${textColorClass}`}>{String(timeLeft.seconds).padStart(2, '0')}</span>
+        <span className={`${labelColorClass} text-xs`}>giây</span>
       </div>
     </div>
   )

@@ -370,7 +370,16 @@ export default function AdminInvestmentsPage() {
                         {inv.investment_days}d
                       </td>
                       <td className="px-2 py-1 whitespace-nowrap text-xs font-semibold text-green-600">
-                        {formatCurrency(inv.total_profit)}
+                        {(() => {
+                          // Nếu total_profit = 0 nhưng đầu tư đã completed, tính lại
+                          if (inv.total_profit === 0 && inv.status === 'completed' && inv.amount && inv.daily_profit_rate && inv.investment_days) {
+                            const calculatedProfit = inv.amount * (inv.daily_profit_rate / 100) * inv.investment_days;
+                            if (calculatedProfit > 0) {
+                              return formatCurrency(calculatedProfit);
+                            }
+                          }
+                          return formatCurrency(inv.total_profit);
+                        })()}
                       </td>
                       <td className="px-2 py-1 whitespace-nowrap">
                         {getStatusBadge(inv.status, inv.maturity_date)}

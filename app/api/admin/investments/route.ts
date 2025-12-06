@@ -45,6 +45,51 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Tự động cập nhật status và tính lại total_profit cho các đầu tư đã đáo hạn
+    const expiredInvestments = await sql`
+      SELECT 
+        id,
+        amount,
+        daily_profit_rate,
+        investment_days,
+        total_profit
+      FROM investments
+      WHERE status = 'active'
+        AND maturity_date IS NOT NULL
+        AND maturity_date <= CURRENT_TIMESTAMP
+      LIMIT 100
+    `;
+    
+    // Tính lại total_profit và cập nhật status cho các đầu tư đã đáo hạn
+    for (const inv of expiredInvestments) {
+      const amount = parseFloat(inv.amount.toString());
+      const dailyRate = parseFloat(inv.daily_profit_rate.toString()) / 100;
+      const days = inv.investment_days || 1;
+      // Tính tổng lợi nhuận: amount * rate * số ngày
+      const totalProfit = amount * dailyRate * days;
+      
+      // Cập nhật total_profit nếu chưa đúng hoặc bằng 0
+      if (parseFloat(inv.total_profit?.toString() || '0') !== totalProfit) {
+        await sql`
+          UPDATE investments
+          SET 
+            status = 'completed',
+            total_profit = ${totalProfit},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${inv.id}
+        `;
+      } else {
+        // Chỉ cập nhật status nếu total_profit đã đúng
+        await sql`
+          UPDATE investments
+          SET 
+            status = 'completed',
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${inv.id}
+        `;
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // Filter by status: 'active', 'completed', or null (all)
     const userId = searchParams.get('userId'); // Filter by user ID

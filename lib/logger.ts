@@ -3,12 +3,17 @@
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
+interface ErrorInfo {
+  message: string;
+  stack?: string;
+}
+
 interface LogEntry {
   level: LogLevel;
   message: string;
   timestamp: string;
   data?: unknown;
-  error?: Error;
+  error?: ErrorInfo;
 }
 
 class Logger {

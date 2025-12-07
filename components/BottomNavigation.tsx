@@ -7,7 +7,7 @@ const navItems = [
   { path: '/', label: 'Trang chủ', icon: '🏠' },
   { path: '/history', label: 'Lịch sử', icon: '📜' },
   { path: '/orders', label: 'Đơn hàng', icon: '📦' },
-  { path: '/tickets', label: 'Vé dự thưởng', icon: '🎫' },
+  { path: '/support', label: 'CSKH', icon: '💬' },
   { path: '/profile', label: 'Của tôi', icon: '👤' },
 ]
 

@@ -453,6 +453,26 @@ export default function ProfilePage() {
           </div>
         </div>
         
+        {/* Menu Của tôi */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mb-6">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+            <span className="text-2xl">📱</span>
+            <h2 className="text-lg md:text-xl font-bold text-gray-800">Của tôi</h2>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={() => router.push('/tickets')}
+              className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-xl transition-all border border-purple-100 active:scale-98"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🎫</span>
+                <span className="text-base md:text-lg font-semibold text-gray-800">Vé dự thưởng</span>
+              </div>
+              <span className="text-gray-400">›</span>
+            </button>
+          </div>
+        </div>
+        
         {/* Button Đăng xuất */}
         <button
           onClick={handleLogout}

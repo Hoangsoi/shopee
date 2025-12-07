@@ -23,6 +23,7 @@ export default function AdminTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | ''>('')
   const [drawDate, setDrawDate] = useState('')
@@ -33,14 +34,22 @@ export default function AdminTicketsPage() {
   const [filterUserId, setFilterUserId] = useState<string>('')
 
   const fetchUsers = useCallback(async () => {
+    setLoadingUsers(true)
     try {
       const response = await fetch('/api/admin/users?limit=1000')
       if (response.ok) {
         const data = await response.json()
         setUsers(data.users || [])
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error fetching users:', errorData)
+        setMessage({ type: 'error', text: errorData.error || 'Lỗi khi tải danh sách người dùng' })
       }
     } catch (error) {
       console.error('Error fetching users:', error)
+      setMessage({ type: 'error', text: 'Lỗi kết nối khi tải danh sách người dùng' })
+    } finally {
+      setLoadingUsers(false)
     }
   }, [])
 
@@ -144,7 +153,13 @@ export default function AdminTicketsPage() {
               </div>
             </div>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                // Đảm bảo users được load trước khi mở modal
+                if (users.length === 0 && !loadingUsers) {
+                  fetchUsers()
+                }
+                setShowCreateModal(true)
+              }}
               className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
             >
               + Tạo vé mới
@@ -312,19 +327,37 @@ export default function AdminTicketsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Khách hàng <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value as number | '')}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-600"
-                  >
-                    <option value="">Chọn khách hàng</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name} ({user.email})
-                      </option>
-                    ))}
-                  </select>
+                  {loadingUsers ? (
+                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Đang tải danh sách...</span>
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="w-full px-3 py-2 border border-red-300 rounded-lg bg-red-50">
+                      <p className="text-sm text-red-600">Không có người dùng nào. Vui lòng thử lại.</p>
+                      <button
+                        type="button"
+                        onClick={fetchUsers}
+                        className="mt-2 text-sm text-orange-600 hover:text-orange-700 underline"
+                      >
+                        Tải lại danh sách
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value as number | '')}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-600"
+                    >
+                      <option value="">Chọn khách hàng</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name} ({user.email})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div>

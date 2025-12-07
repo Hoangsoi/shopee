@@ -46,9 +46,10 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Validate pagination
-    if (page < 1 || limit < 1 || limit > 100) {
+    // Cho phép limit lớn hơn (tối đa 1000) để hỗ trợ các trường hợp như dropdown chọn user
+    if (page < 1 || limit < 1 || limit > 1000) {
       return NextResponse.json(
-        { error: 'Tham số pagination không hợp lệ. Page >= 1, Limit 1-100' },
+        { error: 'Tham số pagination không hợp lệ. Page >= 1, Limit 1-1000' },
         { status: 400 }
       );
     }

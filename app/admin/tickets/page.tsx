@@ -40,10 +40,13 @@ export default function AdminTicketsPage() {
       if (response.ok) {
         const data = await response.json()
         setUsers(data.users || [])
+        if (data.users && data.users.length === 0) {
+          console.warn('No users found in database')
+        }
       } else {
-        const errorData = await response.json().catch(() => ({}))
+        const errorData = await response.json().catch(() => ({ error: 'Lỗi không xác định' }))
         console.error('Error fetching users:', errorData)
-        setMessage({ type: 'error', text: errorData.error || 'Lỗi khi tải danh sách người dùng' })
+        setMessage({ type: 'error', text: errorData.error || `Lỗi khi tải danh sách người dùng (${response.status})` })
       }
     } catch (error) {
       console.error('Error fetching users:', error)

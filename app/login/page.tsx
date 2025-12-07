@@ -108,14 +108,16 @@ export default function LoginPage() {
 
         {/* Form Container */}
         <div className="bg-white rounded-sm shadow-sm p-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             {/* Email */}
             <div>
               <input
                 type="email"
+                name="email"
+                id="email"
                 placeholder="Email"
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
                 style={{ fontSize: '16px' }}
                 value={formData.email}
@@ -127,9 +129,12 @@ export default function LoginPage() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
+                name="password"
+                id="password"
                 placeholder="Mật khẩu"
                 required
                 autoComplete="current-password"
+                data-form-type="other"
                 className="w-full h-11 px-3 pr-10 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
                 style={{ fontSize: '16px' }}
                 value={formData.password}

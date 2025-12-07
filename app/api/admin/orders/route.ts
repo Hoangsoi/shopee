@@ -244,8 +244,12 @@ export async function PUT(request: NextRequest) {
     `;
 
     // Xử lý hoàn tiền và hoa hồng
+    // BUSINESS LOGIC: Mô hình Cashback - User mua hàng và được hoàn lại tiền + hoa hồng
+    // - Khi tạo đơn hàng: Tiền đã được trừ từ ví (xem app/api/orders/route.ts)
+    // - Khi admin phê duyệt: Hoàn lại tiền gốc + hoa hồng (user mua hàng miễn phí + được hoa hồng)
+    // - Khi admin từ chối: Chỉ hoàn lại tiền gốc, không có hoa hồng
     if (status === 'confirmed') {
-      // Phê duyệt: Hoàn lại tiền gốc + hoa hồng
+      // Phê duyệt: Hoàn lại tiền gốc + hoa hồng (Cashback model)
       await sql`
         UPDATE users
         SET 

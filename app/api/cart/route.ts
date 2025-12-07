@@ -359,33 +359,56 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Kiểm tra số lượng tồn kho
-    const cartItem = await sql`
-      SELECT ci.product_id, p.stock 
-      FROM cart_items ci
-      INNER JOIN products p ON ci.product_id = p.id
-      WHERE ci.id = ${cart_item_id} AND ci.user_id = ${decoded.userId}
+    // Kiểm tra số lượng tồn kho và cập nhật với điều kiện stock (atomic operation)
+    const updateResult = await sql`
+      UPDATE cart_items ci
+      SET quantity = ${quantity}, updated_at = CURRENT_TIMESTAMP
+      FROM products p
+      WHERE ci.id = ${cart_item_id} 
+        AND ci.user_id = ${decoded.userId}
+        AND ci.product_id = p.id
+        AND p.stock >= ${quantity}
+        AND p.is_active = true
+      RETURNING ci.id, ci.product_id, p.stock, p.name
     `;
 
-    if (cartItem.length === 0) {
-      return NextResponse.json(
-        { error: 'Sản phẩm không tồn tại trong giỏ hàng' },
-        { status: 404 }
-      );
-    }
+    if (updateResult.length === 0) {
+      // Kiểm tra xem cart item có tồn tại không
+      const cartItemCheck = await sql`
+        SELECT ci.id, p.stock, p.name, p.is_active
+        FROM cart_items ci
+        INNER JOIN products p ON ci.product_id = p.id
+        WHERE ci.id = ${cart_item_id} AND ci.user_id = ${decoded.userId}
+      `;
 
-    if (cartItem[0].stock < quantity) {
+      if (cartItemCheck.length === 0) {
+        return NextResponse.json(
+          { error: 'Sản phẩm không tồn tại trong giỏ hàng' },
+          { status: 404 }
+        );
+      }
+
+      const item = cartItemCheck[0];
+      if (!item.is_active) {
+        return NextResponse.json(
+          { error: 'Sản phẩm không còn bán' },
+          { status: 400 }
+        );
+      }
+
+      if (item.stock < quantity) {
+        return NextResponse.json(
+          { error: `Số lượng sản phẩm "${item.name}" không đủ. Số lượng còn lại: ${item.stock}` },
+          { status: 400 }
+        );
+      }
+
+      // Nếu đến đây mà vẫn không update được, có thể do race condition
       return NextResponse.json(
-        { error: 'Số lượng sản phẩm không đủ' },
+        { error: 'Không thể cập nhật số lượng. Vui lòng thử lại.' },
         { status: 400 }
       );
     }
-
-    await sql`
-      UPDATE cart_items 
-      SET quantity = ${quantity}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${cart_item_id} AND user_id = ${decoded.userId}
-    `;
 
     return NextResponse.json({
       message: 'Đã cập nhật số lượng',

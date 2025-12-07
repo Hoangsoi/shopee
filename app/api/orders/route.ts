@@ -371,8 +371,10 @@ export async function POST(request: NextRequest) {
 
     // Thực hiện các bước tạo đơn hàng (không dùng transaction wrapper vì Neon serverless không hỗ trợ)
     // Sử dụng atomic operations và manual rollback nếu cần
+    // BUSINESS LOGIC: Mô hình Cashback - Tiền sẽ được hoàn lại khi admin phê duyệt đơn hàng
     try {
       // Bước 1: Trừ tiền từ ví (atomic với điều kiện)
+      // Note: Tiền này sẽ được hoàn lại khi admin phê duyệt đơn hàng (xem app/api/admin/orders/route.ts)
       const updateBalanceResult = await sql`
         UPDATE users 
         SET wallet_balance = wallet_balance - ${totalAmount}, updated_at = CURRENT_TIMESTAMP

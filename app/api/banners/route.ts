@@ -1,15 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { unstable_cache } from 'next/cache';
+
+// Helper function để fetch banners với cache
+async function fetchBanners() {
+  return await sql`
+    SELECT id, image_url, title, link_url, is_active, sort_order
+    FROM banners
+    WHERE is_active = true
+    ORDER BY sort_order ASC, created_at ASC
+  `;
+}
+
+// Cached version - cache 5 phút
+const getCachedBanners = unstable_cache(
+  fetchBanners,
+  ['banners'],
+  {
+    revalidate: 300, // 5 minutes
+    tags: ['banners'],
+  }
+);
 
 // GET: Lấy danh sách banners (public)
 export async function GET() {
   try {
-    const banners = await sql`
-      SELECT id, image_url, title, link_url, is_active, sort_order
-      FROM banners
-      WHERE is_active = true
-      ORDER BY sort_order ASC, created_at ASC
-    `;
+    const banners = await getCachedBanners();
 
     return NextResponse.json({
       banners: banners.map((banner: any) => ({

@@ -1,9 +1,135 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import { getVietnamTime, addDaysVietnamTime, toVietnamTimeISO } from '@/lib/timezone-utils';
+
+/**
+ * Helper function: Xử lý batch expired investments với transaction
+ * Tối ưu: Gộp tất cả updates thành batch operations thay vì loop N queries
+ */
+async function processExpiredInvestments(userId: number) {
+  try {
+    // Lấy tất cả expired investments
+    const expiredInvestments = await sql`
+      SELECT 
+        id,
+        user_id,
+        amount,
+        daily_profit_rate,
+        investment_days,
+        total_profit
+      FROM investments
+      WHERE user_id = ${userId}
+        AND status = 'active'
+        AND maturity_date IS NOT NULL
+        AND maturity_date <= CURRENT_TIMESTAMP
+    `;
+
+    if (expiredInvestments.length === 0) {
+      return;
+    }
+
+    // Tính toán tất cả profits trước
+    const processedData = expiredInvestments.map((inv: any) => {
+      const amount = parseFloat(inv.amount.toString());
+      const dailyRate = parseFloat(inv.daily_profit_rate.toString()) / 100;
+      const days = inv.investment_days || 1;
+      const totalProfit = amount * dailyRate * days;
+      const totalReturn = amount + totalProfit;
+      
+      return {
+        id: inv.id,
+        user_id: inv.user_id,
+        amount,
+        totalProfit,
+        totalReturn,
+        days,
+        dailyProfitRate: inv.daily_profit_rate,
+      };
+    });
+
+    // Tính tổng tiền cần hoàn lại
+    const totalReturnAmount = processedData.reduce((sum, item) => sum + item.totalReturn, 0);
+
+    // Batch update trong transaction
+    await sql.begin(async (sql) => {
+      // 1. Update wallet balance một lần cho tất cả
+      if (totalReturnAmount > 0) {
+        await sql`
+          UPDATE users
+          SET 
+            wallet_balance = wallet_balance + ${totalReturnAmount},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${userId}
+        `;
+      }
+
+      // 2. Batch update investments status
+      const investmentIds = processedData.map(item => item.id);
+      const totalProfits = processedData.map(item => item.totalProfit);
+      
+      // Update từng investment với total_profit tương ứng
+      for (let i = 0; i < processedData.length; i++) {
+        await sql`
+          UPDATE investments
+          SET 
+            status = 'completed',
+            total_profit = ${processedData[i].totalProfit},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${processedData[i].id}
+        `;
+      }
+
+      // 3. Batch insert transactions (nếu bảng tồn tại)
+      try {
+        const transactionInserts = [];
+        for (const item of processedData) {
+          const formattedAmount = new Intl.NumberFormat('vi-VN').format(item.amount);
+          const formattedProfit = new Intl.NumberFormat('vi-VN').format(item.totalProfit);
+          
+          // Hoàn gốc
+          transactionInserts.push(sql`
+            INSERT INTO transactions (user_id, type, amount, status, description)
+            VALUES (
+              ${userId}, 
+              'deposit', 
+              ${item.amount}, 
+              'completed', 
+              ${`Hoàn gốc đầu tư: ${formattedAmount} VND`}
+            )
+          `);
+          
+          // Hoàn lãi
+          transactionInserts.push(sql`
+            INSERT INTO transactions (user_id, type, amount, status, description)
+            VALUES (
+              ${userId}, 
+              'deposit', 
+              ${item.totalProfit}, 
+              'completed', 
+              ${`Hoàn hoa hồng đầu tư (${item.days} ngày, ${item.dailyProfitRate}%/ngày): ${formattedProfit} VND`}
+            )
+          `);
+        }
+        
+        // Execute all transaction inserts
+        await Promise.all(transactionInserts);
+      } catch (error) {
+        // Bỏ qua nếu bảng transactions chưa tồn tại
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error creating transactions (table may not exist):', error);
+        }
+      }
+    });
+  } catch (error) {
+    // Log error nhưng không throw để không ảnh hưởng GET request
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error processing expired investments:', error);
+    }
+  }
+}
 
 // GET: Lấy thông tin đầu tư của user hiện tại
+// Tối ưu: Loại bỏ business logic nặng, chỉ trả về data
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value;
@@ -24,138 +150,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Kiểm tra và tạo bảng investments nếu chưa có
-    try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS investments (
-          id SERIAL PRIMARY KEY,
-          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          amount DECIMAL(15, 2) NOT NULL,
-          daily_profit_rate DECIMAL(5, 2) NOT NULL DEFAULT 1.00,
-          investment_days INTEGER NOT NULL DEFAULT 1,
-          total_profit DECIMAL(15, 2) DEFAULT 0,
-          status VARCHAR(20) DEFAULT 'active',
-          maturity_date TIMESTAMP,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_profit_calculated_at TIMESTAMP
-        )
-      `;
-      
-      // Thêm cột investment_days và maturity_date nếu chưa có
-      try {
-        await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS investment_days INTEGER DEFAULT 1`;
-      } catch (error) {
-        // Cột đã tồn tại
+    // Xử lý expired investments (async, không block response)
+    // Note: Logic này nên được chuyển sang cron job trong production
+    processExpiredInvestments(decoded.userId).catch((error) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Background processing error:', error);
       }
-      try {
-        await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS maturity_date TIMESTAMP`;
-      } catch (error) {
-        // Cột đã tồn tại
-      }
-    } catch (error) {
-      // Bảng đã tồn tại, tiếp tục
-    }
+    });
 
-    // Tự động cập nhật status và tính lại total_profit cho các đầu tư đã đáo hạn
-    // Cập nhật các đầu tư đã đáo hạn (maturity_date <= now()) thành 'completed'
-    // Và đảm bảo total_profit được tính đúng
-    const expiredInvestments = await sql`
-      SELECT 
-        id,
-        amount,
-        daily_profit_rate,
-        investment_days,
-        total_profit
-      FROM investments
-      WHERE user_id = ${decoded.userId}
-        AND status = 'active'
-        AND maturity_date IS NOT NULL
-        AND maturity_date <= CURRENT_TIMESTAMP
-    `;
-    
-    // Tính lại total_profit, hoàn tiền vào ví và cập nhật status cho các đầu tư đã đáo hạn
-    for (const inv of expiredInvestments) {
-      const amount = parseFloat(inv.amount.toString());
-      const dailyRate = parseFloat(inv.daily_profit_rate.toString()) / 100;
-      const days = inv.investment_days || 1;
-      // Tính tổng lợi nhuận: amount * rate * số ngày
-      const totalProfit = amount * dailyRate * days;
-      const totalReturn = amount + totalProfit; // Tổng tiền hoàn lại = gốc + lãi
-      
-      // Vì status vẫn là 'active' nên chắc chắn chưa hoàn tiền, luôn hoàn tiền khi hết hạn
-      // Hoàn tiền gốc + lãi vào ví
-      await sql`
-        UPDATE users
-        SET 
-          wallet_balance = wallet_balance + ${totalReturn},
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${decoded.userId}
-      `;
-      
-      // Ghi lịch sử giao dịch - Hoàn gốc
-      try {
-        const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount);
-        await sql`
-          INSERT INTO transactions (user_id, type, amount, status, description)
-          VALUES (
-            ${decoded.userId}, 
-            'deposit', 
-            ${amount}, 
-            'completed', 
-            ${`Hoàn gốc đầu tư: ${formattedAmount} VND`}
-          )
-        `;
-      } catch (error) {
-        // Bỏ qua nếu bảng transactions chưa tồn tại
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error creating return principal transaction:', error);
-        }
-      }
-      
-      // Ghi lịch sử giao dịch - Hoàn lãi
-      try {
-        const formattedProfit = new Intl.NumberFormat('vi-VN').format(totalProfit);
-        await sql`
-          INSERT INTO transactions (user_id, type, amount, status, description)
-          VALUES (
-            ${decoded.userId}, 
-            'deposit', 
-            ${totalProfit}, 
-            'completed', 
-            ${`Hoàn hoa hồng đầu tư (${days} ngày, ${inv.daily_profit_rate}%/ngày): ${formattedProfit} VND`}
-          )
-        `;
-      } catch (error) {
-        // Bỏ qua nếu bảng transactions chưa tồn tại
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error creating return profit transaction:', error);
-        }
-      }
-      
-      // Cập nhật total_profit và status
-      if (parseFloat(inv.total_profit?.toString() || '0') !== totalProfit) {
-        await sql`
-          UPDATE investments
-          SET 
-            status = 'completed',
-            total_profit = ${totalProfit},
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${inv.id}
-        `;
-      } else {
-        // Chỉ cập nhật status nếu total_profit đã đúng
-        await sql`
-          UPDATE investments
-          SET 
-            status = 'completed',
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${inv.id}
-        `;
-      }
-    }
-
-    // Lấy tất cả đầu tư của user
+    // Lấy tất cả đầu tư của user (chỉ đọc, không tính toán)
     const investments = await sql`
       SELECT 
         id,
@@ -173,50 +176,10 @@ export async function GET(request: NextRequest) {
       ORDER BY created_at DESC
     `;
 
-    // Tính lợi nhuận real-time cho các đầu tư đang hoạt động
-    const now = new Date();
-    for (const inv of investments) {
-      if (inv.status === 'active' && inv.maturity_date && new Date(inv.maturity_date) > now) {
-        const amount = parseFloat(inv.amount.toString());
-        const dailyRate = parseFloat(inv.daily_profit_rate.toString()) / 100;
-        const days = inv.investment_days || 1;
-        const createdDate = new Date(inv.created_at);
-        const lastCalculated = inv.last_profit_calculated_at 
-          ? new Date(inv.last_profit_calculated_at) 
-          : createdDate;
-        
-        // Tính số ngày đã trôi qua từ lần tính cuối cùng
-        const daysSinceLastCalculation = Math.floor((now.getTime() - lastCalculated.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysSinceLastCalculation >= 1) {
-          // Tính lợi nhuận cho số ngày đã trôi qua
-          const daysToCalculate = Math.min(daysSinceLastCalculation, days);
-          const profitForPeriod = amount * dailyRate * daysToCalculate;
-          const currentProfit = parseFloat(inv.total_profit?.toString() || '0');
-          const newTotalProfit = currentProfit + profitForPeriod;
-          
-          // Cập nhật lợi nhuận trong database
-          await sql`
-            UPDATE investments
-            SET 
-              total_profit = ${newTotalProfit},
-              last_profit_calculated_at = CURRENT_TIMESTAMP,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${inv.id}
-          `;
-          
-          // Cập nhật giá trị trong object để trả về
-          inv.total_profit = newTotalProfit;
-          inv.last_profit_calculated_at = now.toISOString();
-        }
-      }
-    }
-
     // Lấy transactions liên quan đến đầu tư (hoàn gốc và hoa hồng)
-    const investmentIds = investments.map((inv: any) => inv.id);
     let returnTransactions: any[] = [];
     
-    if (investmentIds.length > 0) {
+    if (investments.length > 0) {
       try {
         // Lấy các transactions có description chứa "Hoàn gốc đầu tư" hoặc "Hoàn hoa hồng đầu tư"
         const transactions = await sql`
@@ -414,27 +377,29 @@ export async function POST(request: NextRequest) {
       // Sử dụng giá trị mặc định
     }
 
-    // Trừ tiền từ ví
-    await sql`
-      UPDATE users 
-      SET wallet_balance = wallet_balance - ${amount}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${decoded.userId}
-    `;
-
     // Tính ngày đáo hạn: thêm đúng số ngày từ thời điểm hiện tại
-    // Lấy thời gian hiện tại (server time, UTC)
     const now = new Date();
-    // Tính maturity_date: thêm đúng số ngày * 24 giờ
     const maturityDate = new Date(now);
     maturityDate.setTime(maturityDate.getTime() + (days * 24 * 60 * 60 * 1000));
 
-    // Tạo đầu tư mới
-    // Lưu maturity_date vào database (database sẽ lưu dưới dạng timestamp)
-    const result = await sql`
-      INSERT INTO investments (user_id, amount, daily_profit_rate, investment_days, status, maturity_date, last_profit_calculated_at)
-      VALUES (${decoded.userId}, ${amount}, ${dailyProfitRate}, ${days}, 'active', ${maturityDate.toISOString()}::timestamp, CURRENT_TIMESTAMP)
-      RETURNING id, amount, daily_profit_rate, investment_days, total_profit, status, maturity_date, created_at
-    `;
+    // Sử dụng transaction để đảm bảo atomicity: trừ tiền ví và tạo investment cùng lúc
+    const result = await sql.begin(async (sql) => {
+      // 1. Trừ tiền từ ví
+      await sql`
+        UPDATE users 
+        SET wallet_balance = wallet_balance - ${amount}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${decoded.userId}
+      `;
+
+      // 2. Tạo đầu tư mới
+      const investmentResult = await sql`
+        INSERT INTO investments (user_id, amount, daily_profit_rate, investment_days, status, maturity_date, last_profit_calculated_at)
+        VALUES (${decoded.userId}, ${amount}, ${dailyProfitRate}, ${days}, 'active', ${maturityDate.toISOString()}::timestamp, CURRENT_TIMESTAMP)
+        RETURNING id, amount, daily_profit_rate, investment_days, total_profit, status, maturity_date, created_at
+      `;
+
+      return investmentResult;
+    });
 
     // Không ghi lịch sử giao dịch cho đầu tư vì đây là chuyển tiền từ ví sang đầu tư
     // Lợi nhuận sẽ được ghi khi tính toán hàng ngày

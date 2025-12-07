@@ -33,8 +33,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchStats()
     
-    // Cập nhật real-time mỗi 5 giây
-    const interval = setInterval(fetchStats, 5000)
+    // Tối ưu: Giảm polling từ 5s xuống 30s để giảm tải server
+    // Dashboard không cần real-time quá nhanh, 30s là đủ
+    const interval = setInterval(fetchStats, 30000) // 30 giây
     return () => clearInterval(interval)
   }, [fetchStats])
 

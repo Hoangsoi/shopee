@@ -1,39 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { getInvestmentRateByDays } from '@/lib/investment-utils';
+import { unstable_cache } from 'next/cache';
+
+// Helper function để fetch investment rates với cache
+async function fetchInvestmentRates() {
+  // Lấy cấu hình rates theo số ngày - Đảm bảo lấy giá trị mới nhất
+  // Sử dụng MAX(updated_at) để tránh vấn đề với nhiều records
+  const result = await sql`
+    SELECT value, updated_at
+    FROM settings 
+    WHERE key = 'investment_rates_by_days'
+      AND updated_at = (
+        SELECT MAX(updated_at) 
+        FROM settings 
+        WHERE key = 'investment_rates_by_days'
+      )
+    LIMIT 1
+  `;
+  
+  return result;
+}
+
+// Cached version - cache 5 phút
+const getCachedInvestmentRates = unstable_cache(
+  fetchInvestmentRates,
+  ['investment-rates'],
+  {
+    revalidate: 300, // 5 minutes
+    tags: ['investment-rates'],
+  }
+);
 
 // GET: Lấy tỷ lệ lợi nhuận đầu tư (public, không cần admin)
 // Có thể truyền query param ?days=X để lấy rate cho số ngày cụ thể
 export async function GET(request: NextRequest) {
   try {
-    // Đảm bảo bảng settings tồn tại
-    try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS settings (
-          id SERIAL PRIMARY KEY,
-          key VARCHAR(100) UNIQUE NOT NULL,
-          value TEXT NOT NULL,
-          description TEXT,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `;
-    } catch (error) {
-      // Bảng đã tồn tại, tiếp tục
-    }
-
-    // Lấy cấu hình rates theo số ngày - Đảm bảo lấy giá trị mới nhất
-    // Sử dụng MAX(updated_at) để tránh vấn đề với nhiều records
-    const result = await sql`
-      SELECT value, updated_at
-      FROM settings 
-      WHERE key = 'investment_rates_by_days'
-        AND updated_at = (
-          SELECT MAX(updated_at) 
-          FROM settings 
-          WHERE key = 'investment_rates_by_days'
-        )
-      LIMIT 1
-    `;
+    // Lấy cấu hình rates theo số ngày với cache
+    const result = await getCachedInvestmentRates();
 
     let rates = [
       { min_days: 1, max_days: 6, rate: 1.00 },
@@ -51,14 +55,8 @@ export async function GET(request: NextRequest) {
       } catch (e) {
         // Sử dụng giá trị mặc định nếu parse lỗi
       }
-    } else {
-      // Tạo giá trị mặc định nếu chưa có
-      await sql`
-        INSERT INTO settings (key, value, description)
-        VALUES ('investment_rates_by_days', ${JSON.stringify(rates)}, 'Tỷ lệ lợi nhuận đầu tư theo số ngày (JSON array)')
-        ON CONFLICT (key) DO NOTHING
-      `;
     }
+    // Note: Không tạo giá trị mặc định ở đây nữa - nên chạy migration trước
 
     // Nếu có query param days, trả về rate cho số ngày đó
     const { searchParams } = new URL(request.url);

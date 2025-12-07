@@ -203,8 +203,13 @@ export default function AdminUsersPage() {
       if (otherData.phone !== undefined && otherData.phone !== originalUserData.phone) {
         requestBody.phone = otherData.phone
       }
-      if (otherData.agent_code !== undefined && otherData.agent_code !== originalUserData.agent_code) {
-        requestBody.agent_code = otherData.agent_code
+      // Xử lý agent_code: so sánh chuỗi rỗng và null/undefined như nhau
+      if (otherData.agent_code !== undefined) {
+        const originalAgentCode = originalUserData.agent_code || ''
+        const newAgentCode = otherData.agent_code || ''
+        if (newAgentCode !== originalAgentCode) {
+          requestBody.agent_code = otherData.agent_code || null // Gửi null nếu là chuỗi rỗng
+        }
       }
       if (otherData.role !== undefined && otherData.role !== originalUserData.role) {
         requestBody.role = otherData.role
@@ -232,6 +237,15 @@ export default function AdminUsersPage() {
       // Chỉ thêm password nếu có giá trị
       if (password && password.trim() !== '') {
         requestBody.password = password
+      }
+
+      // Debug log để kiểm tra
+      if (otherData.agent_code !== undefined) {
+        console.log('Agent code update:', {
+          original: originalUserData.agent_code,
+          new: otherData.agent_code,
+          willSend: requestBody.agent_code !== undefined
+        })
       }
 
       const response = await fetch('/api/admin/users', {

@@ -302,12 +302,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Lấy thông tin sản phẩm và tính tổng tiền
-    // Sử dụng SELECT FOR UPDATE để lock rows và tránh race condition
+    // Note: Neon SQL serverless không hỗ trợ FOR UPDATE tốt, nên dùng atomic UPDATE với điều kiện
     let totalAmount = 0;
     const orderItemsData = [];
 
     for (const item of validatedData.items) {
-      // Sử dụng SELECT FOR UPDATE để lock row và kiểm tra stock
+      // Lấy thông tin sản phẩm (không dùng FOR UPDATE vì Neon serverless không hỗ trợ tốt)
       const products = await sql`
         SELECT 
           p.id, 
@@ -319,22 +319,22 @@ export async function POST(request: NextRequest) {
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.id = ${item.product_id} AND p.is_active = true
-        FOR UPDATE
       `;
 
       if (products.length === 0) {
         return NextResponse.json(
-          { error: `Sản phẩm ID ${item.product_id} không tồn tại` },
+          { error: `Sản phẩm ID ${item.product_id} không tồn tại hoặc đã bị vô hiệu hóa` },
           { status: 400 }
         );
       }
 
       const product = products[0];
 
-      // Kiểm tra stock sau khi đã lock row
-      if (product.stock < item.quantity) {
+      // Kiểm tra stock
+      const currentStock = product.stock ? parseInt(product.stock.toString()) : 0;
+      if (currentStock < item.quantity) {
         return NextResponse.json(
-          { error: `Sản phẩm "${product.name}" không đủ số lượng. Số lượng còn lại: ${product.stock}` },
+          { error: `Sản phẩm "${product.name}" không đủ số lượng. Số lượng còn lại: ${currentStock}` },
           { status: 400 }
         );
       }
@@ -367,33 +367,24 @@ export async function POST(request: NextRequest) {
 
     // Biến để lưu kết quả order (cần dùng bên ngoài try block)
     let orderResult: any[] = [];
+    let orderId: number | null = null;
 
-    // Sử dụng transaction để đảm bảo tính atomic
-    // Nếu bất kỳ bước nào fail, tất cả sẽ được rollback
+    // Thực hiện các bước tạo đơn hàng (không dùng transaction wrapper vì Neon serverless không hỗ trợ)
+    // Sử dụng atomic operations và manual rollback nếu cần
     try {
-      // Bước 1: Trừ tiền từ ví
-      await sql`
+      // Bước 1: Trừ tiền từ ví (atomic với điều kiện)
+      const updateBalanceResult = await sql`
         UPDATE users 
         SET wallet_balance = wallet_balance - ${totalAmount}, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${decoded.userId} AND wallet_balance >= ${totalAmount}
+        RETURNING wallet_balance
       `;
 
       // Kiểm tra xem có trừ tiền thành công không
-      const checkBalance = await sql`
-        SELECT wallet_balance FROM users WHERE id = ${decoded.userId}
-      `;
-      const newBalance = checkBalance[0]?.wallet_balance ? parseFloat(checkBalance[0].wallet_balance.toString()) : 0;
-      
-      // Nếu số dư không đúng (có thể đã bị trừ bởi request khác), rollback
-      if (Math.abs(newBalance - (walletBalance - totalAmount)) > 0.01) {
-        // Hoàn lại tiền nếu đã trừ
-        await sql`
-          UPDATE users 
-          SET wallet_balance = wallet_balance + ${totalAmount}, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${decoded.userId}
-        `;
+      if (updateBalanceResult.length === 0) {
+        // Không trừ được tiền (số dư không đủ)
         return NextResponse.json(
-          { error: 'Số dư ví không đủ hoặc đã thay đổi. Vui lòng thử lại.' },
+          { error: `Số dư ví không đủ. Số dư hiện tại: ${new Intl.NumberFormat('vi-VN').format(walletBalance)}đ, Cần: ${new Intl.NumberFormat('vi-VN').format(totalAmount)}đ` },
           { status: 400 }
         );
       }
@@ -405,12 +396,24 @@ export async function POST(request: NextRequest) {
         RETURNING id, order_number, total_amount, status, created_at
       `;
 
-      const orderId = orderResult[0].id;
+      if (orderResult.length === 0) {
+        // Không tạo được order - hoàn lại tiền
+        await sql`
+          UPDATE users 
+          SET wallet_balance = wallet_balance + ${totalAmount}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${decoded.userId}
+        `;
+        return NextResponse.json(
+          { error: 'Lỗi khi tạo đơn hàng. Tiền đã được hoàn lại.' },
+          { status: 500 }
+        );
+      }
 
-      // Bước 3: Thêm order_items và cập nhật stock (atomic)
+      orderId = orderResult[0].id;
+
+      // Bước 3: Thêm order_items và cập nhật stock (atomic với điều kiện)
       for (const item of orderItemsData) {
         // Cập nhật stock với điều kiện stock >= quantity để tránh stock âm (atomic operation)
-        // Nếu stock không đủ, update sẽ không ảnh hưởng đến row nào
         const updateResult = await sql`
           UPDATE products 
           SET stock = stock - ${item.quantity}, updated_at = CURRENT_TIMESTAMP
@@ -422,15 +425,17 @@ export async function POST(request: NextRequest) {
         if (updateResult.length === 0) {
           // Stock không đủ - rollback: hoàn lại tiền, xóa order_items và xóa order
           try {
-            await sql`DELETE FROM order_items WHERE order_id = ${orderId}`;
-            await sql`DELETE FROM orders WHERE id = ${orderId}`;
+            if (orderId) {
+              await sql`DELETE FROM order_items WHERE order_id = ${orderId}`;
+              await sql`DELETE FROM orders WHERE id = ${orderId}`;
+            }
             await sql`
               UPDATE users 
               SET wallet_balance = wallet_balance + ${totalAmount}, updated_at = CURRENT_TIMESTAMP
               WHERE id = ${decoded.userId}
             `;
           } catch (rollbackError) {
-            console.error('Error during rollback:', rollbackError);
+            logger.error('Error during rollback:', rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)));
           }
           
           return NextResponse.json(
@@ -448,12 +453,17 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       // Nếu có lỗi, rollback: hoàn lại tiền, xóa order_items và xóa order (nếu đã tạo)
       try {
-        // Kiểm tra xem order đã được tạo chưa
-        const existingOrder = await sql`SELECT id FROM orders WHERE order_number = ${orderNumber}`;
-        if (existingOrder.length > 0) {
-          const existingOrderId = existingOrder[0].id;
-          await sql`DELETE FROM order_items WHERE order_id = ${existingOrderId}`;
-          await sql`DELETE FROM orders WHERE id = ${existingOrderId}`;
+        if (orderId) {
+          await sql`DELETE FROM order_items WHERE order_id = ${orderId}`;
+          await sql`DELETE FROM orders WHERE id = ${orderId}`;
+        } else {
+          // Kiểm tra xem order đã được tạo chưa bằng order_number
+          const existingOrder = await sql`SELECT id FROM orders WHERE order_number = ${orderNumber}`;
+          if (existingOrder.length > 0) {
+            const existingOrderId = existingOrder[0].id;
+            await sql`DELETE FROM order_items WHERE order_id = ${existingOrderId}`;
+            await sql`DELETE FROM orders WHERE id = ${existingOrderId}`;
+          }
         }
         // Hoàn lại tiền
         await sql`
@@ -462,10 +472,10 @@ export async function POST(request: NextRequest) {
           WHERE id = ${decoded.userId}
         `;
       } catch (rollbackError) {
-        console.error('Error during rollback:', rollbackError);
+        logger.error('Error during rollback:', rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)));
       }
       
-      console.error('Create order error:', error);
+      logger.error('Create order error:', error instanceof Error ? error : new Error(String(error)));
       return NextResponse.json(
         { error: 'Lỗi khi tạo đơn hàng. Tiền đã được hoàn lại.' },
         { status: 500 }

@@ -74,15 +74,66 @@ export async function GET(request: NextRequest) {
         AND maturity_date <= CURRENT_TIMESTAMP
     `;
     
-    // Tính lại total_profit và cập nhật status cho các đầu tư đã đáo hạn
+    // Tính lại total_profit, hoàn tiền vào ví và cập nhật status cho các đầu tư đã đáo hạn
     for (const inv of expiredInvestments) {
       const amount = parseFloat(inv.amount.toString());
       const dailyRate = parseFloat(inv.daily_profit_rate.toString()) / 100;
       const days = inv.investment_days || 1;
       // Tính tổng lợi nhuận: amount * rate * số ngày
       const totalProfit = amount * dailyRate * days;
+      const totalReturn = amount + totalProfit; // Tổng tiền hoàn lại = gốc + lãi
       
-      // Cập nhật total_profit nếu chưa đúng hoặc bằng 0
+      // Vì status vẫn là 'active' nên chắc chắn chưa hoàn tiền, luôn hoàn tiền khi hết hạn
+      // Hoàn tiền gốc + lãi vào ví
+      await sql`
+        UPDATE users
+        SET 
+          wallet_balance = wallet_balance + ${totalReturn},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${decoded.userId}
+      `;
+      
+      // Ghi lịch sử giao dịch - Hoàn gốc
+      try {
+        const formattedAmount = new Intl.NumberFormat('vi-VN').format(amount);
+        await sql`
+          INSERT INTO transactions (user_id, type, amount, status, description)
+          VALUES (
+            ${decoded.userId}, 
+            'deposit', 
+            ${amount}, 
+            'completed', 
+            ${`Hoàn gốc đầu tư: ${formattedAmount} VND`}
+          )
+        `;
+      } catch (error) {
+        // Bỏ qua nếu bảng transactions chưa tồn tại
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error creating return principal transaction:', error);
+        }
+      }
+      
+      // Ghi lịch sử giao dịch - Hoàn lãi
+      try {
+        const formattedProfit = new Intl.NumberFormat('vi-VN').format(totalProfit);
+        await sql`
+          INSERT INTO transactions (user_id, type, amount, status, description)
+          VALUES (
+            ${decoded.userId}, 
+            'deposit', 
+            ${totalProfit}, 
+            'completed', 
+            ${`Hoàn hoa hồng đầu tư (${days} ngày, ${inv.daily_profit_rate}%/ngày): ${formattedProfit} VND`}
+          )
+        `;
+      } catch (error) {
+        // Bỏ qua nếu bảng transactions chưa tồn tại
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error creating return profit transaction:', error);
+        }
+      }
+      
+      // Cập nhật total_profit và status
       if (parseFloat(inv.total_profit?.toString() || '0') !== totalProfit) {
         await sql`
           UPDATE investments

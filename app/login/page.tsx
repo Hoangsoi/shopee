@@ -108,7 +108,7 @@ export default function LoginPage() {
 
         {/* Form Container */}
         <div className="bg-white rounded-sm shadow-sm p-8">
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off" data-form-type="other">
             {/* Email */}
             <div>
               <input

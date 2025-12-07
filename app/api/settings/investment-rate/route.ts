@@ -21,12 +21,17 @@ export async function GET(request: NextRequest) {
       // Bảng đã tồn tại, tiếp tục
     }
 
-    // Lấy cấu hình rates theo số ngày
+    // Lấy cấu hình rates theo số ngày - Đảm bảo lấy giá trị mới nhất
+    // Sử dụng MAX(updated_at) để tránh vấn đề với nhiều records
     const result = await sql`
-      SELECT value 
+      SELECT value, updated_at
       FROM settings 
       WHERE key = 'investment_rates_by_days'
-      ORDER BY updated_at DESC
+        AND updated_at = (
+          SELECT MAX(updated_at) 
+          FROM settings 
+          WHERE key = 'investment_rates_by_days'
+        )
       LIMIT 1
     `;
 

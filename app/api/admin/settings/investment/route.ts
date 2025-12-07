@@ -29,11 +29,16 @@ export async function GET(request: NextRequest) {
       )
     `;
 
+    // Đảm bảo lấy giá trị mới nhất - Sử dụng MAX(updated_at) để tránh vấn đề với nhiều records
     const result = await sql`
       SELECT value, description, updated_at 
       FROM settings 
       WHERE key = 'investment_rates_by_days'
-      ORDER BY updated_at DESC
+        AND updated_at = (
+          SELECT MAX(updated_at) 
+          FROM settings 
+          WHERE key = 'investment_rates_by_days'
+        )
       LIMIT 1
     `;
 
@@ -122,15 +127,21 @@ export async function PUT(request: NextRequest) {
       )
     `;
 
-    // Cập nhật hoặc tạo mới setting
+    // Xóa tất cả records cũ với key này để tránh duplicate
     await sql`
-      INSERT INTO settings (key, value, description)
-      VALUES ('investment_rates_by_days', ${JSON.stringify(sortedRates)}, 'Tỷ lệ lợi nhuận đầu tư theo số ngày (JSON array)')
-      ON CONFLICT (key) 
-      DO UPDATE SET 
-        value = ${JSON.stringify(sortedRates)},
-        description = 'Tỷ lệ lợi nhuận đầu tư theo số ngày (JSON array)',
-        updated_at = CURRENT_TIMESTAMP
+      DELETE FROM settings 
+      WHERE key = 'investment_rates_by_days'
+    `;
+    
+    // Tạo record mới với giá trị mới nhất
+    await sql`
+      INSERT INTO settings (key, value, description, updated_at)
+      VALUES (
+        'investment_rates_by_days', 
+        ${JSON.stringify(sortedRates)}, 
+        'Tỷ lệ lợi nhuận đầu tư theo số ngày (JSON array)',
+        CURRENT_TIMESTAMP
+      )
     `;
 
     return NextResponse.json({

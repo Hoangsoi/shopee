@@ -163,7 +163,13 @@ export default function ProfilePage() {
 
   const fetchInvestmentRate = async () => {
     try {
-      const response = await fetch('/api/settings/investment-rate')
+      // Thêm cache-busting để đảm bảo luôn lấy dữ liệu mới nhất
+      const response = await fetch(`/api/settings/investment-rate?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
       if (response.ok) {
         const data = await response.json()
         if (data.rates && Array.isArray(data.rates) && data.rates.length > 0) {
@@ -172,6 +178,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       // Sử dụng giá trị mặc định nếu có lỗi
+      console.error('Error fetching investment rates:', error)
     }
   }
 

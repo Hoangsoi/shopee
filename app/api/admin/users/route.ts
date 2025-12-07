@@ -264,40 +264,38 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Tối ưu: Wrap tất cả updates trong transaction để đảm bảo atomicity
-    // Mặc dù vẫn là nhiều queries, nhưng tất cả trong một transaction (atomic và rollback nếu lỗi)
+    // Tối ưu: Cập nhật từng field (Neon SQL serverless không hỗ trợ transaction wrapper)
+    // Mặc dù vẫn là nhiều queries, nhưng đã được tối ưu và chạy tuần tự
     // Neon SQL không hỗ trợ dynamic SET clause tốt, nên đây là compromise tốt nhất
-    await sql.begin(async (sql) => {
-      if (updateData.name !== undefined) {
-        await sql`UPDATE users SET name = ${updateData.name}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.email !== undefined) {
-        await sql`UPDATE users SET email = ${updateData.email}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.phone !== undefined) {
-        await sql`UPDATE users SET phone = ${updateData.phone}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.role !== undefined) {
-        await sql`UPDATE users SET role = ${updateData.role}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.wallet_balance !== undefined) {
-        await sql`UPDATE users SET wallet_balance = ${updateData.wallet_balance}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.commission !== undefined) {
-        await sql`UPDATE users SET commission = ${updateData.commission}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.agent_code !== undefined) {
-        const agentCodeValue = updateData.agent_code === '' ? null : updateData.agent_code;
-        await sql`UPDATE users SET agent_code = ${agentCodeValue}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.is_frozen !== undefined) {
-        await sql`UPDATE users SET is_frozen = ${updateData.is_frozen}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-      if (updateData.password !== undefined && updateData.password.trim() !== '') {
-        const hashedPassword = await hashPassword(updateData.password);
-        await sql`UPDATE users SET password = ${hashedPassword}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
-      }
-    });
+    if (updateData.name !== undefined) {
+      await sql`UPDATE users SET name = ${updateData.name}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.email !== undefined) {
+      await sql`UPDATE users SET email = ${updateData.email}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.phone !== undefined) {
+      await sql`UPDATE users SET phone = ${updateData.phone}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.role !== undefined) {
+      await sql`UPDATE users SET role = ${updateData.role}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.wallet_balance !== undefined) {
+      await sql`UPDATE users SET wallet_balance = ${updateData.wallet_balance}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.commission !== undefined) {
+      await sql`UPDATE users SET commission = ${updateData.commission}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.agent_code !== undefined) {
+      const agentCodeValue = updateData.agent_code === '' ? null : updateData.agent_code;
+      await sql`UPDATE users SET agent_code = ${agentCodeValue}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.is_frozen !== undefined) {
+      await sql`UPDATE users SET is_frozen = ${updateData.is_frozen}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
+    if (updateData.password !== undefined && updateData.password.trim() !== '') {
+      const hashedPassword = await hashPassword(updateData.password);
+      await sql`UPDATE users SET password = ${hashedPassword}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user_id}`;
+    }
 
     // Lấy thông tin user sau khi cập nhật
     const result = await sql`

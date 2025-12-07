@@ -50,76 +50,71 @@ async function processExpiredInvestments(userId: number) {
     // Tính tổng tiền cần hoàn lại
     const totalReturnAmount = processedData.reduce((sum, item) => sum + item.totalReturn, 0);
 
-    // Batch update trong transaction
-    await sql.begin(async (sql) => {
-      // 1. Update wallet balance một lần cho tất cả
-      if (totalReturnAmount > 0) {
-        await sql`
-          UPDATE users
-          SET 
-            wallet_balance = wallet_balance + ${totalReturnAmount},
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${userId}
-        `;
-      }
+    // Batch update (Neon SQL serverless không hỗ trợ transaction wrapper)
+    // Tuy nhiên, batch operations vẫn tối ưu hơn nhiều so với N+1 queries
+    // 1. Update wallet balance một lần cho tất cả
+    if (totalReturnAmount > 0) {
+      await sql`
+        UPDATE users
+        SET 
+          wallet_balance = wallet_balance + ${totalReturnAmount},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${userId}
+      `;
+    }
 
-      // 2. Batch update investments status
-      const investmentIds = processedData.map(item => item.id);
-      const totalProfits = processedData.map(item => item.totalProfit);
-      
-      // Update từng investment với total_profit tương ứng
-      for (let i = 0; i < processedData.length; i++) {
-        await sql`
-          UPDATE investments
-          SET 
-            status = 'completed',
-            total_profit = ${processedData[i].totalProfit},
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${processedData[i].id}
-        `;
-      }
+    // 2. Batch update investments status
+    for (let i = 0; i < processedData.length; i++) {
+      await sql`
+        UPDATE investments
+        SET 
+          status = 'completed',
+          total_profit = ${processedData[i].totalProfit},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${processedData[i].id}
+      `;
+    }
 
-      // 3. Batch insert transactions (nếu bảng tồn tại)
-      try {
-        const transactionInserts = [];
-        for (const item of processedData) {
-          const formattedAmount = new Intl.NumberFormat('vi-VN').format(item.amount);
-          const formattedProfit = new Intl.NumberFormat('vi-VN').format(item.totalProfit);
-          
-          // Hoàn gốc
-          transactionInserts.push(sql`
-            INSERT INTO transactions (user_id, type, amount, status, description)
-            VALUES (
-              ${userId}, 
-              'deposit', 
-              ${item.amount}, 
-              'completed', 
-              ${`Hoàn gốc đầu tư: ${formattedAmount} VND`}
-            )
-          `);
-          
-          // Hoàn lãi
-          transactionInserts.push(sql`
-            INSERT INTO transactions (user_id, type, amount, status, description)
-            VALUES (
-              ${userId}, 
-              'deposit', 
-              ${item.totalProfit}, 
-              'completed', 
-              ${`Hoàn hoa hồng đầu tư (${item.days} ngày, ${item.dailyProfitRate}%/ngày): ${formattedProfit} VND`}
-            )
-          `);
-        }
+    // 3. Batch insert transactions (nếu bảng tồn tại)
+    try {
+      const transactionInserts = [];
+      for (const item of processedData) {
+        const formattedAmount = new Intl.NumberFormat('vi-VN').format(item.amount);
+        const formattedProfit = new Intl.NumberFormat('vi-VN').format(item.totalProfit);
         
-        // Execute all transaction inserts
-        await Promise.all(transactionInserts);
-      } catch (error) {
-        // Bỏ qua nếu bảng transactions chưa tồn tại
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error creating transactions (table may not exist):', error);
-        }
+        // Hoàn gốc
+        transactionInserts.push(sql`
+          INSERT INTO transactions (user_id, type, amount, status, description)
+          VALUES (
+            ${userId}, 
+            'deposit', 
+            ${item.amount}, 
+            'completed', 
+            ${`Hoàn gốc đầu tư: ${formattedAmount} VND`}
+          )
+        `);
+        
+        // Hoàn lãi
+        transactionInserts.push(sql`
+          INSERT INTO transactions (user_id, type, amount, status, description)
+          VALUES (
+            ${userId}, 
+            'deposit', 
+            ${item.totalProfit}, 
+            'completed', 
+            ${`Hoàn hoa hồng đầu tư (${item.days} ngày, ${item.dailyProfitRate}%/ngày): ${formattedProfit} VND`}
+          )
+        `);
       }
-    });
+      
+      // Execute all transaction inserts
+      await Promise.all(transactionInserts);
+    } catch (error) {
+      // Bỏ qua nếu bảng transactions chưa tồn tại
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error creating transactions (table may not exist):', error);
+      }
+    }
   } catch (error) {
     // Log error nhưng không throw để không ảnh hưởng GET request
     if (process.env.NODE_ENV === 'development') {
@@ -382,24 +377,21 @@ export async function POST(request: NextRequest) {
     const maturityDate = new Date(now);
     maturityDate.setTime(maturityDate.getTime() + (days * 24 * 60 * 60 * 1000));
 
-    // Sử dụng transaction để đảm bảo atomicity: trừ tiền ví và tạo investment cùng lúc
-    const result = await sql.begin(async (sql) => {
-      // 1. Trừ tiền từ ví
-      await sql`
-        UPDATE users 
-        SET wallet_balance = wallet_balance - ${amount}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${decoded.userId}
-      `;
+    // Trừ tiền từ ví và tạo investment (Neon SQL serverless không hỗ trợ transaction wrapper)
+    // Chạy tuần tự để đảm bảo logic đúng
+    // 1. Trừ tiền từ ví
+    await sql`
+      UPDATE users 
+      SET wallet_balance = wallet_balance - ${amount}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${decoded.userId}
+    `;
 
-      // 2. Tạo đầu tư mới
-      const investmentResult = await sql`
-        INSERT INTO investments (user_id, amount, daily_profit_rate, investment_days, status, maturity_date, last_profit_calculated_at)
-        VALUES (${decoded.userId}, ${amount}, ${dailyProfitRate}, ${days}, 'active', ${maturityDate.toISOString()}::timestamp, CURRENT_TIMESTAMP)
-        RETURNING id, amount, daily_profit_rate, investment_days, total_profit, status, maturity_date, created_at
-      `;
-
-      return investmentResult;
-    });
+    // 2. Tạo đầu tư mới
+    const result = await sql`
+      INSERT INTO investments (user_id, amount, daily_profit_rate, investment_days, status, maturity_date, last_profit_calculated_at)
+      VALUES (${decoded.userId}, ${amount}, ${dailyProfitRate}, ${days}, 'active', ${maturityDate.toISOString()}::timestamp, CURRENT_TIMESTAMP)
+      RETURNING id, amount, daily_profit_rate, investment_days, total_profit, status, maturity_date, created_at
+    `;
 
     // Không ghi lịch sử giao dịch cho đầu tư vì đây là chuyển tiền từ ví sang đầu tư
     // Lợi nhuận sẽ được ghi khi tính toán hàng ngày

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { isAdmin } from '@/lib/auth';
 
 // Lấy mã đại lý hiện tại
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Kiểm tra quyền admin
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
     // Đảm bảo bảng settings tồn tại
     try {
       await sql`
@@ -64,9 +70,14 @@ export async function GET() {
   }
 }
 
-// Cập nhật mã đại lý (cần authentication - tạm thời để public, nên thêm auth sau)
+// Cập nhật mã đại lý (chỉ admin)
 export async function PUT(request: NextRequest) {
   try {
+    // Kiểm tra quyền admin
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { value } = body;
 

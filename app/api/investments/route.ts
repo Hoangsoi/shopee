@@ -508,6 +508,15 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+  } catch (error) {
+    // Bắt các lỗi từ request.json() hoặc các lỗi khác không được catch bên trong
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Create investment error (outer):', error);
+    }
+    return NextResponse.json(
+      { error: 'Lỗi khi tạo đầu tư' },
+      { status: 500 }
+    );
   }
 }
 

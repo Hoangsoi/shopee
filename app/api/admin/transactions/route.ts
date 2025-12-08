@@ -227,31 +227,19 @@ export async function PUT(request: NextRequest) {
       WHERE id = ${transaction_id}
     `;
 
-    // Xử lý rút tiền: Trừ tiền khi admin duyệt (completed)
+    // Xử lý rút tiền: Tiền đã bị trừ ngay khi user tạo lệnh rút
     if (transaction.type === 'withdraw') {
       if (status === 'completed') {
-        // Duyệt rút tiền: Trừ tiền từ ví với điều kiện kiểm tra số dư
-        const updateResult = await sql`
+        // Duyệt rút tiền: Tiền đã được trừ khi tạo lệnh, không cần trừ lại
+        // Chỉ cần cập nhật status là 'completed' (đã làm ở trên)
+      } else if (status === 'failed' || status === 'cancelled') {
+        // Từ chối/hủy rút tiền: Trả lại tiền vào ví
+        await sql`
           UPDATE users
-          SET wallet_balance = wallet_balance - ${amount}, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${transaction.user_id} AND wallet_balance >= ${amount}
-          RETURNING wallet_balance
+          SET wallet_balance = wallet_balance + ${amount}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${transaction.user_id}
         `;
-
-        if (updateResult.length === 0) {
-          // Số dư không đủ, hoàn lại status về pending
-          await sql`
-            UPDATE transactions
-            SET status = 'pending', updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${transaction_id}
-          `;
-          return NextResponse.json(
-            { error: 'Số dư ví của người dùng không đủ để thực hiện rút tiền' },
-            { status: 400 }
-          );
-        }
       }
-      // Nếu từ chối hoặc hủy (failed/cancelled): Không cần làm gì vì chưa trừ tiền
     }
 
     // Nếu là duyệt transaction nạp tiền, cập nhật VIP status
@@ -263,9 +251,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       message: status === 'completed' 
         ? (transaction.type === 'withdraw' 
-          ? 'Duyệt rút tiền thành công. Tiền đã được trừ từ ví.' 
+          ? 'Duyệt rút tiền thành công.' 
           : 'Duyệt giao dịch thành công')
-        : 'Từ chối giao dịch thành công.',
+        : (transaction.type === 'withdraw'
+          ? 'Từ chối rút tiền thành công. Tiền đã được trả lại vào ví.'
+          : 'Từ chối giao dịch thành công.'),
       transaction: {
         id: transaction.id,
         status: status,

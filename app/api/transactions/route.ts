@@ -231,15 +231,21 @@ export async function POST(request: NextRequest) {
       const { updateVipStatus } = await import('@/lib/vip-utils');
       await updateVipStatus(decoded.userId);
     } else if (validatedData.type === 'withdraw') {
-      // Nếu là rút tiền, KHÔNG trừ tiền ngay
-      // Chỉ tạo transaction với status 'pending' và chờ admin duyệt
-      // Tiền sẽ được trừ khi admin duyệt (trong PUT handler của admin/transactions)
+      // Nếu là rút tiền, TRỪ TIỀN NGAY LẬP TỨC khi tạo lệnh rút
+      // Điều này đảm bảo user không thể sử dụng số tiền đã yêu cầu rút
+      await sql`
+        UPDATE users 
+        SET wallet_balance = wallet_balance - ${validatedData.amount}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${decoded.userId}
+      `;
       // Status vẫn là 'pending' để admin duyệt
-      // Note: User vẫn có thể sử dụng số tiền này cho đến khi admin duyệt yêu cầu rút
+      // Nếu admin từ chối, tiền sẽ được trả lại vào ví
     }
 
     return NextResponse.json({
-      message: validatedData.type === 'deposit' ? 'Nạp tiền thành công' : 'Yêu cầu rút tiền đã được gửi. Vui lòng chờ admin duyệt.',
+      message: validatedData.type === 'deposit' 
+        ? 'Nạp tiền thành công' 
+        : 'Yêu cầu rút tiền đã được gửi. Tiền đã được tạm khóa trong ví. Vui lòng chờ admin duyệt.',
       transaction: {
         id: result[0].id,
         type: result[0].type,

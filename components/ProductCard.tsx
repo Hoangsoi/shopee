@@ -11,6 +11,8 @@ interface Product {
   image_url?: string
   category_name?: string
   discount_percent?: number
+  sales_count?: number
+  rating?: number
 }
 
 interface ProductCardProps {
@@ -120,6 +122,22 @@ function ProductCard({ product, hasPermission = true }: ProductCardProps) {
           {product.original_price && product.original_price > product.price && (
             <span className="text-gray-400 text-xs line-through">
               {new Intl.NumberFormat('vi-VN').format(product.original_price)}đ
+            </span>
+          )}
+        </div>
+        
+        {/* Hiển thị lượt bán và sao */}
+        <div className="flex items-center gap-3 mb-2 text-xs text-gray-600">
+          {product.sales_count !== undefined && (
+            <span className="flex items-center gap-1">
+              <span>📦</span>
+              <span>{new Intl.NumberFormat('vi-VN').format(product.sales_count)} đã bán</span>
+            </span>
+          )}
+          {product.rating !== undefined && product.rating > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="text-yellow-500">⭐</span>
+              <span>{product.rating.toFixed(1)}</span>
             </span>
           )}
         </div>

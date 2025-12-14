@@ -11,6 +11,8 @@ interface Product {
   image_url?: string
   category_name?: string
   discount_percent?: number
+  sales_count?: number
+  rating?: number
 }
 
 interface FeaturedProductsProps {

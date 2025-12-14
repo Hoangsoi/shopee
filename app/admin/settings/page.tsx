@@ -8,7 +8,10 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false)
   const [loadingVip, setLoadingVip] = useState(false)
   const [loadingInvestment, setLoadingInvestment] = useState(false)
+  const [loadingSalesBoost, setLoadingSalesBoost] = useState(false)
   const [fetching, setFetching] = useState(true)
+  const [salesBoost, setSalesBoost] = useState(0)
+  const [salesBoostMessage, setSalesBoostMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [vipMessage, setVipMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [investmentMessage, setInvestmentMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -51,6 +54,18 @@ export default function AdminSettingsPage() {
     }
   }, [])
 
+  const fetchSalesBoost = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/settings/sales-boost')
+      if (response.ok) {
+        const data = await response.json()
+        setSalesBoost(data.value || 0)
+      }
+    } catch (error) {
+      console.error('Error fetching sales boost:', error)
+    }
+  }, [])
+
   const fetchVipSettings = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/settings/vip')
@@ -71,7 +86,8 @@ export default function AdminSettingsPage() {
     fetchAgentCode()
     fetchVipSettings()
     fetchInvestmentSettings()
-  }, [fetchAgentCode, fetchVipSettings, fetchInvestmentSettings])
+    fetchSalesBoost()
+  }, [fetchAgentCode, fetchVipSettings, fetchInvestmentSettings, fetchSalesBoost])
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -194,6 +210,42 @@ export default function AdminSettingsPage() {
       setInvestmentMessage({ type: 'error', text: 'Có lỗi xảy ra. Vui lòng thử lại.' })
     } finally {
       setLoadingInvestment(false)
+    }
+  }
+
+  const handleUpdateSalesBoost = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoadingSalesBoost(true)
+    setSalesBoostMessage(null)
+
+    try {
+      const newValue = parseInt(String(salesBoost))
+      if (isNaN(newValue) || newValue < 0) {
+        setSalesBoostMessage({ type: 'error', text: 'Giá trị phải là số nguyên dương' })
+        setLoadingSalesBoost(false)
+        return
+      }
+
+      const response = await fetch('/api/admin/settings/sales-boost', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ value: newValue }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setSalesBoostMessage({ type: 'success', text: 'Cập nhật giá trị cộng thêm cho lượt bán thành công!' })
+        await fetchSalesBoost()
+      } else {
+        setSalesBoostMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
+      }
+    } catch (error) {
+      setSalesBoostMessage({ type: 'error', text: 'Có lỗi xảy ra. Vui lòng thử lại.' })
+    } finally {
+      setLoadingSalesBoost(false)
     }
   }
 
@@ -514,6 +566,57 @@ export default function AdminSettingsPage() {
                 className="px-6 py-2 bg-[#ee4d2d] text-white rounded-sm font-medium hover:bg-[#f05d40] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {loadingVip ? 'Đang cập nhật...' : 'CẬP NHẬT CÀI ĐẶT VIP'}
+              </button>
+            </form>
+          </div>
+
+          {/* Sales Boost Management */}
+          <div className="mb-8 pb-8 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Cài đặt lượt bán sản phẩm</h2>
+            <form onSubmit={handleUpdateSalesBoost} className="space-y-4">
+              <div>
+                <label htmlFor="sales-boost" className="block text-sm font-medium text-gray-700 mb-2">
+                  Giá trị cộng thêm cho lượt bán (chỉ tăng, không giảm)
+                </label>
+                <input
+                  id="sales-boost"
+                  type="number"
+                  value={salesBoost}
+                  onChange={(e) => setSalesBoost(parseInt(e.target.value) || 0)}
+                  min="0"
+                  required
+                  className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                  style={{ fontSize: '16px' }}
+                  placeholder="Nhập giá trị cộng thêm (ví dụ: 10)"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  Giá trị này sẽ được cộng thêm vào lượt bán của <strong>TẤT CẢ</strong> sản phẩm khi hiển thị.
+                  <br />
+                  <strong>Lưu ý:</strong> Giá trị chỉ có thể tăng, không thể giảm. Ví dụ: Nếu hiện tại là 10, bạn chỉ có thể đặt giá trị >= 10.
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Ví dụ: Nếu sản phẩm có 5 lượt bán và bạn cài đặt giá trị này là 10, thì sản phẩm sẽ hiển thị 15 lượt bán (5 + 10).
+                </p>
+              </div>
+
+              {salesBoostMessage && (
+                <div
+                  className={`py-3 px-4 rounded-sm ${
+                    salesBoostMessage.type === 'success'
+                      ? 'bg-green-50 border border-green-200 text-green-600'
+                      : 'bg-red-50 border border-red-200 text-red-600'
+                  }`}
+                >
+                  {salesBoostMessage.text}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loadingSalesBoost}
+                className="px-6 py-2 bg-[#ee4d2d] text-white rounded-sm font-medium hover:bg-[#f05d40] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {loadingSalesBoost ? 'Đang cập nhật...' : 'CẬP NHẬT GIÁ TRỊ CỘNG THÊM'}
               </button>
             </form>
           </div>

@@ -53,6 +53,8 @@ export interface Product {
   is_featured: boolean;
   is_active: boolean;
   stock: number;
+  sales_count?: number;
+  rating?: number;
   created_at: Date | string;
   updated_at?: Date | string;
 }

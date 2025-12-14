@@ -592,7 +592,7 @@ export default function AdminSettingsPage() {
                 <p className="mt-2 text-sm text-gray-500">
                   Giá trị này sẽ được cộng thêm vào lượt bán của <strong>TẤT CẢ</strong> sản phẩm khi hiển thị.
                   <br />
-                  <strong>Lưu ý:</strong> Giá trị chỉ có thể tăng, không thể giảm. Ví dụ: Nếu hiện tại là 10, bạn chỉ có thể đặt giá trị >= 10.
+                  <strong>Lưu ý:</strong> Giá trị chỉ có thể tăng, không thể giảm. Ví dụ: Nếu hiện tại là 10, bạn chỉ có thể đặt giá trị {'>='} 10.
                 </p>
                 <p className="mt-1 text-xs text-gray-400">
                   Ví dụ: Nếu sản phẩm có 5 lượt bán và bạn cài đặt giá trị này là 10, thì sản phẩm sẽ hiển thị 15 lượt bán (5 + 10).

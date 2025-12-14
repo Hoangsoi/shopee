@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/process-investments",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/auto-increment-sales",
+      "schedule": "0 * * * *"
     }
   ]
 }

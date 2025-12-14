@@ -51,12 +51,22 @@ export async function GET(request: NextRequest) {
 
     // Lấy giá trị cộng thêm cho lượt bán từ settings
     let salesBoost = 0;
+    let intervalHours = 0;
     try {
       const boostSetting = await sql`
         SELECT value FROM settings WHERE key = 'sales_boost' LIMIT 1
       `;
       if (boostSetting.length > 0) {
-        salesBoost = parseInt(boostSetting[0].value) || 0;
+        // Parse JSON nếu có, hoặc fallback về số cũ
+        try {
+          const config = JSON.parse(boostSetting[0].value);
+          salesBoost = config.value || 0;
+          intervalHours = config.interval_hours || 0;
+        } catch {
+          // Nếu không phải JSON, coi như giá trị cũ (chế độ thủ công)
+          salesBoost = parseInt(boostSetting[0].value) || 0;
+          intervalHours = 0; // Giá trị cũ không có interval, mặc định = 0
+        }
       }
     } catch (error) {
       // Nếu chưa có setting, sử dụng giá trị mặc định 0
@@ -110,7 +120,10 @@ export async function GET(request: NextRequest) {
         if (baseSalesCount === 0) {
           baseSalesCount = generateRandomSalesCount(product.id);
         }
-        const salesCount = baseSalesCount + salesBoost;
+        
+        // Chỉ cộng salesBoost khi interval = 0 (chế độ thủ công)
+        // Khi interval > 0, giá trị đã được cộng vào database bởi cron job
+        const salesCount = intervalHours === 0 ? baseSalesCount + salesBoost : baseSalesCount;
         
         // Nếu rating = 0 hoặc null, generate random dựa trên product_id
         let rating = product.rating ? parseFloat(product.rating.toString()) : 0;

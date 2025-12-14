@@ -11,6 +11,7 @@ export default function AdminSettingsPage() {
   const [loadingSalesBoost, setLoadingSalesBoost] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [salesBoost, setSalesBoost] = useState(0)
+  const [salesBoostInterval, setSalesBoostInterval] = useState(0)
   const [salesBoostMessage, setSalesBoostMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [vipMessage, setVipMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -60,6 +61,7 @@ export default function AdminSettingsPage() {
       if (response.ok) {
         const data = await response.json()
         setSalesBoost(data.value || 0)
+        setSalesBoostInterval(data.interval_hours || 0)
       } else {
         // Nếu lỗi 403 hoặc 401, có thể là chưa đăng nhập hoặc không phải admin
         // Không cần log lỗi vì đây là behavior bình thường
@@ -235,18 +237,28 @@ export default function AdminSettingsPage() {
         return
       }
 
+      const intervalHours = parseInt(String(salesBoostInterval)) || 0
+      if (intervalHours < 0) {
+        setSalesBoostMessage({ type: 'error', text: 'Thời gian phải là số nguyên dương (0 = tắt tự động)' })
+        setLoadingSalesBoost(false)
+        return
+      }
+
       const response = await fetch('/api/admin/settings/sales-boost', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ value: newValue }),
+        body: JSON.stringify({ value: newValue, interval_hours: intervalHours }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        setSalesBoostMessage({ type: 'success', text: 'Cập nhật giá trị cộng thêm cho lượt bán thành công!' })
+        setSalesBoostMessage({ 
+          type: 'success', 
+          text: data.message || 'Cập nhật giá trị cộng thêm cho lượt bán thành công!' 
+        })
         await fetchSalesBoost()
       } else {
         setSalesBoostMessage({ type: 'error', text: data.error || 'Cập nhật thất bại' })
@@ -583,30 +595,64 @@ export default function AdminSettingsPage() {
           <div className="mb-8 pb-8 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Cài đặt lượt bán sản phẩm</h2>
             <form onSubmit={handleUpdateSalesBoost} className="space-y-4">
-              <div>
-                <label htmlFor="sales-boost" className="block text-sm font-medium text-gray-700 mb-2">
-                  Giá trị cộng thêm cho lượt bán (chỉ tăng, không giảm)
-                </label>
-                <input
-                  id="sales-boost"
-                  type="number"
-                  value={salesBoost}
-                  onChange={(e) => setSalesBoost(parseInt(e.target.value) || 0)}
-                  min="0"
-                  required
-                  className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
-                  style={{ fontSize: '16px' }}
-                  placeholder="Nhập giá trị cộng thêm (ví dụ: 10)"
-                />
-                <p className="mt-2 text-sm text-gray-500">
-                  Giá trị này sẽ được cộng thêm vào lượt bán của <strong>TẤT CẢ</strong> sản phẩm khi hiển thị.
-                  <br />
-                  <strong>Lưu ý:</strong> Giá trị chỉ có thể tăng, không thể giảm. Ví dụ: Nếu hiện tại là 10, bạn chỉ có thể đặt giá trị {'>='} 10.
-                </p>
-                <p className="mt-1 text-xs text-gray-400">
-                  Ví dụ: Nếu sản phẩm có 5 lượt bán và bạn cài đặt giá trị này là 10, thì sản phẩm sẽ hiển thị 15 lượt bán (5 + 10).
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="sales-boost" className="block text-sm font-medium text-gray-700 mb-2">
+                    Giá trị cộng thêm cho lượt bán
+                  </label>
+                  <input
+                    id="sales-boost"
+                    type="number"
+                    value={salesBoost}
+                    onChange={(e) => setSalesBoost(parseInt(e.target.value) || 0)}
+                    min="0"
+                    required
+                    className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                    style={{ fontSize: '16px' }}
+                    placeholder="Nhập giá trị (ví dụ: 5)"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="sales-boost-interval" className="block text-sm font-medium text-gray-700 mb-2">
+                    Tự động cộng thêm mỗi (giờ)
+                  </label>
+                  <input
+                    id="sales-boost-interval"
+                    type="number"
+                    value={salesBoostInterval}
+                    onChange={(e) => setSalesBoostInterval(parseInt(e.target.value) || 0)}
+                    min="0"
+                    required
+                    className="w-full h-11 px-3 border border-gray-300 rounded-sm focus:outline-none focus:border-[#ee4d2d] text-sm text-gray-900"
+                    style={{ fontSize: '16px' }}
+                    placeholder="Nhập số giờ (ví dụ: 1, 0 = tắt)"
+                  />
+                </div>
               </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>📌 Cách hoạt động:</strong>
+                </p>
+                <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                  <li>
+                    <strong>Giá trị cộng thêm:</strong> Số lượt bán sẽ được cộng thêm cho mỗi sản phẩm
+                  </li>
+                  <li>
+                    <strong>Tự động cộng thêm mỗi (giờ):</strong> 
+                    {salesBoostInterval > 0 ? (
+                      <span> Cứ mỗi <strong>{salesBoostInterval} giờ</strong>, hệ thống sẽ tự động cộng thêm <strong>{salesBoost}</strong> lượt bán cho <strong>TẤT CẢ</strong> sản phẩm</span>
+                    ) : (
+                      <span> Đặt <strong>0</strong> để tắt tự động. Giá trị chỉ được cộng thêm một lần khi cài đặt.</span>
+                    )}
+                  </li>
+                  <li>
+                    <strong>Ví dụ:</strong> Nếu bạn cài đặt giá trị = <strong>5</strong> và thời gian = <strong>1 giờ</strong>, thì cứ mỗi 1 giờ, tất cả sản phẩm sẽ được cộng thêm 5 lượt bán vào database.
+                  </li>
+                </ul>
+              </div>
+              <p className="text-xs text-gray-400">
+                <strong>Lưu ý:</strong> Khi bật tự động (interval {'>'} 0), bạn có thể thay đổi giá trị tự do. Khi tắt tự động (interval = 0), giá trị chỉ có thể tăng, không thể giảm.
+              </p>
 
               {salesBoostMessage && (
                 <div

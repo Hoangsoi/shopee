@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Lấy giá trị hiện tại
+    // Lấy giá trị hiện tại (có thể là JSON string chứa value và interval)
     let result;
     try {
       result = await sql`
@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.json({
         value: 0,
+        interval_hours: 0,
         description: 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm',
         updated_at: new Date().toISOString(),
       });
@@ -57,10 +58,11 @@ export async function GET(request: NextRequest) {
 
     if (result.length === 0) {
       // Tạo giá trị mặc định nếu chưa có
+      const defaultConfig = JSON.stringify({ value: 0, interval_hours: 0 });
       try {
         await sql`
           INSERT INTO settings (key, value, description) 
-          VALUES ('sales_boost', '0', 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm')
+          VALUES ('sales_boost', ${defaultConfig}, 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm')
           ON CONFLICT (key) DO NOTHING
         `;
       } catch (error: any) {
@@ -72,13 +74,25 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({
         value: 0,
+        interval_hours: 0,
         description: 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm',
         updated_at: new Date().toISOString(),
       });
     }
 
+    // Parse JSON nếu có, hoặc fallback về số cũ
+    let config: { value: number; interval_hours: number };
+    try {
+      config = JSON.parse(result[0].value);
+    } catch {
+      // Nếu không phải JSON, coi như giá trị cũ (chỉ có value)
+      const oldValue = parseInt(String(result[0].value)) || 0;
+      config = { value: oldValue, interval_hours: 0 };
+    }
+
     return NextResponse.json({
-      value: parseInt(String(result[0].value)) || 0,
+      value: config.value || 0,
+      interval_hours: config.interval_hours || 0,
       description: result[0].description || 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm',
       updated_at: result[0].updated_at,
     });
@@ -106,7 +120,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { value } = body;
+    const { value, interval_hours } = body;
 
     if (value === undefined || value === null) {
       return NextResponse.json(
@@ -119,6 +133,17 @@ export async function PUT(request: NextRequest) {
     if (isNaN(newValue) || newValue < 0) {
       return NextResponse.json(
         { error: 'Giá trị phải là số nguyên dương' },
+        { status: 400 }
+      );
+    }
+
+    const intervalHours = interval_hours !== undefined && interval_hours !== null 
+      ? parseInt(String(interval_hours)) 
+      : 0;
+    
+    if (intervalHours < 0) {
+      return NextResponse.json(
+        { error: 'Thời gian phải là số nguyên dương (0 = tắt tự động)' },
         { status: 400 }
       );
     }
@@ -139,40 +164,79 @@ export async function PUT(request: NextRequest) {
     }
 
     // Lấy giá trị hiện tại
-    const currentResult = await sql`
-      SELECT value FROM settings WHERE key = 'sales_boost' LIMIT 1
-    `;
-
-    let finalValue = newValue;
-    if (currentResult.length > 0) {
-      const currentValue = parseInt(currentResult[0].value) || 0;
-      // Chỉ cập nhật nếu giá trị mới lớn hơn giá trị hiện tại (chỉ tăng, không giảm)
-      if (newValue < currentValue) {
-        return NextResponse.json(
-          { error: 'Giá trị cộng thêm chỉ có thể tăng, không thể giảm. Giá trị hiện tại: ' + currentValue },
-          { status: 400 }
-        );
+    let currentConfig: { value: number; interval_hours: number } = { value: 0, interval_hours: 0 };
+    try {
+      const currentResult = await sql`
+        SELECT value FROM settings WHERE key = 'sales_boost' LIMIT 1
+      `;
+      
+      if (currentResult.length > 0) {
+        try {
+          currentConfig = JSON.parse(currentResult[0].value);
+        } catch {
+          // Nếu không phải JSON, coi như giá trị cũ
+          const oldValue = parseInt(String(currentResult[0].value)) || 0;
+          currentConfig = { value: oldValue, interval_hours: 0 };
+        }
       }
-      finalValue = newValue;
+    } catch (error) {
+      // Bỏ qua lỗi
     }
 
+    // Chỉ kiểm tra tăng giá trị nếu interval_hours = 0 (chế độ thủ công)
+    // Nếu có interval, cho phép thay đổi giá trị tự do
+    if (intervalHours === 0 && newValue < currentConfig.value) {
+      return NextResponse.json(
+        { error: 'Giá trị cộng thêm chỉ có thể tăng, không thể giảm. Giá trị hiện tại: ' + currentConfig.value },
+        { status: 400 }
+      );
+    }
+
+    // Lưu config dưới dạng JSON
+    const configJson = JSON.stringify({ value: newValue, interval_hours: intervalHours });
+    
     // Cập nhật hoặc tạo mới
     const result = await sql`
       INSERT INTO settings (key, value, description, updated_at)
-      VALUES ('sales_boost', ${finalValue.toString()}, 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm', CURRENT_TIMESTAMP)
+      VALUES ('sales_boost', ${configJson}, 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm', CURRENT_TIMESTAMP)
       ON CONFLICT (key) 
       DO UPDATE SET 
-        value = ${finalValue.toString()},
+        value = ${configJson},
         updated_at = CURRENT_TIMESTAMP
       RETURNING value, description, updated_at
     `;
 
-    logger.info('Sales boost updated', { value: finalValue });
+    // Nếu interval > 0, cộng ngay vào database một lần khi cài đặt
+    if (intervalHours > 0 && newValue > 0) {
+      try {
+        await sql`
+          UPDATE products
+          SET 
+            sales_count = COALESCE(sales_count, 0) + ${newValue},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE is_active = true
+        `;
+        logger.info('Sales boost applied immediately to all products', { 
+          value: newValue, 
+          products_updated: 'all active products' 
+        });
+      } catch (error: any) {
+        // Log lỗi nhưng không fail request
+        if (process.env.NODE_ENV === 'development') {
+          logger.error('Error applying sales boost to products', error instanceof Error ? error : new Error(String(error)));
+        }
+      }
+    }
+
+    logger.info('Sales boost updated', { value: newValue, interval_hours: intervalHours });
 
     return NextResponse.json({
       success: true,
-      message: 'Đã cập nhật giá trị cộng thêm cho lượt bán thành công',
-      value: finalValue,
+      message: intervalHours > 0 
+        ? `Đã cập nhật: Cứ ${intervalHours} giờ sẽ tự động cộng thêm ${newValue} lượt bán cho tất cả sản phẩm`
+        : 'Đã cập nhật giá trị cộng thêm cho lượt bán thành công',
+      value: newValue,
+      interval_hours: intervalHours,
       description: result[0].description,
       updated_at: result[0].updated_at,
     });

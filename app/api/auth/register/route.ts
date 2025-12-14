@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { z } from 'zod';
-import { rateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import { handleError } from '@/lib/error-handler';
 
 const registerSchema = z.object({
@@ -15,30 +14,6 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting: 3 registrations per hour per IP
-    const clientId = getClientIdentifier(request);
-    const rateLimitResult = rateLimit(`register:${clientId}`, {
-      windowMs: 60 * 60 * 1000, // 1 hour
-      maxRequests: 3,
-    });
-
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        {
-          error: 'Quá nhiều lần thử đăng ký. Vui lòng thử lại sau 1 giờ.',
-        },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
-            'X-RateLimit-Limit': '3',
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(rateLimitResult.resetTime),
-          },
-        }
-      );
-    }
-
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
 

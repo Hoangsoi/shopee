@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import type { Product } from '@/lib/types';
 
+// Hàm tạo số random ổn định dựa trên seed (product_id)
+// Đảm bảo cùng sản phẩm sẽ có cùng số random
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+// Generate random sales count từ 50-500 dựa trên product_id
+function generateRandomSalesCount(productId: number): number {
+  const random = seededRandom(productId);
+  // Random từ 50 đến 500
+  return Math.floor(50 + random * 450);
+}
+
+// Generate random rating từ 3.5-5.0 dựa trên product_id
+function generateRandomRating(productId: number): number {
+  const random = seededRandom(productId + 1000); // Dùng seed khác để rating khác sales_count
+  // Random từ 3.5 đến 5.0
+  return Math.round((3.5 + random * 1.5) * 10) / 10; // Làm tròn 1 chữ số thập phân
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Kiểm tra và thêm cột sales_count và rating nếu chưa có
@@ -84,8 +105,18 @@ export async function GET(request: NextRequest) {
     // Thêm cache headers để tăng tốc độ
     const response = NextResponse.json({
       products: products.map((product): Product => {
-        const salesCount = (product.sales_count ? parseInt(product.sales_count.toString()) : 0) + salesBoost;
-        const rating = product.rating ? parseFloat(product.rating.toString()) : 0;
+        // Nếu sales_count = 0 hoặc null, generate random dựa trên product_id
+        let baseSalesCount = product.sales_count ? parseInt(product.sales_count.toString()) : 0;
+        if (baseSalesCount === 0) {
+          baseSalesCount = generateRandomSalesCount(product.id);
+        }
+        const salesCount = baseSalesCount + salesBoost;
+        
+        // Nếu rating = 0 hoặc null, generate random dựa trên product_id
+        let rating = product.rating ? parseFloat(product.rating.toString()) : 0;
+        if (rating === 0) {
+          rating = generateRandomRating(product.id);
+        }
         
         return {
           id: product.id,

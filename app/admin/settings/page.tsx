@@ -60,9 +60,18 @@ export default function AdminSettingsPage() {
       if (response.ok) {
         const data = await response.json()
         setSalesBoost(data.value || 0)
+      } else {
+        // Nếu lỗi 403 hoặc 401, có thể là chưa đăng nhập hoặc không phải admin
+        // Không cần log lỗi vì đây là behavior bình thường
+        if (response.status !== 403 && response.status !== 401) {
+          console.error('Error fetching sales boost:', response.status)
+        }
       }
     } catch (error) {
-      console.error('Error fetching sales boost:', error)
+      // Ignore errors silently - không ảnh hưởng đến trang
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching sales boost:', error)
+      }
     }
   }, [])
 

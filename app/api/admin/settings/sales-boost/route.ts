@@ -7,7 +7,9 @@ import { logger } from '@/lib/logger';
 // GET: Lấy giá trị cộng thêm cho lượt bán
 export async function GET(request: NextRequest) {
   try {
-    if (!(await isAdmin(request))) {
+    // Kiểm tra quyền admin - nếu không phải admin, trả về giá trị mặc định
+    const isAdminUser = await isAdmin(request);
+    if (!isAdminUser) {
       return NextResponse.json(
         { error: 'Không có quyền truy cập' },
         { status: 403 }
@@ -25,25 +27,48 @@ export async function GET(request: NextRequest) {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `;
-    } catch (error) {
-      // Bảng đã tồn tại, tiếp tục
+    } catch (error: any) {
+      // Bảng đã tồn tại hoặc có lỗi khác, tiếp tục
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Settings table may already exist:', error?.message);
+      }
     }
 
     // Lấy giá trị hiện tại
-    const result = await sql`
-      SELECT value, description, updated_at 
-      FROM settings 
-      WHERE key = 'sales_boost'
-      LIMIT 1
-    `;
+    let result;
+    try {
+      result = await sql`
+        SELECT value, description, updated_at 
+        FROM settings 
+        WHERE key = 'sales_boost'
+        LIMIT 1
+      `;
+    } catch (error: any) {
+      // Nếu có lỗi query, trả về giá trị mặc định
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Error querying sales_boost:', error?.message);
+      }
+      return NextResponse.json({
+        value: 0,
+        description: 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm',
+        updated_at: new Date().toISOString(),
+      });
+    }
 
     if (result.length === 0) {
       // Tạo giá trị mặc định nếu chưa có
-      await sql`
-        INSERT INTO settings (key, value, description) 
-        VALUES ('sales_boost', '0', 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm')
-        ON CONFLICT (key) DO NOTHING
-      `;
+      try {
+        await sql`
+          INSERT INTO settings (key, value, description) 
+          VALUES ('sales_boost', '0', 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm')
+          ON CONFLICT (key) DO NOTHING
+        `;
+      } catch (error: any) {
+        // Nếu insert thất bại, vẫn trả về giá trị mặc định
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Error inserting sales_boost:', error?.message);
+        }
+      }
       
       return NextResponse.json({
         value: 0,
@@ -53,13 +78,20 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      value: parseInt(result[0].value) || 0,
+      value: parseInt(String(result[0].value)) || 0,
       description: result[0].description || 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm',
       updated_at: result[0].updated_at,
     });
   } catch (error) {
-    logger.error('Get sales boost error', error instanceof Error ? error : new Error(String(error)));
-    return handleError(error);
+    // Trả về giá trị mặc định thay vì throw error
+    if (process.env.NODE_ENV === 'development') {
+      logger.error('Get sales boost error', error instanceof Error ? error : new Error(String(error)));
+    }
+    return NextResponse.json({
+      value: 0,
+      description: 'Giá trị cộng thêm cho lượt bán của tất cả sản phẩm',
+      updated_at: new Date().toISOString(),
+    });
   }
 }
 

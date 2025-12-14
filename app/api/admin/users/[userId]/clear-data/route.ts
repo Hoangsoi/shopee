@@ -58,6 +58,20 @@ export async function DELETE(
     const investmentsCountBefore = await sql`
       SELECT COUNT(*)::int as count FROM investments WHERE user_id = ${userId}
     `;
+    
+    // Đếm số vé thưởng của user trước khi xóa
+    let ticketsCount = 0;
+    try {
+      const ticketsCountBefore = await sql`
+        SELECT COUNT(*)::int as count FROM tickets WHERE user_id = ${userId}
+      `;
+      ticketsCount = ticketsCountBefore[0]?.count || 0;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error counting tickets:', error);
+      }
+    }
 
     const ordersCount = ordersCountBefore[0]?.count || 0;
     const transactionsCount = transactionsCountBefore[0]?.count || 0;
@@ -91,6 +105,16 @@ export async function DELETE(
       // Bảng có thể không tồn tại
       if (process.env.NODE_ENV === 'development') {
         console.error('Error deleting user investments:', error);
+      }
+    }
+
+    // Xóa tất cả vé thưởng của user
+    try {
+      await sql`DELETE FROM tickets WHERE user_id = ${userId}`;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting user tickets:', error);
       }
     }
 
@@ -132,12 +156,13 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Đã xóa tất cả dữ liệu của người dùng thành công: ${orderItemsCount} chi tiết đơn hàng, ${ordersCount} đơn hàng, ${transactionsCount} giao dịch, ${investmentsCount} đầu tư. Đã reset số dư, hoa hồng${vipLevelReset ? ' và cấp độ VIP' : ''} về 0.`,
+      message: `Đã xóa tất cả dữ liệu của người dùng thành công: ${orderItemsCount} chi tiết đơn hàng, ${ordersCount} đơn hàng, ${transactionsCount} giao dịch, ${investmentsCount} đầu tư, ${ticketsCount} vé thưởng. Đã reset số dư, hoa hồng${vipLevelReset ? ' và cấp độ VIP' : ''} về 0.`,
       deleted: {
         order_items: orderItemsCount,
         orders: ordersCount,
         transactions: transactionsCount,
         investments: investmentsCount,
+        tickets: ticketsCount,
         vip_level_reset: vipLevelReset,
       },
     });

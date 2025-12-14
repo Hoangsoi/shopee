@@ -25,6 +25,15 @@ export async function DELETE(request: NextRequest) {
     const transactionsCountBefore = await sql`SELECT COUNT(*)::int as count FROM transactions`;
     const investmentsCountBefore = await sql`SELECT COUNT(*)::int as count FROM investments`;
     const usersCountBefore = await sql`SELECT COUNT(*)::int as count FROM users WHERE role != 'admin'`;
+    
+    // Đếm số vé thưởng trước khi xóa
+    let ticketsCount = 0;
+    try {
+      const ticketsCountBefore = await sql`SELECT COUNT(*)::int as count FROM tickets`;
+      ticketsCount = ticketsCountBefore[0]?.count || 0;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+    }
 
     const ordersCount = ordersCountBefore[0]?.count || 0;
     const transactionsCount = transactionsCountBefore[0]?.count || 0;
@@ -54,6 +63,16 @@ export async function DELETE(request: NextRequest) {
       // Bảng có thể không tồn tại
       if (process.env.NODE_ENV === 'development') {
         console.error('Error deleting investments:', error);
+      }
+    }
+
+    // Xóa tất cả vé thưởng
+    try {
+      await sql`DELETE FROM tickets`;
+    } catch (error) {
+      // Bảng có thể không tồn tại
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting tickets:', error);
       }
     }
 
@@ -95,12 +114,13 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Đã xóa tất cả dữ liệu thành công: ${orderItemsCount} chi tiết đơn hàng, ${ordersCount} đơn hàng, ${transactionsCount} giao dịch, ${investmentsCount} đầu tư. Đã reset số dư, hoa hồng${vipLevelReset ? ' và cấp độ VIP' : ''} về 0 cho ${usersCount} người dùng.`,
+      message: `Đã xóa tất cả dữ liệu thành công: ${orderItemsCount} chi tiết đơn hàng, ${ordersCount} đơn hàng, ${transactionsCount} giao dịch, ${investmentsCount} đầu tư, ${ticketsCount} vé thưởng. Đã reset số dư, hoa hồng${vipLevelReset ? ' và cấp độ VIP' : ''} về 0 cho ${usersCount} người dùng.`,
       deleted: {
         order_items: orderItemsCount,
         orders: ordersCount,
         transactions: transactionsCount,
         investments: investmentsCount,
+        tickets: ticketsCount,
         users_reset: usersCount,
         vip_level_reset: vipLevelReset,
       },

@@ -87,8 +87,11 @@ export async function GET(request: NextRequest) {
       const now = new Date();
       const hoursSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
 
-      // Chỉ cập nhật nếu đã đủ thời gian interval
-      if (hoursSinceUpdate < boostConfig.interval_hours) {
+      // Tính số lần cần cộng dựa trên thời gian đã trôi qua
+      // Ví dụ: interval = 1 giờ, đã qua 3.5 giờ => cộng 3 lần
+      const intervalsPassed = Math.floor(hoursSinceUpdate / boostConfig.interval_hours);
+
+      if (intervalsPassed < 1) {
         return NextResponse.json({
           success: true,
           message: `Chưa đến thời gian cập nhật. Còn ${Math.ceil(boostConfig.interval_hours - hoursSinceUpdate)} giờ nữa.`,
@@ -100,64 +103,70 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Tính tổng giá trị cần cộng (số lần * giá trị mỗi lần)
+      const totalBoostValue = intervalsPassed * boostConfig.value;
+
+      // Cập nhật sales_count cho tất cả sản phẩm
+      try {
+        const updateResult = await sql`
+          UPDATE products
+          SET 
+            sales_count = COALESCE(sales_count, 0) + ${totalBoostValue},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE is_active = true
+          RETURNING id
+        `;
+
+        updatedCount = updateResult.length;
+
+        // Cập nhật lại thời gian cập nhật cuối cùng trong settings
+        await sql`
+          UPDATE settings
+          SET updated_at = CURRENT_TIMESTAMP
+          WHERE key = 'sales_boost'
+        `;
+
+        const executionTime = Date.now() - startTime;
+        const result = {
+          success: true,
+          message: `Đã cộng thêm ${totalBoostValue} lượt bán (${intervalsPassed} lần × ${boostConfig.value}) cho ${updatedCount} sản phẩm`,
+          updated_count: updatedCount,
+          boost_value: boostConfig.value,
+          intervals_passed: intervalsPassed,
+          total_boost_value: totalBoostValue,
+          interval_hours: boostConfig.interval_hours,
+          errors: errors.length > 0 ? errors : undefined,
+          timestamp: new Date().toISOString(),
+          execution_time_ms: executionTime,
+        };
+
+        // Log kết quả
+        if (process.env.NODE_ENV === 'development' || updatedCount > 0) {
+          console.log('Auto increment sales completed:', result);
+        }
+
+        return NextResponse.json(result);
+      } catch (error: any) {
+        errors.push(`Error updating products: ${error.message}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error updating products:', error);
+        }
+        throw error; // Re-throw để outer catch xử lý
+      }
+
     } catch (error: any) {
       return NextResponse.json(
         { 
           success: false,
-          error: 'Lỗi khi lấy cấu hình sales boost',
+          error: 'Lỗi khi xử lý auto increment sales',
           error_details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+          errors: errors.length > 0 ? errors : undefined,
           timestamp: new Date().toISOString(),
           execution_time_ms: Date.now() - startTime,
         },
         { status: 500 }
       );
     }
-
-    // Cập nhật sales_count cho tất cả sản phẩm
-    try {
-      const updateResult = await sql`
-        UPDATE products
-        SET 
-          sales_count = COALESCE(sales_count, 0) + ${boostConfig.value},
-          updated_at = CURRENT_TIMESTAMP
-        WHERE is_active = true
-        RETURNING id
-      `;
-
-      updatedCount = updateResult.length;
-
-      // Cập nhật lại thời gian cập nhật cuối cùng trong settings
-      await sql`
-        UPDATE settings
-        SET updated_at = CURRENT_TIMESTAMP
-        WHERE key = 'sales_boost'
-      `;
-
-    } catch (error: any) {
-      errors.push(`Error updating products: ${error.message}`);
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error updating products:', error);
-      }
-    }
-
-    const executionTime = Date.now() - startTime;
-    const result = {
-      success: true,
-      message: `Đã cộng thêm ${boostConfig.value} lượt bán cho ${updatedCount} sản phẩm`,
-      updated_count: updatedCount,
-      boost_value: boostConfig.value,
-      interval_hours: boostConfig.interval_hours,
-      errors: errors.length > 0 ? errors : undefined,
-      timestamp: new Date().toISOString(),
-      execution_time_ms: executionTime,
-    };
-
-    // Log kết quả
-    if (process.env.NODE_ENV === 'development' || updatedCount > 0) {
-      console.log('Auto increment sales completed:', result);
-    }
-
-    return NextResponse.json(result);
   } catch (error: any) {
     const executionTime = Date.now() - startTime;
     const errorMessage = error?.message || 'Lỗi không xác định';

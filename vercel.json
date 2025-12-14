@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/auto-increment-sales",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

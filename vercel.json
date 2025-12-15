@@ -6,16 +6,12 @@
   "regions": ["sin1"],
   "crons": [
     {
+      "path": "/api/cron/daily-tasks",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/cron/calculate-daily-profit",
       "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/process-investments",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/auto-increment-sales",
-      "schedule": "0 0 * * *"
     }
   ]
 }

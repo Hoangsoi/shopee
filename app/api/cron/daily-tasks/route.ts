@@ -181,49 +181,23 @@ export async function GET(request: NextRequest) {
 
         // Kiểm tra interval
         if (boostConfig.interval_hours > 0 && boostConfig.value > 0) {
-          // Kiểm tra thời gian đã trôi qua từ lần cập nhật cuối
+          // Tính boost hiện tại dựa trên thời gian đã trôi qua
           const lastUpdated = new Date(configResult[0].updated_at);
           const now = new Date();
           const hoursSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
-
-          // Tính số lần cần cộng dựa trên thời gian đã trôi qua
           const intervalsPassed = Math.floor(hoursSinceUpdate / boostConfig.interval_hours);
+          const currentBoost = intervalsPassed * boostConfig.value;
 
-          if (intervalsPassed >= 1) {
-            // Tính tổng giá trị cần cộng (số lần * giá trị mỗi lần)
-            const totalBoostValue = intervalsPassed * boostConfig.value;
-
-            // Cập nhật sales_count cho tất cả sản phẩm
-            const updateResult = await sql`
-              UPDATE products
-              SET 
-                sales_count = COALESCE(sales_count, 0) + ${totalBoostValue},
-                updated_at = CURRENT_TIMESTAMP
-              WHERE is_active = true
-              RETURNING id
-            `;
-
-            // Cập nhật lại thời gian cập nhật cuối cùng trong settings
-            await sql`
-              UPDATE settings
-              SET updated_at = CURRENT_TIMESTAMP
-              WHERE key = 'sales_boost'
-            `;
-
-            results.auto_increment_sales = {
-              success: true,
-              message: `Đã cộng thêm ${totalBoostValue} lượt bán (${intervalsPassed} lần × ${boostConfig.value}) cho ${updateResult.length} sản phẩm`,
-              updated_count: updateResult.length,
-              intervals_passed: intervalsPassed,
-              total_boost_value: totalBoostValue,
-            };
-          } else {
-            results.auto_increment_sales = {
-              success: true,
-              message: 'Chưa đến thời gian cập nhật',
-              updated_count: 0,
-            };
-          }
+          // Lưu ý: Boost được tính real-time khi hiển thị sản phẩm, không cần cập nhật database
+          // Cron job này chỉ để log và theo dõi
+          results.auto_increment_sales = {
+            success: true,
+            message: `Boost hiện tại: ${currentBoost} (${intervalsPassed} interval × ${boostConfig.value}). Boost được tính real-time khi hiển thị sản phẩm.`,
+            intervals_passed: intervalsPassed,
+            current_boost: currentBoost,
+            boost_value: boostConfig.value,
+            interval_hours: boostConfig.interval_hours,
+          };
         } else {
           results.auto_increment_sales = {
             success: true,

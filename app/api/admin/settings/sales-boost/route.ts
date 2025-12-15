@@ -206,27 +206,8 @@ export async function PUT(request: NextRequest) {
       RETURNING value, description, updated_at
     `;
 
-    // Nếu interval > 0, cộng ngay vào database một lần khi cài đặt
-    if (intervalHours > 0 && newValue > 0) {
-      try {
-        await sql`
-          UPDATE products
-          SET 
-            sales_count = COALESCE(sales_count, 0) + ${newValue},
-            updated_at = CURRENT_TIMESTAMP
-          WHERE is_active = true
-        `;
-        logger.info('Sales boost applied immediately to all products', { 
-          value: newValue, 
-          products_updated: 'all active products' 
-        });
-      } catch (error: any) {
-        // Log lỗi nhưng không fail request
-        if (process.env.NODE_ENV === 'development') {
-          logger.error('Error applying sales boost to products', error instanceof Error ? error : new Error(String(error)));
-        }
-      }
-    }
+    // Lưu ý: Boost được tính real-time khi hiển thị sản phẩm, không cần cập nhật database
+    // updated_at trong settings sẽ được dùng để tính boost dựa trên thời gian đã trôi qua
 
     logger.info('Sales boost updated', { value: newValue, interval_hours: intervalHours });
 

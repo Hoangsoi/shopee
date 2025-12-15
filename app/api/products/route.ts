@@ -50,23 +50,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Lấy giá trị cộng thêm cho lượt bán từ settings
-    let salesBoost = 0;
-    let intervalHours = 0;
+    let salesBoostConfig = { value: 0, interval_hours: 0, updated_at: null as Date | null };
     try {
       const boostSetting = await sql`
-        SELECT value FROM settings WHERE key = 'sales_boost' LIMIT 1
+        SELECT value, updated_at FROM settings WHERE key = 'sales_boost' LIMIT 1
       `;
       if (boostSetting.length > 0) {
         // Parse JSON nếu có, hoặc fallback về số cũ
         try {
           const config = JSON.parse(boostSetting[0].value);
-          salesBoost = config.value || 0;
-          intervalHours = config.interval_hours || 0;
+          salesBoostConfig.value = config.value || 0;
+          salesBoostConfig.interval_hours = config.interval_hours || 0;
         } catch {
           // Nếu không phải JSON, coi như giá trị cũ (chế độ thủ công)
-          salesBoost = parseInt(boostSetting[0].value) || 0;
-          intervalHours = 0; // Giá trị cũ không có interval, mặc định = 0
+          salesBoostConfig.value = parseInt(boostSetting[0].value) || 0;
+          salesBoostConfig.interval_hours = 0; // Giá trị cũ không có interval, mặc định = 0
         }
+        salesBoostConfig.updated_at = boostSetting[0].updated_at ? new Date(boostSetting[0].updated_at) : null;
       }
     } catch (error) {
       // Nếu chưa có setting, sử dụng giá trị mặc định 0
@@ -112,18 +112,30 @@ export async function GET(request: NextRequest) {
 
     const products = await query;
 
+    // Tính boost dựa trên thời gian đã trôi qua
+    let currentBoost = 0;
+    if (salesBoostConfig.value > 0 && salesBoostConfig.updated_at) {
+      if (salesBoostConfig.interval_hours > 0) {
+        // Tính số interval đã trôi qua từ lần cập nhật cuối
+        const now = new Date();
+        const hoursSinceUpdate = (now.getTime() - salesBoostConfig.updated_at.getTime()) / (1000 * 60 * 60);
+        const intervalsPassed = Math.floor(hoursSinceUpdate / salesBoostConfig.interval_hours);
+        // Boost = số interval đã trôi qua * giá trị mỗi interval
+        currentBoost = intervalsPassed * salesBoostConfig.value;
+      } else {
+        // Nếu interval = 0, dùng giá trị cố định
+        currentBoost = salesBoostConfig.value;
+      }
+    }
+
     // Thêm cache headers để tăng tốc độ
     const response = NextResponse.json({
       products: products.map((product): Product => {
-        // Nếu sales_count = 0 hoặc null, generate random dựa trên product_id
-        let baseSalesCount = product.sales_count ? parseInt(product.sales_count.toString()) : 0;
-        if (baseSalesCount === 0) {
-          baseSalesCount = generateRandomSalesCount(product.id);
-        }
+        // Luôn dùng số ảo từ product_id (không dùng sales_count từ database)
+        const baseSalesCount = generateRandomSalesCount(product.id);
         
-        // Chỉ cộng salesBoost khi interval = 0 (chế độ thủ công)
-        // Khi interval > 0, giá trị đã được cộng vào database bởi cron job
-        const salesCount = intervalHours === 0 ? baseSalesCount + salesBoost : baseSalesCount;
+        // Cộng boost vào số ảo
+        const salesCount = baseSalesCount + currentBoost;
         
         // Nếu rating = 0 hoặc null, generate random dựa trên product_id
         let rating = product.rating ? parseFloat(product.rating.toString()) : 0;

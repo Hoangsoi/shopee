@@ -103,7 +103,7 @@ export default function SupportPage() {
       // If Crisp not loaded yet, try to initialize
       if (typeof window !== 'undefined' && user) {
         window.$crisp = []
-        window.CRISP_WEBSITE_ID = '28304a63-17fd-46d3-a249-4090ab8d41f2'
+        window.CRISP_WEBSITE_ID = '67dded78-d7a6-4835-90e3-e8c9d58db3b6'
         const d = document
         const s = d.createElement('script')
         s.src = 'https://client.crisp.chat/l.js'
@@ -150,7 +150,7 @@ export default function SupportPage() {
         dangerouslySetInnerHTML={{
           __html: `
             window.$crisp=[];
-            window.CRISP_WEBSITE_ID="28304a63-17fd-46d3-a249-4090ab8d41f2";
+                window.CRISP_WEBSITE_ID="67dded78-d7a6-4835-90e3-e8c9d58db3b6";
             (function(){
               d=document;
               s=d.createElement("script");

@@ -48,14 +48,91 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const nearPriceRaw = searchParams.get('near_price');
     const categoryId = searchParams.get('category_id');
     const search = searchParams.get('search');
     const isActive = searchParams.get('is_active');
-    
+
     // Pagination parameters
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const offset = (page - 1) * limit;
+
+    /** Gợi ý sản phẩm có đơn giá gần giá trị mục tiêu nhất (chỉ SP đang bật) */
+    if (nearPriceRaw !== null && nearPriceRaw !== '') {
+      const nearPrice = parseFloat(nearPriceRaw);
+      if (!Number.isFinite(nearPrice) || nearPrice <= 0) {
+        return NextResponse.json({ error: 'near_price phải là số dương' }, { status: 400 });
+      }
+      const npLimit = Math.min(Math.max(limit, 1), 100);
+      const npPage = page < 1 ? 1 : page;
+      const npOffset = (npPage - 1) * npLimit;
+
+      try {
+        const countResult = await sql`
+          SELECT COUNT(*)::int as count FROM products WHERE is_active = true
+        `;
+        const totalCount = countResult[0]?.count || 0;
+        const products = await sql`
+          SELECT 
+            p.id,
+            p.name,
+            p.slug,
+            p.description,
+            p.price,
+            p.original_price,
+            p.image_url,
+            p.category_id,
+            p.is_featured,
+            p.is_active,
+            p.stock,
+            p.created_at,
+            p.updated_at,
+            c.name as category_name,
+            ABS(p.price - ${nearPrice})::numeric as price_distance
+          FROM products p
+          LEFT JOIN categories c ON p.category_id = c.id
+          WHERE p.is_active = true
+          ORDER BY price_distance ASC, p.id ASC
+          LIMIT ${npLimit} OFFSET ${npOffset}
+        `;
+
+        return NextResponse.json({
+          products: products.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            description: p.description,
+            price: parseFloat(p.price.toString()),
+            original_price: p.original_price ? parseFloat(p.original_price.toString()) : null,
+            image_url: p.image_url,
+            category_id: p.category_id,
+            category_name: p.category_name,
+            is_featured: p.is_featured || false,
+            is_active: p.is_active !== false,
+            stock: p.stock || 0,
+            created_at: p.created_at,
+            updated_at: p.updated_at,
+            price_distance:
+              p.price_distance != null ? parseFloat(String(p.price_distance)) : undefined,
+          })),
+          pagination: {
+            page: npPage,
+            limit: npLimit,
+            total: totalCount,
+            totalPages: Math.ceil(totalCount / npLimit),
+          },
+        });
+      } catch (error: any) {
+        if (error.message?.includes('does not exist') || error.message?.includes('relation')) {
+          return NextResponse.json({
+            products: [],
+            pagination: { page: 1, limit: npLimit, total: 0, totalPages: 0 },
+          });
+        }
+        throw error;
+      }
+    }
 
     // Get total count for pagination
     let totalCount = 0;

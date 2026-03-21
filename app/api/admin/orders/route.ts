@@ -4,6 +4,7 @@ import { isAdmin } from '@/lib/auth';
 import { z } from 'zod';
 import { handleError } from '@/lib/error-handler';
 import { logger } from '@/lib/logger';
+import { ensureCtvProposalTables } from '@/lib/ctv-proposals-db';
 
 const updateOrderStatusSchema = z.object({
   order_id: z.number().int().positive('ID đơn hàng không hợp lệ'),
@@ -13,7 +14,154 @@ const updateOrderStatusSchema = z.object({
   rejection_reason: z.string().max(500, 'Lý do từ chối không được vượt quá 500 ký tự').optional(),
 });
 
+const adminCreateOrderSchema = z.object({
+  user_id: z.number().int().positive('ID khách hàng không hợp lệ'),
+  items: z
+    .array(
+      z.object({
+        product_id: z.number().int().positive('ID sản phẩm phải là số nguyên dương'),
+        quantity: z
+          .number()
+          .int('Số lượng phải là số nguyên')
+          .positive('Số lượng phải lớn hơn 0')
+          .max(1000, 'Số lượng không được vượt quá 1000'),
+      })
+    )
+    .min(1, 'Đơn hàng phải có ít nhất một sản phẩm'),
+  payment_method: z.string().max(50, 'Phương thức thanh toán không được vượt quá 50 ký tự').optional(),
+  shipping_address: z.string().max(500, 'Địa chỉ giao hàng không được vượt quá 500 ký tự').optional(),
+  notes: z.string().max(1000, 'Ghi chú không được vượt quá 1000 ký tự').optional(),
+});
+
 // Admin check is now handled by lib/auth.ts isAdmin() function
+
+// POST: Gửi đề xuất đơn qua tab CTV — chưa trừ ví/kho; khách bấm Mua trên tab CTV mới tạo đơn chờ duyệt
+export async function POST(request: NextRequest) {
+  try {
+    if (!(await isAdmin(request))) {
+      return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validatedData = adminCreateOrderSchema.parse(body);
+    const targetUserId = validatedData.user_id;
+
+    await ensureCtvProposalTables();
+
+    const users = await sql`
+      SELECT id, COALESCE(is_frozen, false) as is_frozen FROM users WHERE id = ${targetUserId}
+    `;
+    if (users.length === 0) {
+      return NextResponse.json({ error: 'Khách hàng không tồn tại' }, { status: 404 });
+    }
+    if (users[0].is_frozen) {
+      return NextResponse.json(
+        { error: 'Tài khoản khách hàng đang bị đóng băng.' },
+        { status: 403 }
+      );
+    }
+
+    let totalAmount = 0;
+    let estimatedCommission = 0;
+    const lines: {
+      product_id: number;
+      product_name: string;
+      product_price: number;
+      quantity: number;
+      subtotal: number;
+    }[] = [];
+
+    for (const item of validatedData.items) {
+      const products = await sql`
+        SELECT 
+          p.id, 
+          p.name, 
+          p.price, 
+          p.stock,
+          c.discount_percent
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.id = ${item.product_id} AND p.is_active = true
+      `;
+
+      if (products.length === 0) {
+        return NextResponse.json(
+          { error: `Sản phẩm ID ${item.product_id} không tồn tại hoặc đã bị vô hiệu hóa` },
+          { status: 400 }
+        );
+      }
+
+      const product = products[0];
+      const currentStock = product.stock ? parseInt(product.stock.toString()) : 0;
+      if (currentStock < item.quantity) {
+        return NextResponse.json(
+          { error: `Sản phẩm "${product.name}" không đủ số lượng. Còn: ${currentStock}` },
+          { status: 400 }
+        );
+      }
+
+      const price = parseFloat(product.price.toString());
+      const subtotal = price * item.quantity;
+      const discountPct = product.discount_percent != null ? parseFloat(String(product.discount_percent)) : 0;
+      totalAmount += subtotal;
+      estimatedCommission += subtotal * (discountPct / 100);
+
+      lines.push({
+        product_id: product.id,
+        product_name: product.name,
+        product_price: price,
+        quantity: item.quantity,
+        subtotal,
+      });
+    }
+
+    const referenceCode = `CTV-${Date.now()}-${targetUserId}`;
+
+    const inserted = await sql`
+      INSERT INTO ctv_proposals (
+        user_id, reference_code, status, total_amount, estimated_commission,
+        payment_method, shipping_address, notes
+      )
+      VALUES (
+        ${targetUserId}, ${referenceCode}, 'pending', ${totalAmount}, ${estimatedCommission},
+        ${validatedData.payment_method || null},
+        ${validatedData.shipping_address || null},
+        ${validatedData.notes || null}
+      )
+      RETURNING id, reference_code, total_amount, estimated_commission, created_at
+    `;
+
+    const proposalId = inserted[0].id;
+
+    for (const row of lines) {
+      await sql`
+        INSERT INTO ctv_proposal_items (proposal_id, product_id, product_name, product_price, quantity, subtotal)
+        VALUES (${proposalId}, ${row.product_id}, ${row.product_name}, ${row.product_price}, ${row.quantity}, ${row.subtotal})
+      `;
+    }
+
+    return NextResponse.json(
+      {
+        message:
+          'Đã gửi đề xuất đơn cho khách. Khách xem trên tab CTV và bấm Mua để xác nhận (trừ ví, đơn chờ duyệt).',
+        proposal: {
+          id: proposalId,
+          reference_code: inserted[0].reference_code,
+          total_amount: parseFloat(inserted[0].total_amount.toString()),
+          estimated_commission: parseFloat(inserted[0].estimated_commission.toString()),
+          created_at: inserted[0].created_at,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    logger.error(
+      'Admin create CTV proposal error',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return handleError(error);
+  }
+}
 
 // GET: Lấy tất cả đơn hàng (chỉ admin) với pagination
 export async function GET(request: NextRequest) {

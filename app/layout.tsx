@@ -5,8 +5,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin', 'vietnamese'] })
 
 export const metadata: Metadata = {
-  title: 'Đại Lý Shopee',
-  description: 'Hệ thống đăng ký và đăng nhập cho đại lý Shopee',
+  title: 'Minto',
+  description: 'Hệ thống đăng ký và đăng nhập cho Minto',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

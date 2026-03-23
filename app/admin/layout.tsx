@@ -296,7 +296,7 @@ export default function AdminLayout({
         {/* Logo/Header */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           {sidebarOpen && (
-            <h1 className="text-xl font-bold text-[#ee4d2d]">Đại Lý Shopee</h1>
+            <h1 className="text-xl font-bold text-[#ee4d2d]">Minto</h1>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}

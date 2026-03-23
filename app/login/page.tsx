@@ -102,7 +102,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px]">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#ee4d2d] mb-2">Minto</h1>
+          <h1 className="text-3xl font-bold text-[#ee4d2d] mb-2">Miinto</h1>
           <p className="text-sm text-gray-600">Đăng nhập</p>
         </div>
 

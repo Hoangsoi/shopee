@@ -5,17 +5,16 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin', 'vietnamese'] })
 
 export const metadata: Metadata = {
-  title: 'Minto',
-  description: 'Hệ thống đăng ký và đăng nhập cho Minto',
+  title: 'Miinto',
+  description: 'Hệ thống đăng ký và đăng nhập cho Miinto',
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any' },
       { url: '/icon.png', sizes: 'any', type: 'image/png' },
     ],
     apple: [
       { url: '/icon.png', sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: '/icon.png',
   },
 }
 

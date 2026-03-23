@@ -196,7 +196,7 @@ export default function Home() {
       {/* Header */}
       <div className="bg-white shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-[#ee4d2d]">Minto</h1>
+          <h1 className="text-xl font-bold text-[#ee4d2d]">Miinto</h1>
           <div className="flex items-center gap-4">
             <CartIcon />
             <button

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-const POLL_MS = 45000
+// Badge chỉ cần số lượng; gọi /api/cart?summary=1 — đủ dài để giảm invocation + origin bytes
+const POLL_MS = 90000
 
 export default function CartIcon() {
   const [cartCount, setCartCount] = useState(0)
@@ -14,7 +15,7 @@ export default function CartIcon() {
 
     const fetchCartCount = async (): Promise<boolean> => {
       try {
-        const response = await fetch('/api/cart')
+        const response = await fetch('/api/cart?summary=1')
         if (cancelled) return false
         if (response.ok) {
           const data = await response.json()
@@ -45,14 +46,20 @@ export default function CartIcon() {
     const onResume = () => {
       if (!document.hidden) void fetchCartCount()
     }
+    const onCartUpdated = () => {
+      void fetchCartCount()
+    }
+
     document.addEventListener('visibilitychange', onResume)
     window.addEventListener('focus', onResume)
+    window.addEventListener('cart-updated', onCartUpdated)
 
     return () => {
       cancelled = true
       if (intervalId) clearInterval(intervalId)
       document.removeEventListener('visibilitychange', onResume)
       window.removeEventListener('focus', onResume)
+      window.removeEventListener('cart-updated', onCartUpdated)
     }
   }, [])
 

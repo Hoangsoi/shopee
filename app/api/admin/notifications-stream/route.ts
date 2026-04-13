@@ -124,14 +124,14 @@ export async function GET(request: NextRequest) {
         // Gửi notifications ngay lập tức
         await fetchAndSendNotifications();
 
-        // Cập nhật mỗi 5 giây
+        // Cập nhật định kỳ (giảm tần suất để hạ tải DB + Fluid trên Vercel)
         updateInterval = setInterval(() => {
           if (!isClosed) {
             fetchAndSendNotifications();
           } else {
             cleanup();
           }
-        }, 5000);
+        }, 15000);
 
         // Keep-alive mỗi 30 giây
         keepAliveInterval = setInterval(() => {

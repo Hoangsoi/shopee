@@ -81,6 +81,7 @@ export default function CartPage() {
 
       if (response.ok) {
         fetchCart()
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart-updated'))
       } else {
         const data = await response.json()
         alert(data.error || 'Cập nhật thất bại')
@@ -104,6 +105,7 @@ export default function CartPage() {
 
       if (response.ok) {
         fetchCart()
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart-updated'))
       } else {
         alert('Xóa sản phẩm thất bại')
       }
@@ -144,6 +146,7 @@ export default function CartPage() {
       if (response.ok) {
         setOrderNumber(data.order.order_number)
         setShowSuccessModal(true)
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart-updated'))
         // Tự động chuyển trang sau 5 giây
         autoRedirectTimeoutRef.current = setTimeout(() => {
           setShowSuccessModal(false)

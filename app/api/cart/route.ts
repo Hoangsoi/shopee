@@ -35,10 +35,37 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+
+    // Badge header: chỉ cần tổng số lượng — query nhẹ + JSON nhỏ (giảm Fast Origin Transfer & timeout)
+    if (searchParams.get('summary') === '1') {
+      try {
+        const rows = await sql`
+          SELECT COALESCE(SUM(ci.quantity), 0)::int as total_quantity
+          FROM cart_items ci
+          INNER JOIN products p ON ci.product_id = p.id
+          WHERE ci.user_id = ${decoded.userId} AND p.is_active = true
+        `;
+        const totalQuantity = rows[0]?.total_quantity ?? 0;
+        return NextResponse.json(
+          { totalQuantity },
+          { headers: { 'Cache-Control': 'private, no-store' } }
+        );
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.includes('does not exist') || msg.includes('relation')) {
+          return NextResponse.json(
+            { totalQuantity: 0 },
+            { headers: { 'Cache-Control': 'private, no-store' } }
+          );
+        }
+        throw error;
+      }
+    }
+
     // Kiểm tra xem bảng cart_items có tồn tại không
     try {
       // Lấy pagination params (optional, mặc định không giới hạn)
-      const { searchParams } = new URL(request.url);
       const page = searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : null;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : null;
       

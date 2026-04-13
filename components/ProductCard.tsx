@@ -59,6 +59,9 @@ function ProductCard({ product, hasPermission = true }: ProductCardProps) {
       const data = await response.json()
 
       if (response.ok) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('cart-updated'))
+        }
         setMessage({ type: 'success', text: 'Đã thêm vào giỏ hàng!' })
         setTimeout(() => setMessage(null), 2000)
       } else {

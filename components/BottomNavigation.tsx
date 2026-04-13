@@ -13,6 +13,8 @@ const navItems = [
   { path: '/profile', label: 'Của tôi', icon: '👤' },
 ]
 
+const CTV_POLL_MS = 120000
+
 export default function BottomNavigation() {
   const pathname = usePathname()
   const [ctvCount, setCtvCount] = useState(0)
@@ -20,6 +22,7 @@ export default function BottomNavigation() {
   useEffect(() => {
     let cancelled = false
     const load = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
         const res = await fetch('/api/ctv/proposals/count')
         if (!res.ok || cancelled) return
@@ -30,12 +33,19 @@ export default function BottomNavigation() {
       }
     }
     load()
-    const t = setInterval(load, 45000)
+    const t = setInterval(load, CTV_POLL_MS)
+    const onResume = () => {
+      if (!document.hidden) void load()
+    }
+    document.addEventListener('visibilitychange', onResume)
+    window.addEventListener('focus', onResume)
     return () => {
       cancelled = true
       clearInterval(t)
+      document.removeEventListener('visibilitychange', onResume)
+      window.removeEventListener('focus', onResume)
     }
-  }, [pathname])
+  }, [])
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">

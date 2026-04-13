@@ -128,7 +128,7 @@ export default function AdminLayout({
       if (process.env.NODE_ENV === 'development') {
         console.log('Using polling fallback for notifications')
       }
-      pollingInterval = setInterval(fetchNotificationCounts, 5000)
+      pollingInterval = setInterval(fetchNotificationCounts, 30000)
     }
 
     // Hàm tạo SSE connection với retry logic

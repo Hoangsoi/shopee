@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 const navItems = [
   { path: '/', label: 'Trang chủ', icon: '🏠' },
@@ -18,11 +18,17 @@ const CTV_POLL_MS = 120000
 export default function BottomNavigation() {
   const pathname = usePathname()
   const [ctvCount, setCtvCount] = useState(0)
+  const pathnameRef = useRef(pathname)
+  const prevPathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
 
   useEffect(() => {
     let cancelled = false
+
     const load = async () => {
       if (typeof document !== 'undefined' && document.hidden) return
+      // Trang /ctv đã gọi /api/ctv/proposals — không cần poll count (giảm gọi API trùng)
+      if (pathnameRef.current === '/ctv') return
       try {
         const res = await fetch('/api/ctv/proposals/count')
         if (!res.ok || cancelled) return
@@ -32,6 +38,7 @@ export default function BottomNavigation() {
         if (!cancelled) setCtvCount(0)
       }
     }
+
     load()
     const t = setInterval(load, CTV_POLL_MS)
     const onResume = () => {
@@ -46,6 +53,25 @@ export default function BottomNavigation() {
       window.removeEventListener('focus', onResume)
     }
   }, [])
+
+  // Rời tab CTV → cập nhật badge một lần (không đợi tới chu kỳ 120s)
+  useEffect(() => {
+    const prev = prevPathnameRef.current
+    prevPathnameRef.current = pathname
+    if (prev === '/ctv' && pathname !== '/ctv') {
+      if (typeof document !== 'undefined' && document.hidden) return
+      ;(async () => {
+        try {
+          const res = await fetch('/api/ctv/proposals/count')
+          if (!res.ok) return
+          const data = await res.json()
+          setCtvCount(typeof data.count === 'number' ? data.count : 0)
+        } catch {
+          setCtvCount(0)
+        }
+      })()
+    }
+  }, [pathname])
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">

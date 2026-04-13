@@ -85,7 +85,6 @@ export default function CtvPage() {
     return (
       <div className="min-h-screen bg-[#f5f5f5] pb-24 flex items-center justify-center">
         <div className="text-lg text-gray-600">Đang tải...</div>
-        <BottomNavigation />
       </div>
     )
   }

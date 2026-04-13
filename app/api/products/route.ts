@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import type { Product } from '@/lib/types';
 
+/** Chỉ chạy migration cột một lần mỗi instance — tránh query thừa mỗi request (tốn DB + CPU). */
+let productColumnsEnsured = false;
+
+async function ensureProductColumnsOnce(): Promise<void> {
+  if (productColumnsEnsured) return;
+  try {
+    const columns = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' 
+      AND column_name IN ('sales_count', 'rating')
+    `;
+
+    const existingColumns = columns.map((col: Record<string, unknown>) => String(col.column_name));
+
+    if (!existingColumns.includes('sales_count')) {
+      await sql`ALTER TABLE products ADD COLUMN sales_count INTEGER DEFAULT 0`;
+    }
+    if (!existingColumns.includes('rating')) {
+      await sql`ALTER TABLE products ADD COLUMN rating DECIMAL(3, 2) DEFAULT 0`;
+    }
+    productColumnsEnsured = true;
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('ensureProductColumnsOnce:', error instanceof Error ? error.message : error);
+    }
+  }
+}
+
 // Hàm tạo số random ổn định dựa trên seed (product_id)
 // Đảm bảo cùng sản phẩm sẽ có cùng số random
 function seededRandom(seed: number): number {
@@ -25,29 +54,7 @@ function generateRandomRating(productId: number): number {
 
 export async function GET(request: NextRequest) {
   try {
-    // Kiểm tra và thêm cột sales_count và rating nếu chưa có
-    try {
-      const columns = await sql`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'products' 
-        AND column_name IN ('sales_count', 'rating')
-      `;
-      
-      const existingColumns = columns.map((col: any) => col.column_name);
-      
-      if (!existingColumns.includes('sales_count')) {
-        await sql`ALTER TABLE products ADD COLUMN sales_count INTEGER DEFAULT 0`;
-      }
-      if (!existingColumns.includes('rating')) {
-        await sql`ALTER TABLE products ADD COLUMN rating DECIMAL(3, 2) DEFAULT 0`;
-      }
-    } catch (error: any) {
-      // Bỏ qua lỗi nếu cột đã tồn tại
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Columns may already exist:', error.message);
-      }
-    }
+    await ensureProductColumnsOnce();
 
     // Lấy giá trị cộng thêm cho lượt bán từ settings
     let salesBoostConfig = { value: 0, interval_hours: 0, updated_at: null as Date | null };
@@ -78,9 +85,13 @@ export async function GET(request: NextRequest) {
 
     let query;
     if (categoryId) {
-      // Chỉ lấy sản phẩm có category_id đúng và không NULL
+      // Không SELECT description — giảm rất lớn dung lượng JSON (ảnh hưởng Fast Origin Transfer)
       query = sql`
-        SELECT p.*, c.name as category_name, c.discount_percent as category_discount_percent
+        SELECT
+          p.id, p.name, p.slug, p.price, p.original_price, p.image_url,
+          p.category_id, p.is_featured, p.is_active, p.stock, p.sales_count, p.rating,
+          p.created_at, p.updated_at,
+          c.name as category_name, c.discount_percent as category_discount_percent
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.category_id = ${parseInt(categoryId)} 
@@ -92,7 +103,11 @@ export async function GET(request: NextRequest) {
       `;
     } else if (featured === 'true') {
       query = sql`
-        SELECT p.*, c.name as category_name, c.discount_percent as category_discount_percent
+        SELECT
+          p.id, p.name, p.slug, p.price, p.original_price, p.image_url,
+          p.category_id, p.is_featured, p.is_active, p.stock, p.sales_count, p.rating,
+          p.created_at, p.updated_at,
+          c.name as category_name, c.discount_percent as category_discount_percent
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.is_featured = true AND p.is_active = true
@@ -101,7 +116,11 @@ export async function GET(request: NextRequest) {
       `;
     } else {
       query = sql`
-        SELECT p.*, c.name as category_name, c.discount_percent as category_discount_percent
+        SELECT
+          p.id, p.name, p.slug, p.price, p.original_price, p.image_url,
+          p.category_id, p.is_featured, p.is_active, p.stock, p.sales_count, p.rating,
+          p.created_at, p.updated_at,
+          c.name as category_name, c.discount_percent as category_discount_percent
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.is_active = true
@@ -147,7 +166,6 @@ export async function GET(request: NextRequest) {
           id: product.id,
           name: product.name,
           slug: product.slug,
-          description: product.description,
           price: parseFloat(product.price.toString()),
           original_price: product.original_price ? parseFloat(product.original_price.toString()) : undefined,
           image_url: product.image_url,
@@ -165,8 +183,8 @@ export async function GET(request: NextRequest) {
       }),
     });
 
-    // Cache 30 giây cho products
-    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+    // Cache CDN — giảm origin transfer khi nhiều request trùng URL (bot + user)
+    response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
     
     return response;
   } catch (error) {

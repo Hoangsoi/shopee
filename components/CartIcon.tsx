@@ -1,33 +1,60 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
+const POLL_MS = 45000
+
 export default function CartIcon() {
-  const router = useRouter()
   const [cartCount, setCartCount] = useState(0)
 
-  const fetchCartCount = useCallback(async () => {
-    try {
-      const response = await fetch('/api/cart')
-      if (response.ok) {
-        const data = await response.json()
-        // Sử dụng totalQuantity (tổng số lượng) thay vì count (số loại)
-        setCartCount(data.totalQuantity || data.count || 0)
+  useEffect(() => {
+    let cancelled = false
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
+    const fetchCartCount = async (): Promise<boolean> => {
+      try {
+        const response = await fetch('/api/cart')
+        if (cancelled) return false
+        if (response.ok) {
+          const data = await response.json()
+          setCartCount(data.totalQuantity || data.count || 0)
+          return true
+        }
+        if (response.status === 401) {
+          setCartCount(0)
+          return false
+        }
+      } catch {
+        // offline / network
       }
-    } catch (error) {
-      // Ignore errors (user might not be logged in)
+      return false
+    }
+
+    const tick = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      await fetchCartCount()
+    }
+
+    ;(async () => {
+      const loggedIn = await fetchCartCount()
+      if (cancelled || !loggedIn) return
+      intervalId = setInterval(tick, POLL_MS)
+    })()
+
+    const onResume = () => {
+      if (!document.hidden) void fetchCartCount()
+    }
+    document.addEventListener('visibilitychange', onResume)
+    window.addEventListener('focus', onResume)
+
+    return () => {
+      cancelled = true
+      if (intervalId) clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onResume)
+      window.removeEventListener('focus', onResume)
     }
   }, [])
-
-  useEffect(() => {
-    fetchCartCount()
-    
-    // Refresh cart count mỗi 5 giây
-    const interval = setInterval(fetchCartCount, 5000)
-    return () => clearInterval(interval)
-  }, [fetchCartCount])
 
   return (
     <Link href="/cart" className="relative">
@@ -42,4 +69,3 @@ export default function CartIcon() {
     </Link>
   )
 }
-

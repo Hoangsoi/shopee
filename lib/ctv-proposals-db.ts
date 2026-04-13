@@ -1,7 +1,11 @@
 import sql from '@/lib/db';
 
+let tablesEnsured = false;
+
 /** Tạo bảng đề xuất CTV (admin gửi — khách xác nhận tab CTV). */
 export async function ensureCtvProposalTables(): Promise<void> {
+  if (tablesEnsured) return;
+
   await sql`
     CREATE TABLE IF NOT EXISTS ctv_proposals (
       id SERIAL PRIMARY KEY,
@@ -34,4 +38,6 @@ export async function ensureCtvProposalTables(): Promise<void> {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS idx_ctv_proposal_items_proposal ON ctv_proposal_items(proposal_id)`;
+
+  tablesEnsured = true;
 }

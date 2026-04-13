@@ -1,93 +1,93 @@
-import { NextRequest, NextResponse } from 'next/server';
-import sql from '@/lib/db';
-import { getInvestmentRateByDays } from '@/lib/investment-utils';
-import { unstable_cache } from 'next/cache';
+import { NextRequest, NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 
-// Helper function để fetch investment rates với cache
+import sql from '@/lib/db'
+import { getPublicCacheHeaders } from '@/lib/http-cache'
+import { getInvestmentRateByDays } from '@/lib/investment-utils'
+
 async function fetchInvestmentRates() {
-  // Lấy cấu hình rates theo số ngày - Đảm bảo lấy giá trị mới nhất
-  // Sử dụng MAX(updated_at) để tránh vấn đề với nhiều records
-  const result = await sql`
+  return sql`
     SELECT value, updated_at
-    FROM settings 
+    FROM settings
     WHERE key = 'investment_rates_by_days'
       AND updated_at = (
-        SELECT MAX(updated_at) 
-        FROM settings 
+        SELECT MAX(updated_at)
+        FROM settings
         WHERE key = 'investment_rates_by_days'
       )
     LIMIT 1
-  `;
-  
-  return result;
+  `
 }
 
-// Cached version - cache 5 phút
 const getCachedInvestmentRates = unstable_cache(
   fetchInvestmentRates,
   ['investment-rates'],
   {
-    revalidate: 300, // 5 minutes
+    revalidate: 300,
     tags: ['investment-rates'],
   }
-);
+)
 
-// GET: Lấy tỷ lệ lợi nhuận đầu tư (public, không cần admin)
-// Có thể truyền query param ?days=X để lấy rate cho số ngày cụ thể
 export async function GET(request: NextRequest) {
   try {
-    // Lấy cấu hình rates theo số ngày với cache
-    const result = await getCachedInvestmentRates();
+    const result = await getCachedInvestmentRates()
 
     let rates = [
-      { min_days: 1, max_days: 6, rate: 1.00 },
-      { min_days: 7, max_days: 14, rate: 2.00 },
-      { min_days: 15, max_days: 29, rate: 3.00 },
-      { min_days: 30, rate: 5.00 },
-    ];
+      { min_days: 1, max_days: 6, rate: 1.0 },
+      { min_days: 7, max_days: 14, rate: 2.0 },
+      { min_days: 15, max_days: 29, rate: 3.0 },
+      { min_days: 30, rate: 5.0 },
+    ]
 
     if (result.length > 0) {
       try {
-        const parsed = JSON.parse(result[0].value);
+        const parsed = JSON.parse(result[0].value)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          rates = parsed;
+          rates = parsed
         }
-      } catch (e) {
-        // Sử dụng giá trị mặc định nếu parse lỗi
+      } catch {
+        // Keep fallback defaults when stored JSON is invalid.
       }
     }
-    // Note: Không tạo giá trị mặc định ở đây nữa - nên chạy migration trước
 
-    // Nếu có query param days, trả về rate cho số ngày đó
-    const { searchParams } = new URL(request.url);
-    const daysParam = searchParams.get('days');
-    
+    const { searchParams } = new URL(request.url)
+    const daysParam = searchParams.get('days')
+
     if (daysParam) {
-      const days = parseInt(daysParam);
-      if (!isNaN(days) && days > 0) {
-        const rate = getInvestmentRateByDays(days, rates);
-        return NextResponse.json({
-          days: days,
-          daily_profit_rate: rate,
-          rates: rates, // Trả về tất cả rates để client có thể hiển thị
-        });
+      const days = parseInt(daysParam, 10)
+      if (!Number.isNaN(days) && days > 0) {
+        const dailyProfitRate = getInvestmentRateByDays(days, rates)
+
+        return NextResponse.json(
+          {
+            days,
+            daily_profit_rate: dailyProfitRate,
+            rates,
+          },
+          {
+            headers: getPublicCacheHeaders(300, 600),
+          }
+        )
       }
     }
 
-    // Trả về tất cả rates nếu không có query param
-    return NextResponse.json({
-      rates: rates,
-      // Giữ backward compatibility
-      daily_profit_rate: rates[0]?.rate || 1.00,
-    });
+    return NextResponse.json(
+      {
+        rates,
+        daily_profit_rate: rates[0]?.rate || 1.0,
+      },
+      {
+        headers: getPublicCacheHeaders(300, 600),
+      }
+    )
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.error('Get investment rate error:', error);
+      console.error('Get investment rate error:', error)
     }
+
     return NextResponse.json(
       { error: 'Lỗi khi lấy tỷ lệ lợi nhuận' },
       { status: 500 }
-    );
+    )
   }
 }
-

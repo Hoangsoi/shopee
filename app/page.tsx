@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+
 import BannerCarousel from '@/components/BannerCarousel'
-import NotificationBar from '@/components/NotificationBar'
-import CategoryGrid from '@/components/CategoryGrid'
-import FeaturedProducts from '@/components/FeaturedProducts'
 import BottomNavigation from '@/components/BottomNavigation'
 import CartIcon from '@/components/CartIcon'
+import CategoryGrid from '@/components/CategoryGrid'
+import FeaturedProducts from '@/components/FeaturedProducts'
+import NotificationBar from '@/components/NotificationBar'
 
 interface User {
   id: number
@@ -26,39 +27,57 @@ interface Category {
   icon?: string
 }
 
-// Component để hiển thị sản phẩm - hiển thị TẤT CẢ nhưng đánh dấu category có quyền
-function FeaturedProductsByPermission({ categories }: { categories: Category[] }) {
-  const [permissions, setPermissions] = useState<number[]>([])
-  const [loading, setLoading] = useState(true)
+interface Product {
+  id: number
+  name: string
+  price: number
+  original_price?: number
+  image_url?: string
+  category_id?: number
+  category_name?: string
+  discount_percent?: number
+  sales_count?: number
+  rating?: number
+}
 
-  useEffect(() => {
-    fetchPermissions()
-  }, [])
+type ProductsByCategory = Record<number, Product[]>
 
-  const fetchPermissions = async () => {
-    try {
-      const response = await fetch('/api/user/category-permissions')
-      if (response.ok) {
-        const data = await response.json()
-        const categoryIds = data.permissions.map((p: any) => p.category_id)
-        setPermissions(categoryIds)
-      }
-    } catch (error) {
-      console.error('Error fetching permissions:', error)
-    } finally {
-      setLoading(false)
+function groupProductsByCategory(products: Product[]): ProductsByCategory {
+  return products.reduce<ProductsByCategory>((groups, product) => {
+    if (!product.category_id) {
+      return groups
     }
-  }
 
-  // Hiển thị TẤT CẢ categories, nhưng truyền thông tin quyền vào component
-  if (loading) {
+    if (!groups[product.category_id]) {
+      groups[product.category_id] = []
+    }
+
+    groups[product.category_id].push(product)
+    return groups
+  }, {})
+}
+
+function FeaturedProductsByPermission({
+  categories,
+  permissions,
+  permissionsLoading,
+  productsByCategory,
+  productsLoading,
+}: {
+  categories: Category[]
+  permissions: number[]
+  permissionsLoading: boolean
+  productsByCategory: ProductsByCategory
+  productsLoading: boolean
+}) {
+  if (permissionsLoading) {
     return <div className="text-center py-8">Đang tải...</div>
   }
 
   if (categories.length === 0) {
     return (
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
-        ⚠️ Chưa có danh mục nào
+        Chưa có danh mục nào
       </div>
     )
   }
@@ -67,12 +86,14 @@ function FeaturedProductsByPermission({ categories }: { categories: Category[] }
     <div className="space-y-6">
       {categories.map((category) => {
         const hasPermission = permissions.includes(category.id)
+
         return (
           <div key={category.id}>
             <FeaturedProducts
-              categoryId={category.id}
               categoryName={`Sản phẩm nổi bật - ${category.name}`}
               hasPermission={hasPermission}
+              prefetchedProducts={productsLoading ? null : productsByCategory[category.id] ?? []}
+              loading={productsLoading}
             />
             {!hasPermission && (
               <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm text-center">
@@ -90,18 +111,106 @@ export default function Home() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
+  const [permissions, setPermissions] = useState<number[]>([])
+  const [productsByCategory, setProductsByCategory] = useState<ProductsByCategory>({})
   const [loading, setLoading] = useState(true)
+  const [permissionsLoading, setPermissionsLoading] = useState(true)
+  const [productsLoading, setProductsLoading] = useState(true)
 
   useEffect(() => {
-    // Parallel fetch để tăng tốc độ
-    Promise.all([
-      checkAuth(),
-      fetchCategories(),
-    ]).catch((error) => {
+    Promise.all([checkAuth(), loadHomepageData()]).catch((error) => {
       console.error('Error loading homepage data:', error)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const fetchCategoriesData = async (): Promise<Category[]> => {
+    const response = await fetch('/api/categories')
+    if (!response.ok) {
+      throw new Error('Failed to fetch categories')
+    }
+
+    const data = await response.json()
+    const loadedCategories = data.categories || []
+
+    const vipCategory = loadedCategories.find((category: Category) => category.name === 'VIP')
+    if (vipCategory && process.env.NODE_ENV === 'development') {
+      console.log('Homepage VIP Category Debug:', {
+        name: vipCategory.name,
+        id: vipCategory.id,
+        discount_percent: vipCategory.discount_percent,
+        type: typeof vipCategory.discount_percent,
+      })
+    }
+
+    return loadedCategories
+  }
+
+  const fetchPermissionIds = async (): Promise<number[]> => {
+    const response = await fetch('/api/user/category-permissions')
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+    return data.permissions.map((permission: any) => permission.category_id)
+  }
+
+  const fetchProductsForCategories = async (loadedCategories: Category[]) => {
+    if (loadedCategories.length === 0) {
+      return {}
+    }
+
+    const categoryIds = loadedCategories.map((category) => category.id).join(',')
+    const response = await fetch(`/api/products?category_ids=${categoryIds}`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch products')
+    }
+
+    const data = await response.json()
+    return groupProductsByCategory(data.products || [])
+  }
+
+  const loadHomepageData = async () => {
+    setPermissionsLoading(true)
+    setProductsLoading(true)
+
+    let loadedCategories: Category[] = []
+
+    try {
+      const [categoriesResult, permissionsResult] = await Promise.allSettled([
+        fetchCategoriesData(),
+        fetchPermissionIds(),
+      ])
+
+      if (categoriesResult.status === 'fulfilled') {
+        loadedCategories = categoriesResult.value
+        setCategories(loadedCategories)
+      } else {
+        console.error('Error fetching categories:', categoriesResult.reason)
+        setCategories([])
+      }
+
+      if (permissionsResult.status === 'fulfilled') {
+        setPermissions(permissionsResult.value)
+      } else {
+        console.error('Error fetching permissions:', permissionsResult.reason)
+        setPermissions([])
+      }
+    } finally {
+      setPermissionsLoading(false)
+    }
+
+    try {
+      const groupedProducts = await fetchProductsForCategories(loadedCategories)
+      setProductsByCategory(groupedProducts)
+    } catch (error) {
+      console.error('Error fetching homepage products:', error)
+      setProductsByCategory({})
+    } finally {
+      setProductsLoading(false)
+    }
+  }
 
   const checkAuth = async () => {
     try {
@@ -109,22 +218,14 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json()
         const userData = data.user
-        
-        // Kiểm tra role (trim và lowercase để tránh lỗi)
         const userRole = userData?.role?.toString().trim().toLowerCase()
-        
-        // Nếu là admin, redirect đến trang admin dashboard
+
         if (userRole === 'admin') {
           router.push('/admin/dashboard')
           return
         }
-        
+
         setUser(userData)
-        
-        // Hiển thị thông báo nếu tài khoản bị đóng băng
-        if (userData.is_frozen) {
-          // Thông báo sẽ được hiển thị trong UI
-        }
       } else {
         router.push('/login')
       }
@@ -136,34 +237,8 @@ export default function Home() {
     }
   }
 
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('/api/categories')
-      if (response.ok) {
-        const data = await response.json()
-        const categories = data.categories || []
-        
-        // VIP category discount parsing (debug only in development)
-        const vipCategory = categories.find((cat: Category) => cat.name === 'VIP')
-        if (vipCategory && process.env.NODE_ENV === 'development') {
-          console.log('Homepage VIP Category Debug:', {
-            name: vipCategory.name,
-            id: vipCategory.id,
-            discount_percent: vipCategory.discount_percent,
-            type: typeof vipCategory.discount_percent
-          })
-        }
-        
-        setCategories(categories)
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error)
-    }
-  }
-
   const handleLogout = async () => {
     try {
-      // Reset Crisp session before logout to clear chat history
       if (typeof window !== 'undefined' && window.$crisp) {
         window.$crisp.push(['do', 'session:reset'])
         window.$crisp.push(['set', 'user:email', ''])
@@ -171,7 +246,7 @@ export default function Home() {
         window.$crisp.push(['set', 'session:data', []])
         window.$crisp.push(['do', 'chat:hide'])
       }
-      
+
       await fetch('/api/auth/logout', { method: 'POST' })
       router.push('/login')
     } catch (error) {
@@ -193,7 +268,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
-      {/* Header */}
       <div className="bg-white shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <h1 className="text-xl font-bold text-[#ee4d2d]">Miinto</h1>
@@ -209,13 +283,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Notification Bar */}
       <NotificationBar />
 
-      {/* Main Content */}
       <div className="container mx-auto px-4 py-4">
-        {/* Thông báo tài khoản bị đóng băng */}
-        {user && user.is_frozen && (
+        {user.is_frozen && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -227,41 +298,52 @@ export default function Home() {
                 </h3>
                 <div className="mt-2 text-sm text-red-700">
                   <p>
-                    Tài khoản của bạn hiện đang bị đóng băng. Bạn vẫn có thể đăng nhập và xem thông tin, 
-                    nhưng không thể mua hàng hoặc rút tiền. Vui lòng liên hệ admin để được hỗ trợ.
+                    Tài khoản của bạn hiện đang bị đóng băng. Bạn vẫn có thể đăng nhập và xem
+                    thông tin, nhưng không thể mua hàng hoặc rút tiền. Vui lòng liên hệ admin để
+                    được hỗ trợ.
                   </p>
                 </div>
               </div>
             </div>
           </div>
         )}
-        {/* Banner Carousel */}
+
         <div className="mb-4">
           <BannerCarousel />
         </div>
 
-        {/* Categories */}
         {categories.length > 0 ? (
           <div className="mb-6">
-            <CategoryGrid categories={categories} />
+            <CategoryGrid
+              categories={categories}
+              permissions={permissions}
+              loadingPermissions={permissionsLoading}
+            />
           </div>
         ) : (
           <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
-            ⚠️ Chưa có danh mục. Vui lòng chạy migration: <code className="bg-yellow-100 px-2 py-1 rounded">npm run setup-db</code>
+            Chưa có danh mục. Vui lòng chạy migration:{' '}
+            <code className="bg-yellow-100 px-2 py-1 rounded">npm run setup-db</code>
           </div>
         )}
 
-        {/* Featured Products by Category - Chỉ hiển thị các category có quyền */}
         {categories.length > 0 ? (
-          <FeaturedProductsByPermission categories={categories} />
+          <FeaturedProductsByPermission
+            categories={categories}
+            permissions={permissions}
+            permissionsLoading={permissionsLoading}
+            productsByCategory={productsByCategory}
+            productsLoading={productsLoading}
+          />
         ) : (
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
-            💡 Sau khi có danh mục, sản phẩm sẽ hiển thị ở đây. Chạy <code className="bg-blue-100 px-2 py-1 rounded">npm run add-products</code> để thêm sản phẩm mẫu.
+            Sau khi có danh mục, sản phẩm sẽ hiển thị ở đây. Chạy{' '}
+            <code className="bg-blue-100 px-2 py-1 rounded">npm run add-products</code> để thêm
+            sản phẩm mẫu.
           </div>
         )}
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNavigation />
     </div>
   )

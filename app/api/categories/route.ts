@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getCachedCategories } from '@/lib/cache';
+import { getPublicCacheHeaders } from '@/lib/http-cache';
 import type { Category } from '@/lib/types';
 
 export async function GET() {
   try {
     const categories = await getCachedCategories();
 
-    return NextResponse.json({
-      categories: categories as Category[],
-    });
+    return NextResponse.json(
+      {
+        categories: categories as Category[],
+      },
+      {
+        headers: getPublicCacheHeaders(300, 600),
+      }
+    );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Get categories error:', error);

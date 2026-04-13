@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, memo } from 'react'
+import { memo, useEffect, useState } from 'react'
+
 import ProductCard from './ProductCard'
 
 interface Product {
@@ -9,6 +10,7 @@ interface Product {
   price: number
   original_price?: number
   image_url?: string
+  category_id?: number
   category_name?: string
   discount_percent?: number
   sales_count?: number
@@ -19,33 +21,69 @@ interface FeaturedProductsProps {
   categoryId?: number
   categoryName?: string
   hasPermission?: boolean
+  prefetchedProducts?: Product[] | null
+  loading?: boolean
 }
 
-function FeaturedProducts({ categoryId, categoryName, hasPermission = true }: FeaturedProductsProps) {
+function FeaturedProducts({
+  categoryId,
+  categoryName,
+  hasPermission = true,
+  prefetchedProducts,
+  loading: externalLoading = false,
+}: FeaturedProductsProps) {
+  const managedExternally = prefetchedProducts !== undefined
   const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!managedExternally)
 
   useEffect(() => {
-    fetchProducts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId])
-
-  const fetchProducts = async () => {
-    try {
-      const url = categoryId
-        ? `/api/products?category_id=${categoryId}`
-        : '/api/products?featured=true'
-      const response = await fetch(url)
-      const data = await response.json()
-      setProducts(data.products || [])
-    } catch (error) {
-      console.error('Error fetching products:', error)
-    } finally {
-      setLoading(false)
+    if (!managedExternally) {
+      setLoading(true)
+      return
     }
-  }
 
-  if (loading) {
+    setProducts(prefetchedProducts ?? [])
+    setLoading(false)
+  }, [managedExternally, prefetchedProducts])
+
+  useEffect(() => {
+    if (managedExternally) {
+      return
+    }
+
+    let cancelled = false
+
+    const fetchProducts = async () => {
+      try {
+        const url = categoryId
+          ? `/api/products?category_id=${categoryId}`
+          : '/api/products?featured=true'
+        const response = await fetch(url)
+        const data = await response.json()
+
+        if (!cancelled) {
+          setProducts(data.products || [])
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error)
+        if (!cancelled) {
+          setProducts([])
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void fetchProducts()
+
+    return () => {
+      cancelled = true
+    }
+  }, [categoryId, managedExternally])
+
+  if (loading || externalLoading) {
     return <div className="text-center py-8">Đang tải...</div>
   }
 
@@ -65,9 +103,7 @@ function FeaturedProducts({ categoryId, categoryName, hasPermission = true }: Fe
   return (
     <div className="mb-8">
       {categoryName && (
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
-          {categoryName}
-        </h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-4">{categoryName}</h2>
       )}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {products.map((product) => (
@@ -79,4 +115,3 @@ function FeaturedProducts({ categoryId, categoryName, hasPermission = true }: Fe
 }
 
 export default memo(FeaturedProducts)
-

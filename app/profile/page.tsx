@@ -164,12 +164,7 @@ export default function ProfilePage() {
   const fetchInvestmentRate = async () => {
     try {
       // Thêm cache-busting để đảm bảo luôn lấy dữ liệu mới nhất
-      const response = await fetch(`/api/settings/investment-rate?t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      })
+      const response = await fetch('/api/settings/investment-rate')
       if (response.ok) {
         const data = await response.json()
         if (data.rates && Array.isArray(data.rates) && data.rates.length > 0) {

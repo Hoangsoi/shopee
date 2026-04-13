@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 interface Category {
   id: number
@@ -14,79 +14,99 @@ interface Category {
 
 interface CategoryGridProps {
   categories: Category[]
+  permissions?: number[]
+  loadingPermissions?: boolean
 }
 
-export default function CategoryGrid({ categories }: CategoryGridProps) {
-  const [permissions, setPermissions] = useState<number[]>([])
-  const [loading, setLoading] = useState(true)
+export default function CategoryGrid({
+  categories,
+  permissions,
+  loadingPermissions = false,
+}: CategoryGridProps) {
+  const usingProvidedPermissions = permissions !== undefined
+  const [localPermissions, setLocalPermissions] = useState<number[]>([])
+  const [loading, setLoading] = useState(!usingProvidedPermissions)
 
   useEffect(() => {
-    fetchPermissions()
-  }, [])
-
-  const fetchPermissions = async () => {
-    try {
-      const response = await fetch('/api/user/category-permissions')
-      if (response.ok) {
-        const data = await response.json()
-        const categoryIds = data.permissions.map((p: any) => p.category_id)
-        setPermissions(categoryIds)
-      }
-    } catch (error) {
-      console.error('Error fetching permissions:', error)
-    } finally {
+    if (usingProvidedPermissions) {
       setLoading(false)
+      return
     }
-  }
+
+    let cancelled = false
+
+    const fetchPermissions = async () => {
+      try {
+        const response = await fetch('/api/user/category-permissions')
+        if (!response.ok || cancelled) {
+          return
+        }
+
+        const data = await response.json()
+        const categoryIds = data.permissions.map((permission: any) => permission.category_id)
+        if (!cancelled) {
+          setLocalPermissions(categoryIds)
+        }
+      } catch (error) {
+        console.error('Error fetching permissions:', error)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void fetchPermissions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [usingProvidedPermissions])
+
+  const resolvedPermissions = usingProvidedPermissions ? permissions : localPermissions
+  const isLoadingPermissions = usingProvidedPermissions ? loadingPermissions : loading
 
   const categoryIcons: { [key: string]: string } = {
     'Mỹ phẩm': '💄',
     'Điện tử': '📱',
     'Điện lạnh': '❄️',
     'Cao cấp': '💎',
-    'VIP': '⭐',
+    VIP: '⭐',
   }
 
-  const handleLockedCategory = (e: React.MouseEvent, categoryName: string) => {
-    e.preventDefault()
+  const handleLockedCategory = (event: React.MouseEvent, categoryName: string) => {
+    event.preventDefault()
     alert(`Bạn chưa có quyền truy cập khu vực "${categoryName}". Vui lòng liên hệ admin để được cấp quyền.`)
   }
 
   return (
     <div className="grid grid-cols-5 gap-4 py-6">
       {categories.map((category) => {
-        const hasPermission = permissions.includes(category.id)
-        const isLocked = !hasPermission && !loading
-        
-        // Đảm bảo discount_percent là số hợp lệ - parse nhiều cách để chắc chắn
+        const hasPermission = resolvedPermissions?.includes(category.id) ?? false
+        const isLocked = !hasPermission && !isLoadingPermissions
+
         let discountPercent = 0
         if (category.discount_percent !== null && category.discount_percent !== undefined) {
-          // Thử parse theo nhiều cách
           const value = category.discount_percent
           if (typeof value === 'number') {
             discountPercent = value
           } else if (typeof value === 'string') {
             const parsed = parseInt(value, 10)
-            discountPercent = isNaN(parsed) ? 0 : parsed
+            discountPercent = Number.isNaN(parsed) ? 0 : parsed
           } else {
             const parsed = Number(value)
-            discountPercent = isNaN(parsed) ? 0 : Math.floor(parsed)
+            discountPercent = Number.isNaN(parsed) ? 0 : Math.floor(parsed)
           }
         }
 
-        // VIP category discount parsing (debug only in development)
         if (category.name === 'VIP' && process.env.NODE_ENV === 'development') {
           console.log('VIP Category Debug:', {
             name: category.name,
             id: category.id,
             raw_discount_percent: category.discount_percent,
-            parsed_discountPercent: discountPercent,
-            type: typeof category.discount_percent,
+            parsedDiscountPercent: discountPercent,
             isLocked,
             hasPermission,
-            willShow: discountPercent > 0,
-            condition: discountPercent > 0,
-            fullCategory: category
           })
         }
 
@@ -94,17 +114,16 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
           <div
             key={category.id}
             className={`flex flex-col items-center p-4 bg-white rounded-lg shadow-sm transition-all relative ${
-              isLocked 
-                ? 'opacity-60 cursor-not-allowed' 
-                : 'hover:shadow-md cursor-pointer'
+              isLocked ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'
             }`}
-            onClick={isLocked ? (e) => handleLockedCategory(e, category.name) : undefined}
+            onClick={isLocked ? (event) => handleLockedCategory(event, category.name) : undefined}
           >
             {isLocked && (
               <div className="absolute top-2 right-2 text-2xl z-10">
                 🔒
               </div>
             )}
+
             {!isLocked ? (
               <Link
                 href={`/category/${category.slug}`}
@@ -147,4 +166,3 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
     </div>
   )
 }
-

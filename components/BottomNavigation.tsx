@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
+import { fetchCtvProposalsCount } from '@/lib/fetch-ctv-proposals-count'
 
 const navItems = [
   { path: '/', label: 'Trang chủ', icon: '🏠' },
@@ -29,25 +30,24 @@ export default function BottomNavigation() {
       if (typeof document !== 'undefined' && document.hidden) return
       // Trang /ctv đã gọi /api/ctv/proposals — không cần poll count (giảm gọi API trùng)
       if (pathnameRef.current === '/ctv') return
-      try {
-        const res = await fetch('/api/ctv/proposals/count')
-        if (!res.ok || cancelled) return
-        const data = await res.json()
-        if (!cancelled) setCtvCount(typeof data.count === 'number' ? data.count : 0)
-      } catch {
-        if (!cancelled) setCtvCount(0)
-      }
+      const count = await fetchCtvProposalsCount()
+      if (!cancelled) setCtvCount(count)
     }
 
     load()
     const t = setInterval(load, CTV_POLL_MS)
+    let resumeTimer: ReturnType<typeof setTimeout> | null = null
     const onResume = () => {
-      if (!document.hidden) void load()
+      if (!document.hidden) {
+        if (resumeTimer) clearTimeout(resumeTimer)
+        resumeTimer = setTimeout(() => void load(), 200)
+      }
     }
     document.addEventListener('visibilitychange', onResume)
     window.addEventListener('focus', onResume)
     return () => {
       cancelled = true
+      if (resumeTimer) clearTimeout(resumeTimer)
       clearInterval(t)
       document.removeEventListener('visibilitychange', onResume)
       window.removeEventListener('focus', onResume)
@@ -60,16 +60,7 @@ export default function BottomNavigation() {
     prevPathnameRef.current = pathname
     if (prev === '/ctv' && pathname !== '/ctv') {
       if (typeof document !== 'undefined' && document.hidden) return
-      ;(async () => {
-        try {
-          const res = await fetch('/api/ctv/proposals/count')
-          if (!res.ok) return
-          const data = await res.json()
-          setCtvCount(typeof data.count === 'number' ? data.count : 0)
-        } catch {
-          setCtvCount(0)
-        }
-      })()
+      void fetchCtvProposalsCount().then(setCtvCount)
     }
   }, [pathname])
 

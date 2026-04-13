@@ -83,6 +83,7 @@ export default function BottomNavigation() {
             <Link
               key={item.path}
               href={item.path}
+              prefetch={false}
               className={`relative flex flex-col items-center justify-center py-1.5 px-0.5 transition-colors ${
                 isActive ? 'text-[#ee4d2d]' : 'text-gray-600'
               }`}

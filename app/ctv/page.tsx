@@ -72,10 +72,14 @@ export default function CtvPage() {
         await load()
         router.push('/orders')
       } else {
-        setError(data.error || 'Không thể xác nhận')
+        const msg = data.error || 'Không thể xác nhận'
+        setError(msg)
+        alert(msg)
       }
     } catch {
-      setError('Lỗi kết nối')
+      const msg = 'Lỗi kết nối'
+      setError(msg)
+      alert(msg)
     } finally {
       setActingId(null)
     }
